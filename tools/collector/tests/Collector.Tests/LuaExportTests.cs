@@ -16,9 +16,9 @@ public sealed class LuaExportTests : IDisposable
         File.WriteAllText(Path.Combine(Parsed, "manifest.json"), """{"schemaVersion":1,"source":{"commit":"0123456789abcdef"},"counts":{"quests":3}}""");
         File.WriteAllText(Path.Combine(Parsed, "quests.json"), """
             [
-            {"id":2,"name":"Sharptalon's Claw","level":30,"start":{"items":[16305]},"end":{"npcs":[12696]},"requiredRaces":8589934770,"repeatable":true},
-            {"id":25,"name":"Say \"hi\"\\ twice\nthen leave","triggerEnd":{"text":"Scout","locations":{"331":[[48.92,69.56]],"1":[[-1,-1]]}},"objectivesText":["a","","b"]},
-            {"id":900,"name":"Entrée à Zephras","xp":0.5,"empty":[],"nested":{"007":"bond","-3":"minus","a-b":1}}
+            {"id":2,"name":"Sharptalon's Claw","level":30,"start":{"items":[16305]},"end":{"npcs":[12696]},"requiredRaces":8589934770,"repeatable":true,"origin":"era","side":"horde"},
+            {"id":25,"name":"Say \"hi\"\\ twice\nthen leave","triggerEnd":{"text":"Scout","locations":{"331":[[48.92,69.56]],"1":[[-1,-1]]}},"objectivesText":["a","","b"],"origin":"era","side":"both"},
+            {"id":900,"name":"Entrée à Zephras","ratio":0.5,"empty":[],"nested":{"007":"bond","-3":"minus","a-b":1},"origin":"forever","side":"both"}
             ]
             """);
         File.WriteAllText(Path.Combine(Parsed, "quest-relations.json"), """[{"questId":2,"preQuestSingle":[6383],"nextQuestInChain":25}]""");
@@ -59,7 +59,7 @@ public sealed class LuaExportTests : IDisposable
         Assert.StartsWith(LuaExporter.GeneratedMarker, lines[0]);
         Assert.Contains("local _, ns = ...", lines);
         Assert.Contains("ns.Data.quests=ns.Data.quests or {}", lines);
-        Assert.Contains("""t[2]={name="Sharptalon's Claw",level=30,start={items={16305}},["end"]={npcs={12696}},requiredRaces=8589934770,repeatable=true}""", lines);
+        Assert.Contains("""t[2]={name="Sharptalon's Claw",level=30,start={items={16305}},["end"]={npcs={12696}},requiredRaces=8589934770,repeatable=true,origin="era",side="horde"}""", lines);
         Assert.Contains("t[2]={preQuestSingle={6383},nextQuestInChain=25}", File.ReadAllLines(Path.Combine(Output, "questRelations-1.lua")));
     }
 
@@ -112,7 +112,7 @@ public sealed class LuaExportTests : IDisposable
 
         var memory = exporter.Verify(Parsed, Output, exporter.Run(Parsed, Output)).Memory;
 
-        Assert.Equal(["manifest", "quests", "questRelations", "npcs", "objects", "items", "zones"], memory.Select(m => m.Table));
+        Assert.Equal(["manifest", "quests", "questRelations", "npcs", "objects", "items", "zones", "plannerQuests", "plannerZones"], memory.Select(m => m.Table));
         Assert.All(memory, m => Assert.InRange(m.Megabytes, 0.00001, 1));
         Assert.Equal(0, memory.Single(m => m.Table == "objects").Megabytes, 3);
     }
@@ -125,7 +125,7 @@ public sealed class LuaExportTests : IDisposable
         var export = exporter.Run(Parsed, Output);
 
         Assert.Empty(exporter.Verify(Parsed, Output, export).Differences);
-        Assert.Equal(["manifest.lua", "quests-1.lua", "questRelations-1.lua", "npcs-1.lua", "objects-1.lua", "items-1.lua", "zones-1.lua"], export.Files);
+        Assert.Equal(["manifest.lua", "quests-1.lua", "questRelations-1.lua", "npcs-1.lua", "objects-1.lua", "items-1.lua", "zones-1.lua", "plannerQuests-1.lua", "plannerZones-1.lua"], export.Files);
         var xml = File.ReadAllText(Path.Combine(Output, "data.xml"));
         Assert.All(export.Files, file => Assert.Contains($"<Script file=\"{file}\"/>", xml));
     }

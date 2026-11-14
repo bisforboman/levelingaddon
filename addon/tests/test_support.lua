@@ -44,6 +44,7 @@ local function listen(registry, owner)
 end
 
 T.load()
+ns.Steps.list = dofile("addon/tests/northshire.lua")
 local me = {}
 listen(LevelingAddonEvents, me)
 T.login()
@@ -72,16 +73,36 @@ fire("QUEST_TURNED_IN", 783, 40, 0)
 assert(heard[5][1] == "QuestTurnedIn" and heard[5][2] == 783 and heard[5][3] == nil)
 assert(heard[6][1] == "StepShown" and heard[6][2] == 3 and #heard == 6)
 
+-- A new plan: fresh tables and another index for the same current step announce nothing; a
+-- different step at the same index is announced.
+local plan = dofile("addon/tests/northshire.lua")
+table.insert(plan, 1, plan[1])
+ns.Steps.list = plan
+wipe(ns.Steps.state)
+ns.Steps:Sync()
+ns.Refresh()
+assert(select(2, ns.Steps:Current()) == 4 and #heard == 6, "the same step at another index is not new")
+table.remove(plan, 4)
+ns.Steps:Sync()
+ns.Refresh()
+assert(#heard == 7 and heard[7][2] == 4 and heard[7][3].questID == 33, "another step at the same index is")
+ns.Steps.list = dofile("addon/tests/northshire.lua")
+wipe(ns.Steps.state)
+ns.Steps:Sync()
+ns.Refresh()
+assert(#heard == 8 and heard[8][2] == 3)
+heard = {}
+
 -- Skipping moves the current step too; a failing listener stops nothing.
 LevelingAddonEvents:RegisterCallback("LevelingAddon.StepShown", function()
     error("someone else's bug")
 end, {})
 ns.Steps:Skip(3)
 ns.Refresh()
-assert(heard[7][1] == "StepShown" and heard[7][2] == 4)
+assert(#heard == 1 and heard[1][1] == "StepShown" and heard[1][2] == 4)
 LevelingAddonEvents:UnregisterCallback("LevelingAddon.StepShown", me)
-cmd("unskip")
-assert(#heard == 7, "an unregistered listener hears nothing")
+cmd("unskip all")
+assert(#heard == 1, "an unregistered listener hears nothing")
 
 -- Verbose output appears only while the mode is on.
 T.chat = {}
@@ -123,7 +144,7 @@ has("character: level 7 WARRIOR")
 has("zone: Elwynn Forest, Northshire Valley")
 has("position: map 1429 at 49.2, 46.3")
 has("steps: 3 of 17")
-has(">3 { kind=accept, map=1429, name=Marshal McBride")
+has(">3 { kept=true, kind=accept, map=1429, name=Marshal McBride")
 has("  rows = 5")
 has("  skipped = {}")
 has("  verbose = false")
@@ -163,6 +184,7 @@ EventRegistry = {
     end,
 }
 T.load()
+T.ns.Steps.list = dofile("addon/tests/northshire.lua")
 assert(LevelingAddonEvents == EventRegistry)
 T.login()
 assert(#triggered == 1 and triggered[1][1] == "LevelingAddon.StepShown" and triggered[1][2] == 1)

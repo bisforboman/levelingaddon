@@ -69,7 +69,8 @@ local refresh, lastStep = ns.Refresh, nil
 function ns.Refresh()
     refresh()
     local step, index = ns.Steps:Current()
-    local key = step and (index .. ":" .. tostring(step.kind) .. ":" .. tostring(step.questID))
+    -- Not the index or the table: the planner rebuilds the list on every pass.
+    local key = step and table.concat({ step.kind, step.questID, step.objective or 0, tostring(step.name) }, ":")
     if key ~= lastStep then
         lastStep = key
         if step then

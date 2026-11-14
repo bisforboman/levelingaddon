@@ -1,45 +1,31 @@
--- The route and each step's state. The route is still a fixed sample: the first stretch of
--- Northshire (human start), taken from data/parsed: quest ids 783, 7, 33, 15, 18, 21 and NPC
--- spawn averages. Later the list is computed from the quest data.
+-- The steps the window and the arrow show, and each step's state.
+--
+-- The list is the planner's: ns.Planner computes the next steps from the character's state and
+-- hands them over with Steps:SetPlan. Steps that were finished or skipped while they were on
+-- the list stay above the plan as history, so the window can scroll back to them.
+--
+-- A step is { kind, name, need, questID, objective, map, x, y }:
+--   kind       "accept" (pick a quest up), "turnin" (hand it in), "kill", "loot", or "go"
+--              (be somewhere: an escort, an exploration)
+--   name       the NPC, creature, item or place to find
+--   need       how many, for a kill or loot step whose quest is in the log
+--   objective  which of the quest's objectives in the log a kill, loot or go step is about;
+--              nil while the quest is not in the log yet
+--   map, x, y  the zone map (uiMapId) and the position on it in percent
 --
 -- State is read from the game's quest log, never set by hand: a step is done when the game says
--- so. The one thing the player decides is which pending steps to skip.
+-- so. The one thing the player decides is which quests to skip, and that is kept per character.
 local _, ns = ...
 
 local Steps = {}
 ns.Steps = Steps
 
-local ELWYNN = 1429
-local ABBEY, MINE, VALLEY, VINEYARDS =
-    "Northshire Abbey", "Echo Ridge Mine", "Northshire Valley", "Northshire Vineyards"
+local HISTORY = 20 -- finished and skipped steps kept above the plan
 
-local function newStep(kind, name, need, questID, place, x, y)
-    return { kind = kind, name = name, need = need, questID = questID, place = place, map = ELWYNN, x = x, y = y }
-end
+ns.charDefaults.skipped = {} -- [quest id] = true for quests the player chose to skip
+ns.defaults.skipped = nil -- skips used to be kept per step index, for the whole account
 
--- kind: "accept" (pick a quest up), "turnin" (hand it in), "kill", "loot".
--- need: how many, for kill and loot steps; each of these quests has a single objective.
--- x, y: map percent, as in the parsed data.
-Steps.list = {
-    newStep("accept", "Deputy Willem", nil, 783, ABBEY, 48.2, 42.9),
-    newStep("turnin", "Marshal McBride", nil, 783, ABBEY, 48.9, 41.6),
-    newStep("accept", "Marshal McBride", nil, 7, ABBEY, 48.9, 41.6),
-    newStep("accept", "Eagan Peltskinner", nil, 33, ABBEY, 48.9, 40.2),
-    newStep("loot", "Tough Wolf Meat", 8, 33, VALLEY, 46.2, 46.5),
-    newStep("kill", "Kobold Vermin", 10, 7, MINE, 49.2, 36.3),
-    newStep("turnin", "Marshal McBride", nil, 7, ABBEY, 48.9, 41.6),
-    newStep("accept", "Marshal McBride", nil, 15, ABBEY, 48.9, 41.6),
-    newStep("turnin", "Eagan Peltskinner", nil, 33, ABBEY, 48.9, 40.2),
-    newStep("accept", "Deputy Willem", nil, 18, ABBEY, 48.2, 42.9),
-    newStep("kill", "Kobold Worker", 10, 15, MINE, 48.9, 34.6),
-    newStep("loot", "Red Burlap Bandana", 12, 18, VINEYARDS, 54.2, 47.3),
-    newStep("turnin", "Deputy Willem", nil, 18, ABBEY, 48.2, 42.9),
-    newStep("turnin", "Marshal McBride", nil, 15, ABBEY, 48.9, 41.6),
-    newStep("accept", "Marshal McBride", nil, 21, ABBEY, 48.9, 41.6),
-    newStep("kill", "Kobold Laborer", 12, 21, MINE, 48.9, 28.3),
-    newStep("turnin", "Marshal McBride", nil, 21, ABBEY, 48.9, 41.6),
-}
-
+Steps.list = {}
 Steps.state = {} -- [index] = { status = "done" | "skipped" | "pending", count = number }
 local turnedIn = {} -- quests handed in this session; the completed flag can lag the event
 
@@ -62,33 +48,67 @@ local function readStep(step)
     elseif step.kind == "turnin" then
         return false, 0
     end
-    -- Kill and loot steps: the quest's first objective. No objectives while the quest is not
-    -- in the log.
+    -- Kill, loot and go steps: one objective of the quest. No objectives while the quest is
+    -- not in the log.
     local objectives = C_QuestLog.GetQuestObjectives(questID)
-    local objective = objectives and objectives[1]
+    local objective = objectives and objectives[step.objective or 1]
     if not objective then
         return false, 0
     end
     return objective.finished, objective.numFulfilled or 0
 end
 
--- Read every step's state from the quest log. Returns true if anything changed.
-function Steps:Sync()
-    local changed = false
+-- Read every step's state from the quest log. Returns whether anything changed, and whether a
+-- step's status did (and not just a count).
+local function read(self)
+    local changed, moved = false, false
     for index, step in ipairs(self.list) do
         local done, count = readStep(step)
-        local status = done and "done" or ns.db.skipped[index] and "skipped" or "pending"
+        local status = done and "done" or ns.char.skipped[step.questID] and "skipped" or "pending"
         local state = self.state[index]
         if not state then
             state = {}
             self.state[index] = state
         end
         if state.status ~= status or state.count ~= count then
+            moved = moved or state.status ~= status
             state.status, state.count = status, count
             changed = true
         end
     end
+    return changed, moved
+end
+
+-- Called after quest events. A step that finished (or came back) means the plan is stale, so a
+-- pass is asked for as well; and so does a planner that is waiting for the log to fill in.
+function Steps:Sync()
+    local changed, moved = read(self)
+    if moved or ns.Planner.waiting then
+        ns.Planner.Request()
+    end
     return changed
+end
+
+-- The planner's new steps. What was finished stays as history, and so does the step a skip
+-- was made on; everything else of the old list is replaced.
+function Steps:SetPlan(rows)
+    read(self)
+    local list = {}
+    for index, step in ipairs(self.list) do
+        local status = self:Status(index)
+        if status == "done" or (status == "skipped" and step.kept) then
+            list[#list + 1] = step
+        end
+    end
+    while #list > HISTORY do
+        table.remove(list, 1)
+    end
+    for _, step in ipairs(rows) do
+        list[#list + 1] = step
+    end
+    self.list = list
+    wipe(self.state)
+    read(self)
 end
 
 function Steps:Count()
@@ -107,7 +127,7 @@ function Steps:Progress(index)
 end
 
 -- The current step is the first one that is neither done nor skipped. Returns its index, or
--- nil when the route is finished.
+-- nil when there is nothing left to suggest.
 function Steps:CurrentIndex()
     for index = 1, #self.list do
         if self:Status(index) == "pending" then
@@ -122,18 +142,58 @@ function Steps:Current()
     return index and self.list[index], index
 end
 
--- The player's own choices. Only a pending step can be skipped and only a skipped step can be
--- brought back; a finished step is never changed by hand.
+-- The player's own choices. Skipping a step skips its quest: nothing of that quest is
+-- suggested again until the player restores it. Only a pending step can be skipped; a finished
+-- step is never changed by hand.
 function Steps:Skip(index)
-    if self.list[index] and self:Status(index) == "pending" then
-        ns.db.skipped[index] = true
-        self:Sync()
+    local step = self.list[index]
+    if step and self:Status(index) == "pending" then
+        ns.char.skipped[step.questID] = true
+        step.kept = true -- this step stays in view, crossed out, to restore from
+        ns.Planner:Run()
     end
 end
 
 function Steps:Restore(index)
-    if ns.db.skipped[index] then
-        ns.db.skipped[index] = nil
-        self:Sync()
+    local step = self.list[index]
+    if step then
+        self:RestoreQuest(step.questID)
+    end
+end
+
+function Steps:RestoreQuest(questID)
+    if ns.char.skipped[questID] then
+        ns.char.skipped[questID] = nil
+        ns.Planner:Run()
+    end
+end
+
+-- The skipped quests, to restore from.
+function ns.commands.skipped()
+    local ids = {}
+    for questID in pairs(ns.char.skipped) do
+        ids[#ids + 1] = questID
+    end
+    table.sort(ids)
+    if not ids[1] then
+        ns.say("no skipped quests.")
+        return
+    end
+    local quests = ns.Data and ns.Data.plannerQuests or {}
+    for _, questID in ipairs(ids) do
+        ns.say(questID .. " " .. (quests[questID] and quests[questID].name or "?"))
+    end
+    ns.say("/lvl unskip NUMBER brings one back, /lvl unskip all brings back every one.")
+end
+
+function ns.commands.unskip(arg)
+    local questID = tonumber(arg)
+    if arg == "all" then
+        wipe(ns.char.skipped)
+        ns.Planner:Run()
+    elseif questID and ns.char.skipped[questID] then
+        Steps:RestoreQuest(questID)
+    else
+        ns.commands.skipped()
     end
 end
