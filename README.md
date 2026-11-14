@@ -14,11 +14,42 @@ data; the addon itself (Lua) comes later.
 | Wowhead list / quest page parsers | Not built: need a few real sample pages first |
 | JSON → Lua export | Done: `collector export`, checked by loading the files back and in Lua 5.1 |
 
+## Addon (UI shell)
+
+`addon/LevelingAddon/` is a first shell of the interface, not yet run in the game: a guide
+window and an arrow for a fixed sample route (the first stretch of Northshire, the human
+start, with quest ids, names and coordinates taken from `data/parsed`). Step progress is read
+from the game's quest log: accepting a quest, objective counts and handing a quest in move the
+list by themselves. The route is not yet computed from the quest data. The design and the
+reasons behind it are in [`docs/ui-concepts.md`](docs/ui-concepts.md).
+
+To try it, copy `addon/LevelingAddon` into the game's `Interface/AddOns` folder and start a
+human character.
+
+| Command | Does |
+| --- | --- |
+| `/lvl` | Hide or show the window and arrow |
+| `/lvl rows N`, `/lvl scale N` | Steps in view (3 to 16), window scale (0.6 to 2) |
+| `/lvl arrow` | Turn our arrow on or off |
+| `/lvl unskip` | Bring every skipped step back |
+| `/lvl reset` | Put the window back where it starts |
+
+In the window: drag to move, mouse wheel to scroll through the route, the cross on a pending
+step skips it, the arrow on a skipped step brings it back.
+
+`lua5.1 addon/tests/smoke.lua addon/LevelingAddon` runs the addon against a stub of the game
+API with a fake quest log, and checks tracking, skip and restore, combat folding, the arrow's
+direction and distance, and the TomTom hand-off. It cannot check how anything looks; that
+needs the game client.
+
 ## Layout
 
 ```
 collector.json          pinned sources and fetch settings
 tools/collector/        the C# / .NET 10 collector (runs outside the game)
+addon/LevelingAddon/    the addon's Lua: UI shell with a sample route
+addon/tests/            smoke test that runs outside the game
+docs/                   UI research, decisions and mockups
 data/raw/               raw inputs: QuestieDB checkout, cached Wowhead responses (gitignored)
 data/parsed/            normalized JSON, the source of truth (committed)
 data/lua/               Lua table files generated from data/parsed (gitignored; one command to rebuild)

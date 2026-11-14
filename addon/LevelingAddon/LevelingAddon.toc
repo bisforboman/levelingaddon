@@ -1,0 +1,11 @@
+## Interface: 16001
+## Title: Leveling Addon
+## Notes: A small guide window that shows the next step. UI shell with a sample route.
+## Version: 0.1.0
+## SavedVariables: LevelingAddonDB
+## AddonCompartmentFunc: LevelingAddon_OnCompartmentClick
+
+Core.lua
+Steps.lua
+Window.lua
+Arrow.lua
