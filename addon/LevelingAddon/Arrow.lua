@@ -1,7 +1,7 @@
 -- One arrow pointing at the current step, with the distance in yards: at the nearest of the
 -- places the step can be done at, and at the corpse while the player is a ghost. On arrival it
--- becomes a ring. If TomTom is installed it gets the waypoint instead and we draw nothing, so
--- there are never two arrows.
+-- becomes a ring; a step on another continent is named instead. If TomTom is installed it gets
+-- the waypoint instead and we draw nothing, so there are never two arrows.
 local _, ns = ...
 
 local Arrow = {}
@@ -13,6 +13,7 @@ local MIN_TURN = 0.02 -- radians (about one degree); smaller changes do not redr
 local RESELECT = 5 -- updates between two looks for the nearest place
 local ARROW_TEXTURE = "Interface\\Minimap\\MinimapArrow" -- points up when not rotated
 -- Ours: a ring around a dot, white, drawn as in docs/mockups/ui-directions.html ("Arrived").
+local CONTINENT = Enum and Enum.UIMapType and Enum.UIMapType.Continent or 2 -- a map's mapType
 local RING_TEXTURE = "Interface\\AddOns\\LevelingAddon\\ring.tga"
 
 -- World position and continent of a map point (x and y from 0 to 1), or nil where the game
@@ -35,7 +36,8 @@ local function newTarget(mapID, flat, area)
     local ex, ey = east.x - centre.x, east.y - centre.y
     local sx, sy = south.x - centre.x, south.y - centre.y
     local e, s = math.sqrt(ex * ex + ey * ey), math.sqrt(sx * sx + sy * sy)
-    local target = { continent = continent, area = area, ex = ex / e, ey = ey / e, sx = sx / s, sy = sy / s }
+    local target =
+        { map = mapID, continent = continent, area = area, ex = ex / e, ey = ey / e, sx = sx / s, sy = sy / s }
     for i = 1, #flat, 2 do
         local position = worldPosition(mapID, flat[i], flat[i + 1])
         if position then
@@ -129,6 +131,11 @@ local function placesOf(step)
     return flat
 end
 
+-- For other features (the map pins): the places the arrow walks for a step, as one flat list
+-- { x1, y1, x2, y2, ... } of positions on the step's map (step.map), each from 0 to 1. Never
+-- empty: the step's own point when the data has no others.
+Arrow.Places = placesOf
+
 -- The corpse, looked for on the player's map and then on the maps it is part of.
 local function corpseTarget()
     local find = C_DeathInfo and C_DeathInfo.GetCorpseMapPosition
@@ -188,6 +195,13 @@ function Arrow:Create()
     self.distance = frame:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
     self.distance:SetPoint("BOTTOM", 0, 5)
 
+    -- The target is on another continent (see Name): its zone, and the continent under it.
+    self.zone = frame:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+    self.zone:SetPoint("CENTER", 0, 8)
+    self.zone:SetTextColor(0.95, 0.76, 0.19)
+    self.continent = frame:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+    self.continent:SetPoint("TOP", self.zone, "BOTTOM", 0, -4)
+
     -- In flight (see SetFlight): the time left, large, and the destination under it.
     self.flightTime = frame:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
     self.flightTime:SetPoint("TOP", 0, -12)
@@ -206,7 +220,8 @@ end
 
 -- Invisible where there is nothing to point at; dimmed in combat if the player wants that.
 function Arrow:Fade()
-    self.frame:SetAlpha(self.away and not self.flight and 0 or self.combat and ns.db.combatDim and 0.4 or 1)
+    local hidden = self.away and not self.named and not self.flight
+    self.frame:SetAlpha(hidden and 0 or self.combat and ns.db.combatDim and 0.4 or 1)
 end
 
 -- In flight the arrow has nothing to point at, so Flights.lua (#16) borrows its frame: `time`
@@ -223,6 +238,33 @@ function Arrow:SetFlight(time, name)
         self.flightName:SetText(name or "")
         self.frame:SetWidth(time and math.max(56, self.flightName:GetStringWidth() + 12) or 56)
         self:StepChanged()
+    end
+end
+
+-- A target on another continent has no direction from here, so its name takes the arrow's
+-- place: the zone, and the continent under it, both as the client spells them. Name(nil) gives
+-- the frame back to the arrow. The frame grows sideways to fit.
+function Arrow:Name(mapID)
+    local info = mapID and C_Map.GetMapInfo and C_Map.GetMapInfo(mapID)
+    local zone = info and info.name
+    for _ = 1, 4 do
+        if not info or info.mapType == CONTINENT then
+            break
+        end
+        info = info.parentMapID and C_Map.GetMapInfo(info.parentMapID)
+    end
+    self.named = zone ~= nil
+    self.zone:SetText(zone or "")
+    self.continent:SetText(info and info.name ~= zone and info.name or "")
+    if zone then
+        self.texture:Hide()
+        self.ring:Hide()
+        self.distance:SetText("")
+        self.turn, self.yards = nil, nil -- so that the arrow draws itself again afterwards
+    end
+    if not self.flight then
+        local width = math.max(self.zone:GetStringWidth(), self.continent:GetStringWidth()) + 12
+        self.frame:SetWidth(zone and math.max(56, width) or 56)
     end
 end
 
@@ -292,6 +334,7 @@ function Arrow:StepChanged()
     self.frame:SetShown(shown or flying)
     ns.SetTask("arrow", shown and not flying)
     if flying then
+        self:Name(nil)
         self.texture:Hide()
         self.ring:Hide()
         self.distance:SetText("")
@@ -318,11 +361,12 @@ function Arrow:Update()
     local target = self.target
     local px, py, _, continent = UnitPosition("player")
     if not px or continent ~= target.continent then
-        -- No position here (an instance), or the target is on another continent: show nothing
-        -- rather than an arrow in a meaningless direction. Neither changes without one of the
-        -- events above, so the task rests until then.
-        if not self.away then
+        -- The target is on another continent: its name instead of an arrow in a meaningless
+        -- direction. No position here (an instance), or no name from the client: nothing.
+        -- Neither changes without one of the events above, so the task rests until then.
+        if not self.away or (px and not self.named) then
             self.away = true
+            self:Name(px and self.wanted ~= "corpse" and target.map)
             self:Fade()
         end
         if px or IsInInstance() then
@@ -332,6 +376,7 @@ function Arrow:Update()
     end
     if self.away then
         self.away = false
+        self:Name(nil)
         self:Fade()
     end
 

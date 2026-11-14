@@ -37,5 +37,9 @@ log, which holds M."
       hand-in it names changes.
 - [ ] "Nearest" hand-in means within the current zone and the zones next to it. Note if the line
       sends the player somewhere that does not feel nearby.
-- [ ] The addon never suggests abandoning a quest and never abandons one (that part of #23
-      waits on #13).
+- [ ] With a full log, nothing ready to hand in and a quest in the log that `/lvl abandon`
+      would list, the line ends "N quests are not worth keeping: /lvl abandon", with the same N
+      as the list shows. With an empty list, or when a hand-in is named, it says nothing about
+      abandoning.
+- [ ] The line never opens the list and never abandons anything: only `/lvl abandon` and its
+      button do.

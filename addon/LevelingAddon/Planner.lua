@@ -8,7 +8,9 @@
 -- A pass looks only at the current zone, the zones whose maps overlap it, and the level band
 -- the character is in; the collector prepared those sets (ns.Data.plannerZones, plannerQuests;
 -- see PlannerIndex.cs for the layout). It plays the next few actions forward on a copy of the
--- state, always taking the best-ranked action, and hands the result to ns.Steps.
+-- state, always taking the best-ranked action, and hands the result to ns.Steps. Where nothing
+-- there suits the character, the zones elsewhere on the continent are tried, those reached
+-- soonest first, on foot or by the flights the character knows (Flights.lua).
 --
 -- Passes run on events, folded into one by Planner.Request; never per frame.
 local _, ns = ...
@@ -28,6 +30,7 @@ local ELSEWHERE = 3 -- zones tried, one by one, when nothing here or next door s
 local LEVELS_BELOW = 7 -- a quest this many levels under the character is no longer offered
 local NEARLY_FULL = 2 -- free places in the quest log at which hand-ins come before everything else
 local SIDE_YARDS = 200 -- a kill or collect this close to the way to the current step is a side task
+local RUN_SPEED = 7 -- yards a second on foot: what a flight is held against
 
 -- Ranking weights. First guesses, to be tuned in the game: one point is worth YARDS_PER_POINT
 -- of travel.
@@ -273,24 +276,54 @@ local function fit(level, low, high, fade)
     return math.max(0, 1 - gap / fade)
 end
 
+-- Seconds to a place on this continent: on foot, or, where that is quicker, on foot to the
+-- nearest flight point the character knows, by flight to the known point nearest the place and
+-- on foot from there (#16). With a flight, the two flight points are returned as well.
+local function travel(continent, px, py, tx, ty)
+    local function walk(ax, ay, bx, by)
+        return math.sqrt((ax - bx) ^ 2 + (ay - by) ^ 2) / RUN_SPEED
+    end
+    local seconds = walk(px, py, tx, ty)
+    local nodes = ns.Flights and ns.Data.taxiNodes
+    local from, to, before, after
+    for id in pairs(nodes and ns.char.flights.known or {}) do
+        local node = nodes[id]
+        if node and node.map == continent then
+            local a, b = walk(px, py, node.x, node.y), walk(node.x, node.y, tx, ty)
+            if not before or a < before then
+                from, before = id, a
+            end
+            if not after or b < after then
+                to, after = id, b
+            end
+        end
+    end
+    local flight = from and from ~= to and ns.Flights.Seconds(from, to)
+    if flight and before + flight + after < seconds then
+        return before + flight + after, from, to
+    end
+    return seconds
+end
+
 -- Where nothing here suits the character: the other zones on this continent, those whose level
--- range fits best first, and the nearest of those first.
+-- range fits best first, and of those the one reached soonest first.
 local function otherZones(map, me, px, py)
     local here = frameOf(map)
     local list = {}
     for other, zone in pairs(here and ns.Data.plannerZones or {}) do
         local there = frameOf(other)
         if other ~= map and zone.min and there and there.continent == here.continent then
-            local dx, dy = (there.minX + there.maxX) / 2 - px, (there.minY + there.maxY) / 2 - py
-            list[#list + 1] =
-                { map = other, fit = fit(me.level, zone.min, zone.max, BAND_WIDTH), yards = dx * dx + dy * dy }
+            local cx, cy = (there.minX + there.maxX) / 2, (there.minY + there.maxY) / 2
+            local seconds, from, to = travel(here.continent, px, py, cx, cy)
+            local fits = fit(me.level, zone.min, zone.max, BAND_WIDTH)
+            list[#list + 1] = { map = other, fit = fits, seconds = seconds, from = from, to = to }
         end
     end
     table.sort(list, function(a, b)
         if a.fit ~= b.fit then
             return a.fit > b.fit
-        elseif a.yards ~= b.yards then
-            return a.yards < b.yards
+        elseif a.seconds ~= b.seconds then
+            return a.seconds < b.seconds
         end
         return a.map < b.map
     end)
@@ -513,22 +546,27 @@ local function plan(working, me, log, logListed, px, py, free)
         return here or best
     end
 
+    -- How far a point lies from the straight line between (ax, ay) and (bx, by), in yards.
+    local function offWay(point, ax, ay, bx, by)
+        local dx, dy = bx - ax, by - ay
+        local length = dx * dx + dy * dy
+        local along = length > 0 and ((point.wx - ax) * dx + (point.wy - ay) * dy) / length or 0
+        along = math.max(0, math.min(1, along))
+        local ox, oy = point.wx - ax - along * dx, point.wy - ay - along * dy
+        return math.sqrt(ox * ox + oy * oy)
+    end
+
     -- Side tasks (#8): a kill or collect objective the character already has in the log, with
     -- a point within SIDE_YARDS of the straight line from where the character stands (ax, ay)
     -- to the current step (px, py). The one nearest that line, shaped like a pick.
     local function sideTask(ax, ay)
-        local dx, dy = px - ax, py - ay
-        local length = dx * dx + dy * dy
         local side = { score = -SIDE_YARDS, action = "objective", first = 3 }
         for _, id in ipairs(logged) do
             for _, objective in ipairs(inLog[id] and open[id] or {}) do
                 local target = objective.target
                 -- An index means the game's log has the objective; a planned pick-up has none.
                 for _, point in ipairs(objective.index and target[1] ~= "event" and pointsOf(target, 3) or {}) do
-                    local along = length > 0 and ((point.wx - ax) * dx + (point.wy - ay) * dy) / length or 0
-                    along = math.max(0, math.min(1, along))
-                    local ox, oy = point.wx - ax - along * dx, point.wy - ay - along * dy
-                    local score = -math.sqrt(ox * ox + oy * oy)
+                    local score = -offWay(point, ax, ay, px, py)
                     if score > side.score or (score == side.score and not side.id) then
                         side.score, side.id, side.quest = score, id, quests[id]
                         side.target, side.point, side.objective = target, point, objective
@@ -588,11 +626,37 @@ local function plan(working, me, log, logListed, px, py, free)
             px, py = point.wx, point.wy
         end
     end
+
+    -- Bag space (#15, Junk.lua): a stop at the nearest vendor the data knows. With the bags
+    -- full it is the current step. With little room left it is a side task: right under the
+    -- current step, and only for a vendor within SIDE_YARDS of the way there.
+    local sell = ns.SellStep and ns.SellStep()
+    if sell and (sell == "full" or rows[1]) then
+        local bx, by = ax, ay -- full: the vendor nearest the character
+        if sell == "low" then
+            bx, by = worldPosition(rows[1].map, rows[1].x, rows[1].y)
+        end
+        local best, yards = nil, sell == "low" and SIDE_YARDS or math.huge
+        for _, vendor in ipairs(ns.Vendors(me.side)) do
+            for _, point in ipairs(pointsOf(vendor, 2)) do
+                local off = offWay(point, ax, ay, bx, by)
+                if off < yards then
+                    yards = off
+                    best = { kind = "sell", questID = ns.SELL, name = vendor[1], map = point.map }
+                    best.x, best.y = point.x, point.y
+                end
+            end
+        end
+        if best then
+            table.insert(rows, sell == "low" and 2 or 1, best)
+        end
+    end
     return rows, blocked
 end
 
 local warned = false
 local last -- what the last pass looked at, for /lvl plan
+local flown -- the flight named in the line already said about steps a flight away, nil when none
 local noticed -- the hand-in named (or 0 for none) in the full-log line already said, nil when not full
 
 -- One pass, now. Feature code asks for one with Planner.Request instead.
@@ -625,12 +689,22 @@ function Planner:Run()
             -- Nothing to do here or next door: look into the best few zones elsewhere, one at
             -- a time.
             local elsewhere = not rows[1] and otherZones(map, me, px, py)
+            local there -- the zone the steps are in, when it is not here or next door
             for i = 1, elsewhere and math.min(#elsewhere, ELSEWHERE) or 0 do
                 rows = plan({ [elsewhere[i].map] = true }, me, log, logListed, px, py, free)
                 if rows[1] then
+                    there = elsewhere[i]
                     break
                 end
             end
+            -- That zone is reached soonest by flight: said once per flight.
+            local flight = there and there.from and there.from .. ">" .. there.to or nil
+            if flight and flight ~= flown then
+                local name = ns.Data.plannerZones[there.map].name or "another zone"
+                local route = ns.Flights.Route(there.from, there.to)
+                ns.say("nothing left to do around here. The next steps are in " .. name .. ": " .. route .. ".")
+            end
+            flown = flight
         end
         ns.Report("planner pass", ns.Clock() - start)
     end
@@ -641,12 +715,19 @@ function Planner:Run()
         local turnin = first and first.kind == "turnin" and first.questID or 0
         if noticed ~= turnin then
             noticed = turnin
-            ns.say(
-                "the quest log is full, so "
-                    .. quests[blocked].name
-                    .. " cannot be picked up"
-                    .. (turnin ~= 0 and ": hand in " .. quests[turnin].name .. " at " .. first.name .. " first." or ".")
-            )
+            local advice = "."
+            if turnin ~= 0 then
+                advice = ": hand in " .. quests[turnin].name .. " at " .. first.name .. " first."
+            else
+                -- Nothing to hand in: point at the list of quests not worth keeping (#13), if
+                -- it has any. The player opens it and confirms; nothing is abandoned from here.
+                local n = ns.QuestsToAbandon and #ns.QuestsToAbandon() or 0
+                if n > 0 then
+                    advice =
+                        string.format(". %d quest%s not worth keeping: /lvl abandon", n, n == 1 and " is" or "s are")
+                end
+            end
+            ns.say("the quest log is full, so " .. quests[blocked].name .. " cannot be picked up" .. advice)
         end
     elseif rows then
         noticed = nil
