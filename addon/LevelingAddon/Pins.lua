@@ -1,6 +1,8 @@
 -- One pin on the world map and one on the minimap for the current step, and on the world map
 -- a smaller, fainter, numbered pin for each of the next few places after it. Steps close
--- together share a pin, and a pin's tooltip names what is there. When TomTom has taken the
+-- together share a pin, and a pin's tooltip names what is there. A kill or collect step also
+-- gets a small dot on the world map for each of the nearest places the arrow would go to, so
+-- the map shows what the arrow does. When TomTom has taken the
 -- waypoint it draws its own icons, so we draw none. The frames are made once; they are placed
 -- again only when the steps they show or the shown map change, and the minimap pin follows the
 -- player on the shared loop.
@@ -14,6 +16,8 @@ local OUTDOOR = { [0] = 466.67, 400, 333.33, 266.67, 200, 133.33 }
 local INDOOR = { [0] = 300, 240, 180, 120, 80, 50 }
 local LATER = 3 -- numbered pins for the places after the current step: a first number, to tune
 local MERGE = 2 -- steps within this many percent of their zone map share a pin
+local DOTS = 12 -- the most places of a kill or collect step that get a dot; some have hundreds
+local DOT_SIZE = 8
 
 local canvas -- the world map's scrolling child, which the world-map pins sit on
 local mapPins = {} -- [0] for the current step's place, [1] to [LATER] for the places after it
@@ -21,6 +25,13 @@ local miniPin
 -- What the pins show, by the same numbers: { map, x, y, names, continent, world }, with x and y
 -- in percent and the world position nil where the game has none. `key` is the steps behind it.
 local spots, key = {}, ""
+-- The dots of a kill or collect step: one frame over the canvas with DOTS textures on it.
+-- `places` is the arrow's list for the current step, { x1, y1, x2, y2, ... } from 0 to 1 on
+-- the step's map, or nil when there is nothing to dot; `nearest` holds the index into it of
+-- each place that has a dot.
+local dots = {}
+local places
+local nearest, taken = {}, {}
 local lastX, lastY -- where the minimap pin was put last
 
 -- A pin for spot `n`. A later place's pin is fainter and carries its number.
@@ -59,12 +70,52 @@ local function newPin(parent, size, level, n)
     return pin
 end
 
+-- Pick the places that get a dot: the DOTS nearest to the player, or to the step's own point
+-- when the player is not on the step's map. Done when the step changes and when the map is
+-- opened, not while it is being looked at.
+local function chooseDots()
+    wipe(nearest)
+    wipe(taken)
+    if not places then
+        return
+    end
+    local spot = spots[0]
+    local position = C_Map.GetPlayerMapPosition(spot.map, "player")
+    local px, py = spot.x / 100, spot.y / 100
+    if position then
+        px, py = position:GetXY()
+    end
+    for d = 1, DOTS do
+        local best, bestSquare
+        for i = 1, #places, 2 do
+            if not taken[i] then
+                -- A zone map is three wide and two high.
+                local dx, dy = places[i] - px, (places[i + 1] - py) * 2 / 3
+                local square = dx * dx + dy * dy
+                if not bestSquare or square < bestSquare then
+                    best, bestSquare = i, square
+                end
+            end
+        end
+        if not best then
+            break
+        end
+        taken[best] = true
+        nearest[d] = best
+    end
+end
+
 -- Put each world-map pin where its place is on the map being shown: the place's own map, or
 -- any map that contains it (its continent, for example). A pin keeps its size on screen at any
--- map zoom.
+-- map zoom. The dots are shown on the step's own map only.
 local function placeOnMap()
-    local mapID = mapPins[0] and WorldMapFrame:GetMapID()
-    for n = 0, mapPins[0] and LATER or -1 do
+    if not mapPins[0] then
+        return
+    end
+    local mapID = WorldMapFrame:GetMapID()
+    local scale = canvas:GetScale()
+    local width, height = canvas:GetWidth(), canvas:GetHeight()
+    for n = 0, LATER do
         local pin, spot = mapPins[n], spots[n]
         local x, y
         if spot and mapID == spot.map then
@@ -78,11 +129,19 @@ local function placeOnMap()
         if not x or x < 0 or x > 1 or y < 0 or y > 1 then
             pin:Hide()
         else
-            local scale = canvas:GetScale()
             pin:SetScale(1 / scale)
-            pin:SetPoint("CENTER", canvas, "TOPLEFT", x * canvas:GetWidth() * scale, -y * canvas:GetHeight() * scale)
+            pin:SetPoint("CENTER", canvas, "TOPLEFT", x * width * scale, -y * height * scale)
             pin:Show()
         end
+    end
+    local onMap = places and mapID == spots[0].map
+    for d = 1, DOTS do
+        local dot, i = dots[d], onMap and nearest[d]
+        if i then
+            dot:SetSize(DOT_SIZE / scale, DOT_SIZE / scale)
+            dot:SetPoint("CENTER", canvas, "TOPLEFT", places[i] * width, -places[i + 1] * height)
+        end
+        dot:SetShown(i and true or false)
     end
 end
 
@@ -151,7 +210,7 @@ local function gather()
                 if n > LATER then
                     break
                 end
-                spot = { map = row.map, x = row.x, y = row.y, names = {} }
+                spot = { map = row.map, x = row.x, y = row.y, names = {}, step = row }
                 found[n] = spot
             end
             local name, listed = tostring(row.name), false
@@ -184,6 +243,14 @@ local function update()
             spot.continent, spot.world = C_Map.GetWorldPosFromMapPos(spot.map, point)
         end
     end
+    -- The arrow's places for a kill or collect step; a step with one place has its pin already.
+    local step = spots[0] and spots[0].step
+    places = nil
+    if step and (step.kind == "kill" or step.kind == "loot") and ns.Arrow and ns.Arrow.Places then
+        local flat = ns.Arrow.Places(step)
+        places = flat[3] and flat or nil
+    end
+    chooseDots()
     lastX = nil
     local follow = spots[0] ~= nil and spots[0].world ~= nil
     ns.SetTask("pins", follow)
@@ -214,8 +281,20 @@ ns.On("PLAYER_LOGIN", function()
     if canvas then
         mapPins[0] = newPin(canvas, 22, 3000, 0)
         for n = 1, LATER do
-            mapPins[n] = newPin(canvas, 18, 3000 - n, n)
+            mapPins[n] = newPin(canvas, 18, 2999 - n, n)
         end
+        local layer = CreateFrame("Frame", nil, canvas)
+        layer:SetAllPoints(canvas)
+        layer:SetFrameLevel(canvas:GetFrameLevel() + 2990)
+        for d = 1, DOTS do
+            dots[d] = layer:CreateTexture(nil, "OVERLAY")
+            dots[d]:SetTexture(TEXTURE)
+            dots[d]:Hide()
+        end
+        WorldMapFrame:HookScript("OnShow", function()
+            chooseDots()
+            placeOnMap()
+        end)
         -- Hooks run after the game's own code and never change which map is shown.
         for _, method in ipairs({ "OnMapChanged", "OnCanvasScaleChanged" }) do
             if WorldMapFrame[method] then

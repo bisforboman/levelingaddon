@@ -1,12 +1,42 @@
 -- The world-map and minimap pin for the current step, and the numbered world-map pins for the
 -- places after it: where they are put, which steps share a pin, when they are placed again,
--- the setting, and standing back when TomTom has the waypoint.
+-- the setting, and standing back when TomTom has the waypoint. And the dots for the places of
+-- a kill or collect step.
 -- From the repository root: lua5.1 addon/tests/test_pins.lua
 local T = dofile("addon/tests/stub.lua")
 local ns, fire, tick, cmd = T.ns, T.fire, T.tick, T.cmd
 T.load()
 ns.Steps.list = dofile("addon/tests/northshire.lua") -- a fixed route; no quest data, so no planning
 local before = #T.frames
+-- The arrow's places for the wolves: fifteen in a row across the map, from 41 to 55 percent.
+local wolves = {}
+for i = 1, 15 do
+    wolves[#wolves + 1] = 0.40 + i / 100
+    wolves[#wolves + 1] = 0.5
+end
+local arrowPlaces = ns.Arrow.Places
+ns.Arrow.Places = function(step)
+    return step.name == "Tough Wolf Meat" and wolves or arrowPlaces(step)
+end
+-- The dots are textures of one frame over the canvas; keep them, and the map's OnShow hook.
+local dots, openMap = {}, nil
+local createFrame = CreateFrame
+function CreateFrame(kind, name, parent)
+    local f = createFrame(kind, name, parent)
+    if parent == T.canvas then
+        local createTexture = f.CreateTexture
+        f.CreateTexture = function(...)
+            f.textures = f.textures or {}
+            f.textures[#f.textures + 1] = createTexture(...)
+            return f.textures[#f.textures]
+        end
+    end
+    return f
+end
+rawset(WorldMapFrame, "HookScript", function(_, script, hook)
+    assert(script == "OnShow")
+    openMap = hook
+end)
 T.login()
 local function near(a, b)
     return math.abs(a - b) < 0.01
@@ -17,6 +47,8 @@ for i = before + 1, #T.frames do
     local f = T.frames[i]
     if f.parent == T.canvas and not world then
         world = f
+    elseif f.parent == T.canvas and #f.textures > 1 then
+        dots = f.textures
     elseif f.parent == T.canvas then
         later[#later + 1] = f
     elseif f.parent == Minimap then
@@ -34,6 +66,19 @@ local function tooltip(pin)
     pin.scripts.OnEnter(pin)
     return GameTooltip.text .. (lines[1] and ", " .. table.concat(lines, ", ") or "")
 end
+assert(#dots == 12, "and twelve dots on one frame")
+-- The dots shown, as the percent across the map of each, in order.
+local function dotsShown()
+    local out = {}
+    for _, dot in ipairs(dots) do
+        if dot.shown then
+            out[#out + 1] = math.floor(dot.point[4] / 10 + 0.5)
+        end
+    end
+    table.sort(out)
+    return table.concat(out, " ")
+end
+assert(dotsShown() == "", "no dots for a step with one place")
 local function laterShown()
     return (later[1].shown and 1 or 0) + (later[2].shown and 1 or 0) + (later[3].shown and 1 or 0)
 end
@@ -182,6 +227,37 @@ assert(not world.shown and not mini.shown and laterShown() == 0)
 TomTom = nil
 ns.Refresh()
 assert(world.shown and mini.shown)
+
+-- A collect step with many places: a dot for each of the twelve nearest to the player, who
+-- stands at 49.2 percent across. The step keeps its pin.
+T.completed[783] = true
+T.log[7], T.log[33] = { need = 10, have = 0 }, { need = 8, have = 0 }
+fire("QUEST_ACCEPTED", 33)
+assert(ns.Steps:Current().name == "Tough Wolf Meat" and world.shown)
+assert(dotsShown() == "44 45 46 47 48 49 50 51 52 53 54 55", dotsShown())
+assert(near(dots[1].point[5], -300))
+-- The choice is made again when the map is opened, not while the player walks.
+T.px = 0.40
+tick()
+assert(dotsShown() == "44 45 46 47 48 49 50 51 52 53 54 55")
+openMap()
+assert(dotsShown() == "41 42 43 44 45 46 47 48 49 50 51 52", dotsShown())
+T.px = 0.492
+-- On the step's own map only, and gone with the pins.
+T.mapID = 13
+WorldMapFrame:OnMapChanged()
+assert(dotsShown() == "" and world.shown)
+T.mapID = 1429
+WorldMapFrame:OnMapChanged()
+assert(dotsShown() ~= "")
+cmd("pin")
+assert(dotsShown() == "")
+cmd("pin")
+assert(dotsShown() ~= "")
+-- The next step is a kill step with one place: no dots.
+T.log[33].have = 8
+fire("QUEST_LOG_UPDATE")
+assert(ns.Steps:Current().name == "Kobold Vermin" and dotsShown() == "")
 
 -- Near the end of the route fewer places are left, and the pins left over are hidden.
 for _, q in ipairs({ 783, 7, 33, 15, 18 }) do
