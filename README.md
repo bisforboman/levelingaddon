@@ -528,6 +528,7 @@ t[228]={name="Avette Fellwood",minLevel=24,zoneId=10,spawns={[10]={73.03,44.42}}
 | --- | --- |
 | `quests-N.lua`, `questRelations-N.lua`, `npcs-N.lua`, `objects-N.lua`, `items-N.lua`, `zones-N.lua` | `ns.Data.<table>[id] = row` |
 | `plannerQuests-N.lua`, `plannerZones-N.lua` | The planner index: see below |
+| `dangers-N.lua` | `ns.Data.dangers[uiMapId].mobs`: the elite mobs with a spawn on that zone map, for the elite warning. Each is `{ id, name, level, side, patrols, quests, at }`: `side` is `"A"` or `"H"` when the mob is friendly to that side (mobs friendly to both are left out), `patrols` is true when it has `waypoints`, `quests` are the quests it is an objective of, and `at` is its spawn points on that map, flat and reduced like `spawns`. Elite is `rank` 1 to 3; rank 4 is a rare that is not elite. Instances are left out. Only NPCs a quest refers to are in the data, so the list is never all of a zone's elites. |
 | `taxiNodes-N.lua` | `ns.Data.taxiNodes[id] = row`, as in `taxi-nodes.json` |
 | `taxiPaths-N.lua` | `ns.Data.taxiPaths[from] = { to = { [to] = seconds, ... }, est = { [to] = true, ... } }`: the flights out of each point, `est` only where a time is estimated. The two taxi files carry `taxi-notice.txt` in their head. |
 | `manifest.lua` | `ns.Data.manifest`: source commit and counts |

@@ -102,6 +102,9 @@ public sealed class LuaExporter(ExportConfig config)
         WriteTable("*.json", "plannerQuests", "id", planner.Quests);
         WriteTable("*.json", "plannerZones", "id", planner.Zones);
 
+        // The elite mobs of each zone map, for the addon's warning.
+        WriteTable("npcs.json", "dangers", "id", DangerIndex.Build(parsedDirectory, config));
+
         // taxiPaths[from] = { to = { [to] = seconds }, est = { [to] = true } }: the flights out of each point.
         var flights = JsonSerializer.Deserialize<List<TaxiPath>>(File.ReadAllBytes(Path.Combine(parsedDirectory, Taxi.PathsFile)), DataWriter.Json)!;
         WriteTable(Taxi.PathsFile, "taxiPaths", "id", JsonSerializer.SerializeToElement(flights.GroupBy(f => f.From).OrderBy(g => g.Key).Select(g => new
