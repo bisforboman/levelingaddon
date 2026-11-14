@@ -355,3 +355,16 @@ Not in v1: secure "use item" button, automation, an all-quests map layer, toolti
 - Every **[snippet]** claim should be re-read from a machine that can open the page before it is
   relied on.
 - How does this addon differ from Polestar for a player choosing between them?
+
+## 9. What is built
+
+`addon/LevelingAddon/` implements the guide window and arrow described in section 6 against a
+fixed sample route: fixed current row with quest name, history above, crossed-out skipped
+steps, skip on the right and restore on the left under the pointer, mouse-wheel scrolling with
+automatic return, combat folding, saved position, TomTom hand-off. Checked only by lint and a
+stubbed smoke test; not yet run in the game client.
+
+Not built yet: quest-log tracking, route computation from the data, map and minimap pins, the
+numbered route on the world map, a settings page (slash commands only for now), Edit Mode
+positioning (drag only), the arrow's "arrived" ring (the arrow hides instead), and the pause
+mark in dungeons (the arrow hides; the window stays).
