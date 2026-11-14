@@ -131,7 +131,7 @@ cmd("mine 42")
 assert(got == "42")
 T.chat = {}
 cmd("nonsense")
-local help = "arrow, debug, help, hide, mine, reset, rows, scale, show, unskip"
+local help = "arrow, .*mine, .*unskip" -- a pattern: features add commands of their own in between
 assert(T.chat[1]:find(help), T.chat[1])
 T.chat = {}
 cmd("help")

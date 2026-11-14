@@ -365,6 +365,9 @@ right and restore on the left under the pointer, mouse-wheel scrolling with auto
 combat folding, saved position, TomTom hand-off. Rows are icon, name and count only; by the
 owner's decision there is no quest name on the row and no tooltip.
 
+`Pins.lua` adds one pin on the world map and one on the minimap for the current step, with a
+tooltip naming it; none of ours when TomTom has the waypoint. `/lvl pin` switches them.
+
 Step state comes from the quest log (`C_QuestLog.IsOnQuest`, `IsQuestFlaggedCompleted`,
 `GetQuestObjectives`), refreshed shortly after `QUEST_ACCEPTED`, `QUEST_REMOVED`,
 `QUEST_TURNED_IN` and `QUEST_LOG_UPDATE`. If the game reports a skipped step as finished, it
@@ -375,7 +378,7 @@ shared machinery in `Core.lua` (README, "Writing a feature").
 
 Checked only by lint and stubbed tests; not yet run in the game client.
 
-Not built yet: route computation from the data, map and minimap pins, the numbered route on
+Not built yet: route computation from the data, the numbered route on
 the world map, a settings page (slash commands only for now), Edit Mode positioning (drag
 only), the arrow's "arrived" ring (the arrow hides instead), and the pause mark in dungeons
 (the arrow hides; the window stays).
