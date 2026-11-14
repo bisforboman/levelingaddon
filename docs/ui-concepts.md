@@ -315,11 +315,9 @@ interleaved: [`mockups/step-list-flow.png`](mockups/step-list-flow.png),
 
 Decided: the current step carries its quest name as a small second line; other rows are plain.
 
-The owner also asked for skip and restore to share one spot on the left of the row instead of
-the right end. Two placements are drawn in
-[`mockups/skip-position.png`](mockups/skip-position.png): a narrow left gutter where the button
-appears beside the step's icon (recommended, the icon stays visible), or the button taking the
-icon's place under the pointer (no extra column). Awaiting the owner's choice.
+Decided after two placements were drawn: skip is a cross at the right end of the pending row
+under the pointer; restore is an arrow on the left of a skipped row, taking the place of its
+icon while the pointer is on it. The two actions never appear in the same spot.
 
 **Planning ahead** (owner's question: is there a timeline of following steps?). Superseded in
 part by the guide window above, which shows the next five steps at rest and scrolls further.
