@@ -57,6 +57,22 @@ Later places on the world map
 - [ ] Note whether three is the right number of later places.
 - [ ] There is no numbered dot on the minimap.
 
+Places of a kill or collect step on the world map
+
+- [ ] On a kill or collect step whose creature, object or item has several spawn points, the
+      step's zone map shows a small dot (8 px) on each of up to twelve of them, and they are
+      the places the arrow leads to (`ns.Arrow.Places`).
+- [ ] The dots are the twelve nearest to the character when the map is opened; walk across the
+      area, open the map again, and the dots have moved along
+      (`C_Map.GetPlayerMapPosition`, the map's `OnShow`).
+- [ ] From another zone, the dots are the twelve nearest to the step's own pin.
+- [ ] The dots keep their size and their place while the map is zoomed.
+- [ ] The dots are under the step's pin and the numbered pins, have no tooltip, and do not
+      take clicks from the map.
+- [ ] No dots on the continent map, on the minimap, or for a step with a single place.
+- [ ] Opening the map on a step with hundreds of places is not felt (the choice of twelve is
+      made once per opening).
+
 Both
 
 - [ ] `/lvl pin` removes every dot and brings them back; the setting survives `/reload`.
