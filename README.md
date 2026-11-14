@@ -111,8 +111,8 @@ the quest log and its objectives, level, class, race, faction, zone and position
   counts the quests in it. The plan never holds more pick-ups than there are free places; with
   two or fewer free, hand-ins come before everything else, nearest first. When the log is full
   and a pick-up would otherwise have come first, one chat line says so, naming the nearest quest
-  ready to hand in if there is one; it is said once, and again only when that hand-in changes
-  or the log has had room in between. Where the client does not tell the limit, pick-ups are
+  ready to hand in if there is one, or else pointing at `/lvl abandon` when that list has rows;
+  it is said once, and again only when that hand-in changes or the log has had room in between. Where the client does not tell the limit, pick-ups are
   not held back. `/lvl plan` prints the count and the limit.
 - **Side tasks** (issue #8): a kill or collect objective the character already has in the log
   comes right under the current step when any of its points in the data lies within 200 yards
