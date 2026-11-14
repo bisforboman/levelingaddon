@@ -9,8 +9,8 @@ what #24 added: every feature's setting on the page, and each one taking effect 
 
 - [ ] After the Reset position button the page shows, in this order: Drowning alarm, Sell
       junk, Party version check, Announce level-ups, Share quests, Verbose output, Quest item
-      hint, Accept quests automatically, Hand in quests automatically, Include dungeon quests,
-      Include group quests, Mark quest rewards, Quest item button; then whatever later
+      hint, Accept quests automatically, Hand in quests automatically, Mark quest rewards,
+      Quest item button, Include dungeon quests, Include group quests; then whatever later
       features added.
 - [ ] "Announce level-ups" is a dropdown offering Off, Party and Guild
       (`Settings.CreateDropdown(category, setting, optionsFunction, tooltip)` with
