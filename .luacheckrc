@@ -58,6 +58,7 @@ read_globals = {
     "IsInGroup",
     "IsInGuild",
     "IsInInstance",
+    "MAX_QUESTS",
     "Minimap",
     "PlaySound",
     "QuestLogPushQuest",

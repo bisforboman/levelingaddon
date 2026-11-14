@@ -112,6 +112,10 @@ local function modernQuestLog()
         GetNumQuestLogEntries = function()
             return #sortedKeys(T.log) + 1
         end,
+        -- T.maxQuests is how many quests the log holds; nil for a client that does not say.
+        GetMaxNumQuestsCanAccept = function()
+            return T.maxQuests
+        end,
         GetInfo = function(i)
             if i == 1 then
                 return { isHeader = true }
@@ -450,6 +454,68 @@ for _, s in ipairs(ns.Steps.list) do
     assert(s.map == 1431, "the best-fitting zone on the continent: Duskwood")
 end
 
+-- 4. A full quest log (issue #23) ---------------------------------------------------------------
+-- The level 27 beside Elaine Carevin in Darkshire, who has two quests to give, with a log that
+-- holds two quests and has two: one in progress, one ready to hand in.
+local function accepts()
+    local n = 0
+    for index, s in ipairs(ns.Steps.list) do
+        n = n + (s.kind == "accept" and ns.Steps:Status(index) == "pending" and 1 or 0)
+    end
+    return n
+end
+local function notices()
+    local out = {}
+    for _, line in ipairs(chat) do
+        if line:find("quest log is full") then
+            out[#out + 1] = line
+        end
+    end
+    return out
+end
+ns, fire = boot(duskwood({ x = 75.34, y = 48.75 }))
+assert(current():find("^accept Elaine Carevin"), "with room in the log her quests come first: " .. current())
+ns, fire = boot(duskwood({ x = 75.34, y = 48.75, maxQuests = 2 }))
+show("the same character with a full quest log")
+assert(accepts() == 0, "a full log: no pick-ups")
+assert(current() == "turnin Madame Eva 101", "and the hand-in comes first: " .. current())
+assert(#notices() == 1, "said once")
+assert(notices()[1]:find("hand in The Totem of Infliction at Madame Eva first"), notices()[1])
+ns.Planner.Request()
+fire(nil)
+fire("ZONE_CHANGED_NEW_AREA")
+assert(#notices() == 1, "and not again on the passes that follow")
+SlashCmdList.LEVELINGADDON("plan")
+assert(chat[#chat]:find("2 quests in the log, which holds 2"), chat[#chat])
+-- Handed in: one place free, so one pick-up and no more.
+turnIn(101)
+show("one place free")
+assert(accepts() == 1 and current():find("^accept"), "one free place: one pick-up")
+assert(#notices() == 1)
+-- Picked up (The Hermit, a delivery): full again. That is a new situation, said once, and the
+-- hand-in it names is the nearest one in the zone.
+accept(ns.Steps:Current().questID)
+assert(accepts() == 0 and #notices() == 2, "full again")
+assert(notices()[2]:find("hand in The Hermit at Abercrombie first"), notices()[2])
+fire("ZONE_CHANGED_NEW_AREA")
+assert(#notices() == 2)
+-- A full log with nothing ready to hand in.
+ns, fire = boot(duskwood({
+    x = 75.34,
+    y = 48.75,
+    maxQuests = 2,
+    setup = function()
+        duskwood().setup()
+        T.log[101] = { item(5), item(5), item(10) }
+    end,
+}))
+assert(accepts() == 0 and #notices() == 1 and notices()[1]:find("cannot be picked up%.$"), notices()[1])
+-- Nearly full, at Raven Hill: the hand-in back in Darkshire comes before the kills at hand.
+ns, fire = boot(duskwood({ x = 22, y = 47 }))
+assert(current() ~= "turnin Madame Eva 101", current())
+ns, fire = boot(duskwood({ x = 22, y = 47, maxQuests = 3 }))
+assert(current() == "turnin Madame Eva 101" and accepts() == 1 and #notices() == 0, current())
+
 -- Other clients, and no data -----------------------------------------------------------------
 -- The older calls for completed quests and the quest log.
 ns, fire = boot(duskwood({
@@ -469,6 +535,12 @@ ns, fire = boot(duskwood({
     end,
 }))
 assert(find("turnin", 101) and find("accept", 177) and not find("accept", 56))
+-- There the limit is the client's MAX_QUESTS.
+MAX_QUESTS = 2
+ns.Planner.Request()
+fire(nil)
+assert(find("turnin", 101) and not find("accept", 177), "the older calls count the log too")
+MAX_QUESTS = nil
 -- Neither way of listing: quests are asked about one at a time.
 ns, fire = boot(duskwood({
     setup = function()

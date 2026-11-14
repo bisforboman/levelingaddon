@@ -26,6 +26,7 @@ local NEAR_YARDS = 200 -- "close by", for counting the other candidates around a
 local BAND_WIDTH = 5 -- levels per band, as in the collector
 local ELSEWHERE = 3 -- zones tried, one by one, when nothing here or next door suits the character
 local LEVELS_BELOW = 7 -- a quest this many levels under the character is no longer offered
+local NEARLY_FULL = 2 -- free places in the quest log at which hand-ins come before everything else
 
 -- Ranking weights. First guesses, to be tuned in the game: one point is worth YARDS_PER_POINT
 -- of travel.
@@ -89,14 +90,18 @@ local function readCharacter()
     }
 end
 
--- The quest ids in the log, and whether the client could list them.
+-- The quest ids in the log, whether the client could list them, and how many of them take a
+-- place in the log (the modern log also lists quests that do not).
 local function readLog()
-    local log = {}
+    local log, count = {}, 0
     if C_QuestLog.GetNumQuestLogEntries and C_QuestLog.GetInfo then
         for index = 1, C_QuestLog.GetNumQuestLogEntries() do
             local info = C_QuestLog.GetInfo(index)
             if info and not info.isHeader and info.questID then
                 log[info.questID] = true
+                if not (info.isHidden or info.isTask or info.isBounty) then
+                    count = count + 1
+                end
             end
         end
     elseif GetNumQuestLogEntries and GetQuestLogTitle then
@@ -104,12 +109,20 @@ local function readLog()
             local _, _, _, isHeader, _, _, _, questID = GetQuestLogTitle(index)
             if not isHeader and questID then
                 log[questID] = true
+                count = count + 1
             end
         end
     else
-        return log, false
+        return log, false, count
     end
-    return log, true
+    return log, true, count
+end
+
+-- How many quests the log holds, asked of the client; nil where it cannot say, and then the
+-- planner does not hold pick-ups back.
+local function logLimit()
+    local limit = C_QuestLog.GetMaxNumQuestsCanAccept and C_QuestLog.GetMaxNumQuestsCanAccept() or MAX_QUESTS
+    return type(limit) == "number" and limit > 0 and limit or nil
 end
 
 -- Profession skill by skill line id; nil where the client cannot say.
@@ -301,8 +314,10 @@ end
 local UNREAD_TRIES = 5
 local unread = {} -- [quest id] = passes that found fewer objectives in the log than the data has
 
--- Plan from the given state, looking only at the zones in `working`. Returns the rows.
-local function plan(working, me, log, logListed, px, py)
+-- Plan from the given state, looking only at the zones in `working`. `free` is the number of
+-- free places in the quest log: the plan never holds more pick-ups than that. Returns the rows
+-- and, where the log is full and the best next thing would otherwise be a pick-up, that quest.
+local function plan(working, me, log, logListed, px, py, free)
     local quests, zones = ns.Data.plannerQuests, ns.Data.plannerZones
     local band = math.floor((me.level - 1) / BAND_WIDTH) + 1
 
@@ -422,8 +437,9 @@ local function plan(working, me, log, logListed, px, py)
         return points
     end
 
-    -- Every action open in the current state is offered to `consider`.
-    local function eachAction(consider)
+    -- Every action open in the current state is offered to `consider`; pick-ups only while
+    -- `slots` is above zero.
+    local function eachAction(consider, slots)
         for _, id in ipairs(logged) do
             if inLog[id] then
                 local quest = quests[id]
@@ -438,7 +454,7 @@ local function plan(working, me, log, logListed, px, py)
                 end
             end
         end
-        for _, id in ipairs(pool) do
+        for _, id in ipairs(slots > 0 and pool or {}) do
             local quest = quests[id]
             if available(id, quest) then
                 for _, target in ipairs(quest.start) do
@@ -457,39 +473,52 @@ local function plan(working, me, log, logListed, px, py)
         for _, point in ipairs(pointsOf(target, first)) do
             crowd[cell(point)] = (crowd[cell(point)] or 0) + 1
         end
-    end)
+    end, free)
 
-    local rows = {}
-    for _ = 1, MAX_STEPS do
-        -- The best action overall, and the best within STOP_YARDS: whatever can be done on
-        -- the spot is done before moving on, which groups the actions that share a place.
+    -- The best action overall, and the best within STOP_YARDS: whatever can be done on the spot
+    -- is done before moving on, which groups the actions that share a place. With `turninsOnly`
+    -- only hand-ins are looked at, and the nearest is the best.
+    local function pick(slots, turninsOnly)
         local best, here
         eachAction(function(action, id, quest, target, first, objective)
-            for _, point in ipairs(pointsOf(target, first)) do
+            for _, point in ipairs(turninsOnly and action ~= "turnin" and {} or pointsOf(target, first)) do
                 local dx, dy = point.wx - px, point.wy - py
                 local yards = math.sqrt(dx * dx + dy * dy)
                 local level = quest.level and quest.level > 0 and quest.level or me.level
                 local zone = zones[point.map]
-                local score = BONUS[action]
-                    + WEIGHT_XP * (quest.xp or 0) / bestXP
-                    + WEIGHT_LEVEL * fit(me.level, level - 2, level + 3, LEVELS_BELOW - 3)
-                    + WEIGHT_ZONE * (zone and zone.min and fit(me.level, zone.min, zone.max, BAND_WIDTH) or 0.5)
-                    + WEIGHT_NEAR * math.min((crowd[cell(point)] or 1) - 1, MAX_NEAR)
-                    - yards / YARDS_PER_POINT
-                local current = yards <= STOP_YARDS and here or best
+                local score = turninsOnly and -yards
+                    or BONUS[action]
+                        + WEIGHT_XP * (quest.xp or 0) / bestXP
+                        + WEIGHT_LEVEL * fit(me.level, level - 2, level + 3, LEVELS_BELOW - 3)
+                        + WEIGHT_ZONE * (zone and zone.min and fit(me.level, zone.min, zone.max, BAND_WIDTH) or 0.5)
+                        + WEIGHT_NEAR * math.min((crowd[cell(point)] or 1) - 1, MAX_NEAR)
+                        - yards / YARDS_PER_POINT
+                local near = yards <= STOP_YARDS
+                local current = near and here or not near and best
                 if not current or score > current.score or (score == current.score and id < current.id) then
                     current = current or {}
                     current.score, current.action, current.id, current.quest = score, action, id, quest
                     current.target, current.first, current.point, current.objective = target, first, point, objective
-                    if yards <= STOP_YARDS then
+                    if near then
                         here = current
                     else
                         best = current
                     end
                 end
             end
-        end)
-        local chosen = here or best
+        end, slots)
+        return here or best
+    end
+
+    local rows, blocked = {}, nil
+    -- A full log: what would come first if it were not?
+    local wish = free == 0 and pick(1)
+    if wish and wish.action == "accept" then
+        blocked = wish.id
+    end
+    for _ = 1, MAX_STEPS do
+        -- With the log full or nearly full, hand-ins come first, nearest first.
+        local chosen = free <= NEARLY_FULL and pick(0, true) or pick(free)
         if not chosen then
             break
         end
@@ -498,6 +527,7 @@ local function plan(working, me, log, logListed, px, py)
         local row = { questID = id, name = chosen.target[chosen.first - 1], map = point.map, x = point.x, y = point.y }
         if chosen.action == "accept" then
             row.kind = "accept"
+            free = free - 1
             inLog[id] = true
             logged[#logged + 1] = id
             open[id] = {}
@@ -523,15 +553,16 @@ local function plan(working, me, log, logListed, px, py)
         rows[#rows + 1] = row
         px, py = point.wx, point.wy
     end
-    return rows
+    return rows, blocked
 end
 
 local warned = false
 local last -- what the last pass looked at, for /lvl plan
+local noticed -- the hand-in named (or 0 for none) in the full-log line already said, nil when not full
 
 -- One pass, now. Feature code asks for one with Planner.Request instead.
 function Planner:Run()
-    local rows
+    local rows, blocked
     self.waiting = false
     if not (ns.Data and ns.Data.plannerQuests and ns.Data.plannerZones) then
         if not warned then
@@ -551,20 +582,39 @@ function Planner:Run()
         end
         if px then
             local me = readCharacter()
-            local log, logListed = readLog()
-            last = { map = map, me = me, logListed = logListed }
-            rows = plan(workingSet(map), me, log, logListed, px, py)
+            local log, logListed, count = readLog()
+            local limit = logListed and logLimit()
+            local free = limit and math.max(limit - count, 0) or math.huge
+            last = { map = map, me = me, logListed = logListed, count = count, limit = limit }
+            rows, blocked = plan(workingSet(map), me, log, logListed, px, py, free)
             -- Nothing to do here or next door: look into the best few zones elsewhere, one at
             -- a time.
             local elsewhere = not rows[1] and otherZones(map, me, px, py)
             for i = 1, elsewhere and math.min(#elsewhere, ELSEWHERE) or 0 do
-                rows = plan({ [elsewhere[i].map] = true }, me, log, logListed, px, py)
+                rows = plan({ [elsewhere[i].map] = true }, me, log, logListed, px, py, free)
                 if rows[1] then
                     break
                 end
             end
         end
         ns.Report("planner pass", ns.Clock() - start)
+    end
+    -- The log is full and a pick-up would have come first: said once, and again only when the
+    -- hand-in to name changes.
+    if blocked then
+        local quests, first = ns.Data.plannerQuests, rows[1]
+        local turnin = first and first.kind == "turnin" and first.questID or 0
+        if noticed ~= turnin then
+            noticed = turnin
+            ns.say(
+                "the quest log is full, so "
+                    .. quests[blocked].name
+                    .. " cannot be picked up"
+                    .. (turnin ~= 0 and ": hand in " .. quests[turnin].name .. " at " .. first.name .. " first." or ".")
+            )
+        end
+    elseif rows then
+        noticed = nil
     end
     if rows then
         ns.Steps:SetPlan(rows)
@@ -599,6 +649,9 @@ function ns.commands.plan()
             last.logListed and "listed" or "not listable",
             ns.Steps:Count()
         )
+    )
+    ns.say(
+        string.format("%d quests in the log, which holds %s.", last.count, tostring(last.limit or "an unknown number"))
     )
 end
 
