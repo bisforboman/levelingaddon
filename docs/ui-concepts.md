@@ -416,4 +416,11 @@ settings, both on by default: "Accept quests automatically" and "Hand in quests
 automatically". Not built, because the data has nothing for them: choosing a gossip option,
 taking a flight, confirming an inn.
 
+`FirstRun.lua` asks a character once, at its first login with the addon, whether to include
+dungeon quests and group quests (both off by default, per character), in a small panel shown
+beside the live window, which the player can drag into place meanwhile; "Start" closes it
+(#20). The same two switches are on the settings page and under `/lvl dungeons` and
+`/lvl groups`; `/lvl setup` shows the panel again. The arrow cannot be dragged yet, so the
+panel does not offer it.
+
 Not built yet: the numbered route on the world map.
