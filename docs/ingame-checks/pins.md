@@ -41,9 +41,25 @@ Minimap
 - [ ] Clicking the minimap under the dot still pings.
 - [ ] In a dungeon there is no dot and no error.
 
+Later places on the world map
+
+- [ ] The next three places after the current step each have a smaller, fainter dot with a
+      black number 1, 2 or 3 that can be read on it (`GameFontNormalSmall` on an 18 px dot at
+      70% opacity), under the current step's dot where they overlap.
+- [ ] The numbers follow the order of the window's rows, a place taken by several rows has one
+      dot, and its tooltip lists each name once. The current dot's tooltip lists the later
+      steps at the same place under the current one.
+- [ ] Steps within 2 percent of the zone map share a dot. Note whether that is too much or too
+      little, also on the continent map, where dots of different places may still overlap.
+- [ ] A place in another zone shows when that zone's map or the continent map is opened.
+- [ ] After a planner pass (a level-up, a skip, a quest handed in) the numbered dots are the
+      new plan's, with none left over from the old one.
+- [ ] Note whether three is the right number of later places.
+- [ ] There is no numbered dot on the minimap.
+
 Both
 
-- [ ] `/lvl pin` removes both dots and brings them back; the setting survives `/reload`.
-- [ ] `/lvl hide` removes both dots along with the window.
-- [ ] With TomTom installed there is no dot of ours on either map, and TomTom shows its own
+- [ ] `/lvl pin` removes every dot and brings them back; the setting survives `/reload`.
+- [ ] `/lvl hide` removes every dot along with the window.
+- [ ] With TomTom installed there is no dot of ours on either map, numbered or not, and TomTom shows its own
       icon on both.

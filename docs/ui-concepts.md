@@ -385,6 +385,13 @@ no quest name on the row and no tooltip.
 `Pins.lua` adds one pin on the world map and one on the minimap for the current step, with a
 tooltip naming it; none of ours when TomTom has the waypoint. `/lvl pin` switches them.
 
+Decided by the owner from mockups (2026-11-14, issue #6): on the world map only, the next three
+places after the current step get a numbered pin each, smaller and fainter, and steps close
+together share one pin whose tooltip lists what is there; no lines between them. This is built
+(three is one constant, to tune in the game). Also decided and not built yet: for a kill or
+collect step, a small dot for each place the arrow would go to, at most about twelve nearest,
+on the world map only. Not chosen: area outlines, and settings for pin count and size.
+
 Step state comes from the quest log (`C_QuestLog.IsOnQuest`, `IsQuestFlaggedCompleted`,
 `GetQuestObjectives`), refreshed shortly after the events of the steps in view (README, "Steps
 that complete themselves"). A row of a quest with several objectives counts its own objective.
@@ -448,4 +455,4 @@ yellow, the destination's name under it, on the same plate (#16; README, "Flight
 owner's decision there is no frame of its own for it, and nothing of ours is drawn while
 Ellesmere UI's flight timer is loaded.
 
-Not built yet: the numbered route on the world map.
+Not built yet: the dots for the places of a kill or collect step on the world map.
