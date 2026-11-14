@@ -161,6 +161,11 @@ local function boot(character)
     for _, file in ipairs({ "Core", "Steps", "Planner", "Flights" }) do
         assert(loadfile("addon/LevelingAddon/" .. file .. ".lua"))("LevelingAddon", ns)
     end
+    if character.abandon then -- the list of #13, which Abandon.lua provides in the game
+        ns.QuestsToAbandon = function()
+            return character.abandon
+        end
+    end
     if not character.noData then
         assert(loadfile("addon/tests/planner_data.lua"))("LevelingAddon", ns)
     end
@@ -511,6 +516,28 @@ ns, fire = boot(duskwood({
     end,
 }))
 assert(accepts() == 0 and #notices() == 1 and notices()[1]:find("cannot be picked up%.$"), notices()[1])
+-- The same, with quests in the log that are not worth keeping: the line points at the list, and
+-- at nothing when a quest is ready to hand in or the list is empty.
+local function stuck(fields)
+    fields.x, fields.y, fields.maxQuests = 75.34, 48.75, 2
+    fields.setup = fields.setup
+        or function()
+            duskwood().setup()
+            T.log[101] = { item(5), item(5), item(10) }
+        end
+    return duskwood(fields)
+end
+ns, fire = boot(stuck({ abandon = { {}, {} } }))
+assert(#notices() == 1, "said once")
+assert(notices()[1]:find("cannot be picked up%. 2 quests are not worth keeping: /lvl abandon$"), notices()[1])
+fire("ZONE_CHANGED_NEW_AREA")
+assert(#notices() == 1)
+ns, fire = boot(stuck({ abandon = { {} } }))
+assert(notices()[1]:find("1 quest is not worth keeping: /lvl abandon$"), notices()[1])
+ns, fire = boot(stuck({ abandon = {} }))
+assert(notices()[1]:find("cannot be picked up%.$"), notices()[1])
+ns, fire = boot(stuck({ abandon = { {} }, setup = duskwood().setup }))
+assert(notices()[1]:find("at Madame Eva first%.$") and not notices()[1]:find("abandon"), notices()[1])
 -- Nearly full, at Raven Hill: the hand-in back in Darkshire comes before the kills at hand.
 ns, fire = boot(duskwood({ x = 22, y = 47 }))
 assert(current() ~= "turnin Madame Eva 101", current())

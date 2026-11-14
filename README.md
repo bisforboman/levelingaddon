@@ -58,7 +58,7 @@ In a dungeon the window shrinks to a pause mark.
 
 The settings page holds every setting: scale, background opacity, steps in view, arrow, map
 pin, combat dimming, lock and reset position, and after them what each feature adds (the
-drowning alarm, junk selling, the three party settings, verbose output, the item hint,
+drowning alarm, junk selling, the four party settings, verbose output, the item hint,
 automation, the dungeon and group quest switches, reward marks, the item button). Every change applies at once, with no reload and
 no loss of progress (#24), and a feature's own slash command changes the same setting the same
 way. A changed preference about which quests to suggest is one debounced planner pass; a pass
@@ -111,8 +111,8 @@ the quest log and its objectives, level, class, race, faction, zone and position
   counts the quests in it. The plan never holds more pick-ups than there are free places; with
   two or fewer free, hand-ins come before everything else, nearest first. When the log is full
   and a pick-up would otherwise have come first, one chat line says so, naming the nearest quest
-  ready to hand in if there is one; it is said once, and again only when that hand-in changes
-  or the log has had room in between. Where the client does not tell the limit, pick-ups are
+  ready to hand in if there is one, or else pointing at `/lvl abandon` when that list has rows;
+  it is said once, and again only when that hand-in changes or the log has had room in between. Where the client does not tell the limit, pick-ups are
   not held back. `/lvl plan` prints the count and the limit.
 - **Side tasks** (issue #8): a kill or collect objective the character already has in the log
   comes right under the current step when any of its points in the data lies within 200 yards
@@ -122,6 +122,14 @@ the quest log and its objectives, level, class, race, faction, zone and position
   finished, or the current step has changed and the objective is no longer near the way to the
   new one, the next pass ranks it like any other step. It is an ordinary row, found in the same
   pass, and the arrow stays on the current step.
+- **Bag space** (issue #15): with three or fewer free bag slots (`LOW_SLOTS` in `Junk.lua`) a
+  "sell" row names a vendor that lies within `SIDE_YARDS` of the way to the current step, right
+  under that step; with no free slot the row is the current step, at the nearest vendor in the
+  zones the pass looks at. Vendors are the NPCs with the vendor flag in the data that the
+  character's faction can use; the data only has NPCs a quest refers to, so "nearest" means
+  nearest known. The row ends when a vendor window opens or the bags have room again, and can
+  be skipped like any step; a skip, or a visit that left the bags low, holds until there has
+  been room again. It follows bag changes (`BAG_UPDATE_DELAYED`), never movement.
 - **Working set**: the current zone, the zones whose maps overlap its map, and the 5-level band
   the character is in. Where nothing there suits the character, the best-fitting other zones
   on the continent are tried one at a time (three at most), so a character standing somewhere
@@ -203,12 +211,13 @@ installed.
   8 yards (30 for a kill or collect step with one place): the arrow becomes a ring until the
   step completes.
 - **Dead**: a ghost is pointed to the corpse.
-- **Nowhere to point**: with the target on another continent, or in an instance, nothing is
-  drawn. What to show for another continent instead is an open question
-  (`docs/ui-concepts.md`, section 8).
-- **In flight**: the frame shows the flight timer instead (see "Flights"); `Flights.lua` hands
-  it a time and a name through `ns.Arrow:SetFlight(time, name)`, and `SetFlight(nil)` gives the
-  frame back.
+- **Another continent**: the step has no direction from here, so the frame shows the name of
+  its zone and of the continent under it instead, both from the client (`C_Map.GetMapInfo`),
+  and grows to fit them. Decided by the owner on 2026-11-14; pointing at the flight point that
+  leads there is to follow, once the flight data offers one. In an instance nothing is drawn.
+- **For other features**: `ns.Arrow.Places(step)` returns the places the arrow walks for a
+  step, as one flat list `{ x1, y1, x2, y2, ... }` of positions on `step.map`, each from 0 to
+  1; never empty.
 - **Cost**: ten updates a second on the shared loop: one `UnitPosition`, one `GetPlayerFacing`
   and arithmetic. The nearest place is looked for twice a second, the texture turns only for a
   change of about a degree, the distance text changes only with the number, and the task is

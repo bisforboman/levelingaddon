@@ -1,5 +1,6 @@
--- Party features: the version check and its throttle, the level-up announcement, quest sharing
--- and /lvl party. The game API they call is stubbed here, on top of stub.lua.
+-- Party features: the version check and its throttle, the level-up announcement, quest
+-- sharing, party members' steps and /lvl party. The game API they call is stubbed here, on
+-- top of stub.lua.
 -- From the repository root: lua5.1 addon/tests/test_party.lua
 local T = dofile("addon/tests/stub.lua")
 local ns, fire, cmd = T.ns, T.fire, T.cmd
@@ -44,6 +45,35 @@ function GetNumGroupMembers()
 end
 function IsInGuild()
     return guild
+end
+local party = { "Friend" } -- the other members' names, as party1 to party4
+function UnitName(unit)
+    return unit == "mouseover" and T.over or party[tonumber(unit:match("^party(%d)$"))]
+end
+function UnitInParty(unit)
+    return unit == "mouseover" and T.overInParty
+end
+-- The unit tooltip: what the game calls when it has filled one, and the lines added to it.
+local unitTooltip, tooltipLines = nil, {}
+Enum = { TooltipDataType = { Item = 0, Unit = 2 } }
+TooltipDataProcessor = {
+    AddTooltipPostCall = function(kind, fn)
+        if kind == Enum.TooltipDataType.Unit then
+            unitTooltip = fn
+        end
+    end,
+}
+rawset(GameTooltip, "GetUnit", function()
+    return T.over, T.over and "mouseover"
+end)
+rawset(GameTooltip, "AddLine", function(_, text)
+    tooltipLines[#tooltipLines + 1] = text
+end)
+-- Point at a unit; returns the lines the addon put on its tooltip.
+local function hover(name, inParty)
+    T.over, T.overInParty, tooltipLines = name, inParty ~= false, {}
+    unitTooltip(GameTooltip, {})
+    return table.concat(tooltipLines, "; ")
 end
 function SendChatMessage(text, channel)
     chat[#chat + 1] = channel .. ": " .. text
@@ -214,8 +244,166 @@ cmd("party version")
 cmd("party announce loudly")
 assert(ns.db.partyVersion == true and ns.db.partyAnnounce == "off")
 cmd("party")
-assert(T.chat[#T.chat]:find("version check on, level-up announcement off, quest sharing off", 1, true))
+local status = "version check on, level-up announcement off, quest sharing off, sharing my step off"
+assert(T.chat[#T.chat]:find(status, 1, true))
 cmd("help")
 assert(T.chat[#T.chat]:find("party", 1, true))
+
+-- Our own step: sent to the party when it changes, as ids, never as text. ------------------
+
+-- The character's current step and its count, as the planner and the quest log would have
+-- them; the planner hands over a new table on every pass.
+local current, have = nil, 0
+ns.Steps.Current = function()
+    return current and { kind = current[1], questID = current[2], name = current[3], need = current[4] }, 1
+end
+ns.Steps.Progress = function()
+    return have
+end
+ns.Data = {
+    plannerQuests = {
+        [7] = {
+            start = { { "Marshal McBride", 1429, 48.92, 41.61 } },
+            finish = { { "Somebody Else", 1429, 1, 1 }, { "Marshal McBride", 1429, 48.92, 41.61 } },
+            obj = { { "monster", "Kobold Vermin", 1429, 49.17, 36.55 }, { "item", "Candle", 1429, 49, 36 } },
+        },
+        [54] = { obj = { { "event", "Goldshire", 1429, 42, 65 } } },
+    },
+}
+group = 0
+setGroup(2)
+wait(60)
+sent = {}
+local function step(kind, questID, name, need, count)
+    current, have = kind and { kind, questID, name, need }, count or 0
+    ns.Refresh()
+end
+step("kill", 7, "Kobold Vermin", 10, 6)
+wait(60)
+assert(#sent == 0, "off: nothing sent")
+cmd("party step")
+assert(ns.db.partyStep == true and #sent == 0, "not at once")
+wait(1)
+assert(sent[1] == "LevelingAddon|S 7 k 1 6 10|PARTY", sent[1])
+ns.Refresh()
+ns.Refresh() -- a planner pass, the same step in a new table
+wait(60)
+assert(#sent == 1, "the step did not change: nothing sent")
+step("kill", 7, "Kobold Vermin", 10, 7)
+wait(1)
+assert(#sent == 2 and sent[2] == "LevelingAddon|S 7 k 1 7 10|PARTY", "a count is a change")
+step("kill", 7, "Kobold Vermin", 10, 8)
+wait(1)
+assert(#sent == 2, "throttled")
+step("loot", 7, "Candle", 4, 0)
+wait(3)
+assert(#sent == 2, "still inside the interval")
+wait(1)
+assert(#sent == 3 and sent[3] == "LevelingAddon|S 7 l 2 0 4|PARTY", "one message, with the latest step")
+step("kill", 7, "Kobold Vermin", 10, 9)
+step("loot", 7, "Candle", 4, 0)
+wait(60)
+assert(#sent == 3, "changed and changed back inside the interval: nothing to say")
+step("accept", 7, "Marshal McBride")
+wait(60)
+step("turnin", 7, "Marshal McBride")
+wait(60)
+step("go", 54, "Goldshire")
+wait(60)
+assert(sent[4]:find("|S 7 a 1 0 0|", 1, true) and sent[5]:find("|S 7 t 2 0 0|", 1, true), sent[5])
+assert(sent[6]:find("|S 54 g 1 0 0|", 1, true), sent[6])
+step("kill", 999, "Not In The Data", 5, 1)
+wait(60)
+assert(sent[7] == "LevelingAddon|S 0|PARTY", "a step the data does not have is no step")
+step()
+wait(60)
+assert(#sent == 7, "no step is no step still")
+-- Somebody joins and has nothing of us yet; somebody leaves and nothing is said.
+step("kill", 7, "Kobold Vermin", 10, 9)
+wait(60)
+sent = {}
+setGroup(3)
+wait(60)
+assert(sent[1]:find("|V ", 1, true) and sent[2]:find("|S 7 k 1 9 10|", 1, true) and #sent == 2)
+setGroup(2)
+wait(60)
+assert(#sent == 2)
+-- Alone, nothing is sent; switched off in a party, the party is told once that there is no step.
+setGroup(0)
+step("kill", 7, "Kobold Vermin", 10, 10)
+wait(60)
+assert(#sent == 2, "alone")
+setGroup(2)
+wait(60)
+sent = {}
+cmd("party step")
+wait(60)
+assert(#sent == 1 and sent[1]:find("|S 0|", 1, true) and ns.db.partyStep == false)
+setGroup(3)
+step("loot", 7, "Candle", 4, 1)
+wait(60)
+assert(#sent == 2 and sent[2]:find("|V ", 1, true), "off: no step is sent, to newcomers either")
+
+-- A party member's step: on their tooltip and in /lvl party, from our own data. ---------------
+
+assert(hover("Friend") == "", "nothing known: nothing shown")
+hear("S 7 k 1 6 10")
+assert(hover("Friend") == "Leveling: Kobold Vermin 6/10", hover("Friend"))
+assert(hover("Friend", false) == "", "somebody of the same name who is not in the party")
+assert(hover("Stranger") == "" and hover(nil) == "")
+lines = #T.chat
+cmd("party")
+assert(#T.chat == lines + 2 and T.chat[#T.chat]:find("Friend: Kobold Vermin 6/10", 1, true))
+hear("S 7 a 1 0 0")
+assert(hover("Friend") == "Leveling: ! Marshal McBride")
+hear("S 7 t 2 0 0")
+assert(hover("Friend") == "Leveling: ? Marshal McBride")
+hear("S 54 g 1 0 0", "PARTY", "Friend") -- a sender without a realm
+assert(hover("Friend") == "Leveling: Goldshire")
+-- What our data cannot resolve is not shown: an unknown quest, an objective it does not have.
+hear("S 999 k 1 1 5")
+assert(hover("Friend") == "")
+hear("S 7 k 3 1 5")
+assert(hover("Friend") == "")
+-- Everything else is dropped, and what was known stays.
+hear("S 7 l 2 3 4")
+for _, text in ipairs({
+    "S 7 x 1 6 10",
+    "S 7 k 1 6",
+    "S 7 k 1 6 10 1",
+    "S 7 k 0 6 10",
+    "S 7 k 51 6 10",
+    "S 7 k 1 10000 10",
+    "S 7 k 1 6 10000",
+    "S 10000000 k 1 6 10",
+    "S -7 k 1 6 10",
+    "S 7 k 1.5 6 10",
+    "S 7 k 1 6 10 ",
+    "S 7 k 1 6 |cffff0000",
+    "S Kobold Vermin 6/10",
+    "S",
+    "S 7 k 1 6 " .. string.rep("9", 40),
+}) do
+    hear(text)
+    assert(hover("Friend") == "Leveling: Candle 3/4", text)
+end
+hear("S 7 k 1 6 10", "WHISPER")
+hear("S 7 k 1 6 10", "PARTY", "Stranger-Realm") -- not in our party
+fire("CHAT_MSG_ADDON", "LevelingAddon", "S 7 k 1 6 10", "PARTY", nil)
+assert(hover("Friend") == "Leveling: Candle 3/4" and hover("Stranger") == "")
+-- A client that keeps a unit's identity from addons: nothing is shown.
+function issecretvalue(value)
+    return value == "mouseover"
+end
+assert(hover("Friend") == "")
+issecretvalue = nil
+-- No step any more, and a member who leaves is forgotten.
+hear("S 0")
+assert(hover("Friend") == "")
+hear("S 7 l 2 3 4")
+party = {}
+setGroup(0)
+party = { "Friend" }
+assert(hover("Friend") == "", "left and came back: nothing known until they say so")
 
 print("test_party: ok")

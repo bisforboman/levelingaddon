@@ -546,22 +546,27 @@ local function plan(working, me, log, logListed, px, py, free)
         return here or best
     end
 
+    -- How far a point lies from the straight line between (ax, ay) and (bx, by), in yards.
+    local function offWay(point, ax, ay, bx, by)
+        local dx, dy = bx - ax, by - ay
+        local length = dx * dx + dy * dy
+        local along = length > 0 and ((point.wx - ax) * dx + (point.wy - ay) * dy) / length or 0
+        along = math.max(0, math.min(1, along))
+        local ox, oy = point.wx - ax - along * dx, point.wy - ay - along * dy
+        return math.sqrt(ox * ox + oy * oy)
+    end
+
     -- Side tasks (#8): a kill or collect objective the character already has in the log, with
     -- a point within SIDE_YARDS of the straight line from where the character stands (ax, ay)
     -- to the current step (px, py). The one nearest that line, shaped like a pick.
     local function sideTask(ax, ay)
-        local dx, dy = px - ax, py - ay
-        local length = dx * dx + dy * dy
         local side = { score = -SIDE_YARDS, action = "objective", first = 3 }
         for _, id in ipairs(logged) do
             for _, objective in ipairs(inLog[id] and open[id] or {}) do
                 local target = objective.target
                 -- An index means the game's log has the objective; a planned pick-up has none.
                 for _, point in ipairs(objective.index and target[1] ~= "event" and pointsOf(target, 3) or {}) do
-                    local along = length > 0 and ((point.wx - ax) * dx + (point.wy - ay) * dy) / length or 0
-                    along = math.max(0, math.min(1, along))
-                    local ox, oy = point.wx - ax - along * dx, point.wy - ay - along * dy
-                    local score = -math.sqrt(ox * ox + oy * oy)
+                    local score = -offWay(point, ax, ay, px, py)
                     if score > side.score or (score == side.score and not side.id) then
                         side.score, side.id, side.quest = score, id, quests[id]
                         side.target, side.point, side.objective = target, point, objective
@@ -619,6 +624,31 @@ local function plan(working, me, log, logListed, px, py, free)
         -- A side task is done along the way: the plan goes on from the current step.
         if not side then
             px, py = point.wx, point.wy
+        end
+    end
+
+    -- Bag space (#15, Junk.lua): a stop at the nearest vendor the data knows. With the bags
+    -- full it is the current step. With little room left it is a side task: right under the
+    -- current step, and only for a vendor within SIDE_YARDS of the way there.
+    local sell = ns.SellStep and ns.SellStep()
+    if sell and (sell == "full" or rows[1]) then
+        local bx, by = ax, ay -- full: the vendor nearest the character
+        if sell == "low" then
+            bx, by = worldPosition(rows[1].map, rows[1].x, rows[1].y)
+        end
+        local best, yards = nil, sell == "low" and SIDE_YARDS or math.huge
+        for _, vendor in ipairs(ns.Vendors(me.side)) do
+            for _, point in ipairs(pointsOf(vendor, 2)) do
+                local off = offWay(point, ax, ay, bx, by)
+                if off < yards then
+                    yards = off
+                    best = { kind = "sell", questID = ns.SELL, name = vendor[1], map = point.map }
+                    best.x, best.y = point.x, point.y
+                end
+            end
+        end
+        if best then
+            table.insert(rows, sell == "low" and 2 or 1, best)
         end
     end
     return rows, blocked
@@ -685,12 +715,19 @@ function Planner:Run()
         local turnin = first and first.kind == "turnin" and first.questID or 0
         if noticed ~= turnin then
             noticed = turnin
-            ns.say(
-                "the quest log is full, so "
-                    .. quests[blocked].name
-                    .. " cannot be picked up"
-                    .. (turnin ~= 0 and ": hand in " .. quests[turnin].name .. " at " .. first.name .. " first." or ".")
-            )
+            local advice = "."
+            if turnin ~= 0 then
+                advice = ": hand in " .. quests[turnin].name .. " at " .. first.name .. " first."
+            else
+                -- Nothing to hand in: point at the list of quests not worth keeping (#13), if
+                -- it has any. The player opens it and confirms; nothing is abandoned from here.
+                local n = ns.QuestsToAbandon and #ns.QuestsToAbandon() or 0
+                if n > 0 then
+                    advice =
+                        string.format(". %d quest%s not worth keeping: /lvl abandon", n, n == 1 and " is" or "s are")
+                end
+            end
+            ns.say("the quest log is full, so " .. quests[blocked].name .. " cannot be picked up" .. advice)
         end
     elseif rows then
         noticed = nil
