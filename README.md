@@ -87,7 +87,7 @@ the quest log and its objectives, level, class, race, faction, zone and position
   `pre`, all of `preAll`), nothing that excludes it completed or in the log (`excl`: exclusive
   quests, the quest a breadcrumb leads to, the next quest in its chain), parent quest in the
   log where there is one, skill and reputation met, not skipped, and not marked `dungeon`,
-  `raid`, `group` or `pvp` unless `ns.Planner.allow[mark]` is set (the preferences of #20).
+  `raid`, `group` or `pvp` unless `ns.Planner.allow[mark]` is set ("First-run setup and quest preferences" below).
 - **Actions**: pick a quest up, work on an objective of a quest in the log, hand a quest in.
 - **Ranking**: travel distance, XP, how well the quest's level and the zone's level range fit
   the character, how many other candidates are close by, with a small bonus for finishing what
@@ -207,6 +207,24 @@ default, each with its own setting: "Accept quests automatically" (`/lvl set aut
 - **Any state**: if the steps change while an NPC's window is open, the window is looked at
   again.
 - Not built, because the data has nothing for them: gossip options, flights (#16), inns.
+
+### First-run setup and quest preferences
+
+`FirstRun.lua` holds the player's two choices about which quests are suggested (issue #20),
+both off by default and saved per character: "Include dungeon quests" (`/lvl dungeons`) and
+"Include group quests" (`/lvl groups`). They are also on the settings page. Raid and PvP quests
+are always left out; there is no switch for them.
+
+- **At run time the choice lives in `ns.Planner.allow`** (`allow.dungeon`, `allow.group`), set
+  at login and on every change. Read it there.
+- **A change applies at once** (#24): it asks for one planner pass. Progress and skipped quests
+  are not touched.
+- **A panel asks once per character**, at its first login with the addon, whatever its level
+  and history: the two tick boxes, a reminder that the window can be dragged, and "Start". The
+  guide window is live behind it. `/lvl setup` shows it again.
+- The settings page only knows account-wide settings, so `ns.db.dungeons` and `ns.db.groups`
+  are a copy for the character that is logged in; `ns.char` holds what is saved.
+- Not built, because the data cannot honour them: "fastest or safest" and professions.
 
 ### The target macro
 
