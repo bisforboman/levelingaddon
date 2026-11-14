@@ -13,3 +13,4 @@ Window.lua
 Arrow.lua
 Survival.lua
 Junk.lua
+Party.lua
