@@ -252,8 +252,8 @@ what cannot be drawn: the name of the thing to find, and a count.
 | Was text | Now |
 | --- | --- |
 | Accept, Turn in, Kill, Collect | An icon in front of the name. `!` and `?` are the marks the game already shows over quest NPCs. |
-| Done | A box per step that the addon ticks from the quest log (count reached, quest accepted, quest handed in). The player never ticks it. |
-| Skip, Undo | Two small marks shown only on hover; see the three designs below. A skipped step shows a dash in its box, not a tick. |
+| Done | Automatic, read from the quest log (count reached, quest accepted, quest handed in). The player never marks anything done. |
+| Skip, Undo | One cross on the hovered row; undo follows a skip. See the designs below. |
 | Quest name, place | The game's ordinary tooltip on hover |
 | Distance | On the arrow only |
 | Settings hint | A gear shown on hover, plus the addon compartment |
@@ -267,19 +267,23 @@ also stay reachable from the compartment and a slash command.
 **Skip and undo** (third and fourth iterations). The owner asked for the boxes to tick
 themselves and for clean skip designs. A first set with controls floating beside the card (a
 rail, a per-row x, right-click) was rejected as cluttered: controls should be attached to the
-box and shown on hover. The current set, shown side by side in
-[`mockups/skip-designs.png`](mockups/skip-designs.png):
+box and shown on hover. A second set that turned the step's own box into the skip button was rejected too: progress is
+automatic and skipping is the player's act, so the two must not share a control, the box must
+not change, and hover should reveal one mark at most.
 
-| | A. Box only | B. Box + handle | C. Footer strip |
+The current set, shown side by side in [`mockups/skip-designs.png`](mockups/skip-designs.png),
+follows one rule: whatever shows progress sits on the left and never reacts to the pointer; the
+only clickable thing is a single cross at the end of the hovered row. Unrolling is a click on
+the card; settings live in the addon compartment.
+
+| | A. No status marks | B. Dial + undo bar | C. Dial + crossed-out row |
 | --- | --- | --- | --- |
-| Skip | The hovered row's box turns into a skip button | Same as A | A mark in a strip inside the card's bottom edge |
-| Undo | A skipped row's box turns into undo on hover | Same as A | Joins the strip after a skip |
-| Unroll, settings | Click a row; settings from the addon list | Two small marks in a slim handle at the bottom, on hover | In the strip |
-| Skips | Any step | Any step | The current step |
-| Added on hover | Nothing new, one box changes | One slim line | One slim line |
+| Progress | The count; a finished step swaps its icon for a tick and fades | A round dial that fills, solid when done | Same dial |
+| Skip | Cross at the end of the hovered row | Same | Same |
+| After a skip | Step leaves; a slim bar offers undo for a few seconds | Same as A | Step stays crossed out; its cross becomes a restore arrow |
+| Risk | Steps without a count show no progress until done | One more mark per row | Skipped rows take space until the next step completes |
 
-Recommendation: B. Awaiting the owner's choice. Undo stays available until the next step
-completes; a skipped step shows a dash, a finished one a tick.
+Recommendation: A. Awaiting the owner's choice.
 
 **Planning ahead** (owner's question: is there a timeline of following steps?). At rest the
 card shows the current step and the next two. Two on-demand views extend that without adding
