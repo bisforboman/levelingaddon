@@ -24,6 +24,7 @@ Hints.lua
 Automation.lua
 Target.lua
 Rewards.lua
+ItemButton.lua
 
 # The quest data, built by the collector (README, "Building the quest data"). Not in the repository.
 Data\data.xml

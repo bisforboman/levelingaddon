@@ -70,6 +70,7 @@ read_globals = {
     "GetQuestItemLink",
     "GetQuestLogPushable",
     "GetQuestLogSelection",
+    "GetQuestLogSpecialItemInfo",
     "GetQuestLogTitle",
     "GetQuestReward",
     "GetQuestsCompleted",
@@ -125,6 +126,7 @@ read_globals = {
 -- Names the addon defines for the game to find: saved settings, the slash command, and the
 -- function the TOC names for the addon list by the minimap.
 globals = {
+    "BINDING_HEADER_LEVELINGADDON",
     "SlashCmdList",
     "LevelingAddonDB",
     "LevelingAddonCharDB",
