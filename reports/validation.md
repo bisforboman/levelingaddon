@@ -153,8 +153,8 @@ QuestieDB's XP table has no entry for the quest.
 
 Neither level is set, so the quest cannot be placed in a level range.
 
-- 7790 
-- 8152 
+- 7790
+- 8152
 - 60860 Your Reward has Arrived!
 - 60870 A Special Gift
 - 86747 Legashi Horns
@@ -171,10 +171,10 @@ Neither level is set, so the quest cannot be placed in a level range.
 
 The quest row has no name.
 
-- 7790 
-- 8152 
-- 97176 
-- 99204 
+- 7790
+- 8152
+- 97176
+- 99204
 
 ### Name suggests a test or retired quest (12)
 

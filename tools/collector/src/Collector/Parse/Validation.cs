@@ -64,7 +64,7 @@ public static partial class Validation
         {
             var hits = data.Quests.Select(q => (Quest: q, Detail: problem(q))).Where(h => h.Detail is not null).ToList();
             findings.Add(new Finding(key, title, meaning,
-                hits.Take(12).Select(h => $"{h.Quest.Id} {h.Quest.Name}{(h.Detail!.Length > 0 ? $" ({h.Detail})" : "")}").ToList(),
+                hits.Take(12).Select(h => $"{h.Quest.Id} {h.Quest.Name}".TrimEnd() + (h.Detail!.Length > 0 ? $" ({h.Detail})" : "")).ToList(),
                 hits.Select(h => h.Quest.Id).ToList()));
         }
 

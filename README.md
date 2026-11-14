@@ -133,6 +133,29 @@ off, retries, and stops after `maxConsecutiveFailures` in a row.
 Browser kinds (`quest`, `list`) open a visible window of the browser named by `browserChannel`.
 Nothing about the browser is disguised; if Wowhead still refuses, the run stops.
 
+## Checks
+
+`.github/workflows/ci.yml` runs on every pull request and on every push to `main`:
+
+| Job | Runs |
+| --- | --- |
+| `collector` | `dotnet build`, `dotnet test` and `dotnet format --verify-no-changes` in `tools/collector` |
+| `lua` | `luacheck .` and `stylua --check .` from the repository root |
+
+The same commands work locally. `dotnet format` without the flag fixes what it reports, and so
+does `stylua .`. Code style for the collector is in `.editorconfig`.
+
+The Lua settings are for the addon's source, which does not exist yet, so the `lua` job has no
+files to check for now. `data/` is excluded from all three tools: it holds QuestieDB's checkout
+and the generated tables.
+
+| File | Tool |
+| --- | --- |
+| `.luacheckrc` | [Luacheck](https://github.com/lunarmodules/luacheck), the linter: Lua 5.1 plus a list of the game's globals, to extend as the addon uses more of the API |
+| `stylua.toml`, `.styluaignore` | [StyLua](https://github.com/JohnnyMorganz/StyLua), the formatter: Lua 5.1 syntax, 4 spaces, 120 columns |
+| `.luarc.json` | [lua-language-server](https://github.com/LuaLS/lua-language-server), for type checking in the editor. Not run in CI. |
+| `.vscode/extensions.json` | Suggests the Lua, StyLua and [WoW API](https://github.com/Ketho/vscode-wow-api) extensions; the last one supplies the game's API annotations once the folder has a `.toc` file |
+
 ## Licence
 
 The data in `data/parsed/` is derived from QuestieDB, which its maintainers publish under the
