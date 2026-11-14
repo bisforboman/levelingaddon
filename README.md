@@ -67,6 +67,7 @@ lock, the pause mark and that only changed rows are redrawn; `test_core.lua` che
 machinery below. `test_planner.lua` checks the planner on quest data cut from a real export
 (`planner_data.lua`): a fresh character, a mid-level character with a half-finished zone, a
 character who skipped ahead, a full quest log, skips, and the events that ask for a pass.
+`test_automation.lua` checks accepting and handing in.
 `test_support.lua` checks the report, the events for other addons and verbose output. They cannot check how
 anything looks, or what the game client really returns; that needs the game client.
 
@@ -147,6 +148,22 @@ installed.
   and arithmetic. The nearest place is looked for twice a second, the texture turns only for a
   change of about a degree, the distance text changes only with the number, and the task is
   off while there is nothing to point at.
+
+### Automation
+
+`Automation.lua` removes the clicks that carry no decision (issue #9). Both halves are on by
+default, each with its own setting: "Accept quests automatically" (`/lvl set autoAccept`) and
+"Hand in quests automatically" (`/lvl set autoTurnIn`).
+
+- **Only what is suggested**: a quest is accepted when a pending "accept" step names it, and
+  handed in when a pending "turnin" step names it and the game says it is ready. That covers
+  the quest's own windows and picking it from an NPC's list of quests. Any other quest is left
+  to the player.
+- **Shift** held while the window opens does the opposite of the setting for that window.
+- **Never**: choosing between rewards (it stops at the reward window), and repeatable quests.
+- **Any state**: if the steps change while an NPC's window is open, the window is looked at
+  again.
+- Not built, because the data has nothing for them: gossip options, flights (#16), inns.
 
 ### Writing a feature
 
