@@ -157,7 +157,8 @@ local function boot(character)
         })
     end
     local ns = {}
-    for _, file in ipairs({ "Core", "Steps", "Planner" }) do
+    ns.AddSetting = function() end -- Settings.lua is not loaded here
+    for _, file in ipairs({ "Core", "Steps", "Planner", "Flights" }) do
         assert(loadfile("addon/LevelingAddon/" .. file .. ".lua"))("LevelingAddon", ns)
     end
     if not character.noData then
@@ -606,5 +607,86 @@ for _, line in ipairs(chat) do
     told = told + (line:find("no quest data") and 1 or 0)
 end
 assert(told == 1 and ns.Steps:Count() == 0)
+
+-- 7. Flights (issue #16) ------------------------------------------------------------------------
+-- Level 25 in Dun Morogh, with group quests allowed: nothing here fits, and both Redridge and
+-- Duskwood do. Redridge is the shorter walk, so the steps are there.
+local function flier(known)
+    return human({
+        level = 25,
+        map = 1426,
+        x = 30,
+        y = 71,
+        saved = { flights = { known = known } },
+        setup = function()
+            T.completed[163] = true -- so that Duskwood has something to pick up without its chain
+        end,
+    })
+end
+local function said()
+    local out = {}
+    for _, line in ipairs(chat) do
+        if line:find("fly from") then
+            out[#out + 1] = line
+        end
+    end
+    return out
+end
+-- Flight points in this test's world: beside the character, and in Darkshire.
+local function addFlights()
+    ns.Planner.allow.group = true
+    ns.Data.taxiNodes = {
+        [6] = { name = "Ironforge, Dun Morogh", faction = "Alliance", map = 0, x = 6700, y = -1500 },
+        [12] = { name = "Darkshire, Duskwood", faction = "Alliance", map = 0, x = -3000, y = -1500 },
+        [22] = { name = "Thunder Bluff, Mulgore", faction = "Horde", map = 1, x = 6700, y = -1500 },
+    }
+    ns.Data.taxiPaths = { [6] = { to = { [12] = 250 } }, [12] = { to = { [6] = 250 } }, [22] = { to = { [12] = 1 } } }
+    fire("ZONE_CHANGED_NEW_AREA")
+end
+ns, fire = boot(flier({}))
+addFlights()
+show("level 25 in Dun Morogh, no flight points known")
+assert(ns.Steps:Count() > 0 and #said() == 0)
+for _, s in ipairs(ns.Steps.list) do
+    assert(s.map == 1433, "the nearest on foot of the zones that fit: Redridge")
+end
+-- Knowing only the flight point at hand changes nothing: there is nowhere to fly to.
+ns, fire = boot(flier({ [6] = true }))
+addFlights()
+assert(ns.Steps.list[1].map == 1433 and #said() == 0)
+-- A point on another continent is no way there either.
+ns, fire = boot(flier({ [22] = true, [12] = true }))
+addFlights()
+assert(ns.Steps.list[1].map == 1433 and #said() == 0)
+-- Knowing Ironforge and Darkshire, Duskwood is 250 seconds away and Redridge a 17 minute walk:
+-- the steps are in Duskwood, and one line says how to get there.
+ns, fire = boot(flier({ [6] = true, [12] = true }))
+addFlights()
+show("the same character, knowing Ironforge and Darkshire")
+assert(ns.Steps:Count() > 0)
+for _, s in ipairs(ns.Steps.list) do
+    assert(s.map == 1431, "the zone reached soonest of those that fit: Duskwood")
+end
+assert(#said() == 1, "said once")
+assert(
+    said()[1]:find("The next steps are in Duskwood: fly from Ironforge to Darkshire (about 4:10).", 1, true),
+    said()[1]
+)
+-- Another pass with the same flight to take says nothing more.
+ns.Planner.Request()
+fire(nil)
+assert(#said() == 1)
+-- A flight this character has timed is used as it was measured.
+ns.char.flights.times[6] = { [12] = 200 }
+ns.char.flights.known[6] = nil
+fire("ZONE_CHANGED_NEW_AREA")
+assert(ns.Steps.list[1].map == 1433 and #said() == 1, "without the flight point at hand it is Redridge again")
+ns.char.flights.known[6] = true
+fire("ZONE_CHANGED_NEW_AREA")
+assert(ns.Steps.list[1].map == 1431 and #said() == 2 and said()[2]:find("(3:20)", 1, true), said()[2])
+-- A slow flight does not beat a walk: Redridge is about 1040 seconds away on foot.
+ns.char.flights.times[6][12] = 2000
+fire("ZONE_CHANGED_NEW_AREA")
+assert(ns.Steps.list[1].map == 1433 and #said() == 2)
 
 io.write("ALL OK\n")

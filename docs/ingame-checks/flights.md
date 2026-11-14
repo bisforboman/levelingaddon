@@ -76,9 +76,30 @@ Per character
 
 - [ ] Another character on the same account starts with nothing known and nothing timed.
 
+The planner
+
+- [ ] Finish everything worth doing in a zone and its neighbours (or stand in a zone far below
+      the character's level) with a few flight points known: the steps lead to a zone that
+      fits the level and is quick to reach by flight, and one chat line names the flight:
+      "nothing left to do around here. The next steps are in Duskwood: fly from Ironforge to
+      Darkshire (about 4:10)."
+- [ ] The line is said once, not on every quest event while the same flight is the way there.
+- [ ] The flight named is one the flight master offers, and its start is the flight point
+      nearest the character.
+- [ ] With no flight points known (before the flight map was ever opened on this character)
+      the steps are as before: the best-fitting zone, nearest first.
+- [ ] The flight points are on the right continent: the planner takes a point's `map` (0 for
+      the Eastern Kingdoms, 1 for Kalimdor) to be the continent id that
+      `C_Map.GetWorldPosFromMapPos` returns, and its `x`, `y` to be in the same world yards.
+      If flights are never suggested although points are known, one of the two differs.
+- [ ] Say whether 7 yards a second (`RUN_SPEED` in `Planner.lua`) is a fair walking speed to
+      hold a flight against, and whether the zone picked felt right. A mount is not known.
+- [ ] The arrow points straight at the first step in the far zone, not at the flight master.
+      Note whether a "take this flight" step is missed.
+
 The data
 
 - [ ] Flight masters: 61 of the 65 flight points carry the flight master QuestieDB has there
-      (name and map position), linked by position. Nothing shows them yet; the planner will
-      use them. Spot-check a few in `addon/LevelingAddon/Data/taxiNodes-1.lua` against the
+      (name and map position), linked by position. Nothing shows them yet; a "take this
+      flight" step would use them. Spot-check a few in `addon/LevelingAddon/Data/taxiNodes-1.lua` against the
       game: the NPC named is the flight master standing at that point.
