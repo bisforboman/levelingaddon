@@ -64,8 +64,8 @@ only the client can confirm. Build the data first (README, "Building the quest d
       (issue #2).
 - [ ] The order feels like a route: nearby pick-ups together, then objectives, then hand-ins.
       The weights at the top of `Planner.lua` are first guesses; note what feels wrong.
-- [ ] A step of kind "go" (an escort, an exploration) has no icon yet (#7); note whether the
-      row is readable without one.
+- [ ] A step of kind "go" (an escort, an exploration) has no icon yet (the window is #4's);
+      note whether the row is readable without one.
 
 ## Skips
 

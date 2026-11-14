@@ -371,9 +371,10 @@ no quest name on the row and no tooltip.
 tooltip naming it; none of ours when TomTom has the waypoint. `/lvl pin` switches them.
 
 Step state comes from the quest log (`C_QuestLog.IsOnQuest`, `IsQuestFlaggedCompleted`,
-`GetQuestObjectives`), refreshed shortly after `QUEST_ACCEPTED`, `QUEST_REMOVED`,
-`QUEST_TURNED_IN` and `QUEST_LOG_UPDATE`. If the game reports a skipped step as finished, it
-shows as finished.
+`GetQuestObjectives`), refreshed shortly after the events of the steps in view (README, "Steps
+that complete themselves"). A row of a quest with several objectives counts its own objective.
+A `go` step is also done once the character has stood at its point. If the game reports a
+skipped step as finished, it shows as finished.
 
 A skip is for the step's quest and is kept per character: the step skipped on stays in the
 list, crossed out, and nothing else of that quest is suggested until it is restored, from the
