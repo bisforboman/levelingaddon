@@ -131,7 +131,8 @@ cmd("mine 42")
 assert(got == "42")
 T.chat = {}
 cmd("nonsense")
-local help = "arrow, debug, help, hide, mine, reset, rows, scale, show, unskip"
+-- Sorted: Core's commands and the one added here, with room for the ones features add.
+local help = ("arrow, debug, help, hide, mine, reset, rows, scale, show, unskip"):gsub(", ", ", .*")
 assert(T.chat[1]:find(help), T.chat[1])
 T.chat = {}
 cmd("help")
