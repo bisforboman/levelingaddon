@@ -58,7 +58,7 @@ In a dungeon the window shrinks to a pause mark.
 
 The settings page holds every setting: scale, background opacity, steps in view, arrow, map
 pin, combat dimming, lock and reset position, and after them what each feature adds (the
-drowning alarm, junk selling, the three party settings, verbose output, the item hint,
+drowning alarm, junk selling, the four party settings, verbose output, the item hint,
 automation, the dungeon and group quest switches, reward marks, the item button). Every change applies at once, with no reload and
 no loss of progress (#24), and a feature's own slash command changes the same setting the same
 way. A changed preference about which quests to suggest is one debounced planner pass; a pass
