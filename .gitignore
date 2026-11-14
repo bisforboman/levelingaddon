@@ -1,4 +1,5 @@
 data/raw/
+data/lua/
 bin/
 obj/
 *.tmp

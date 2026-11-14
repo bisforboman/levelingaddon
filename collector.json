@@ -6,6 +6,14 @@
     "commit": "4dbb82440a27856f8dccf57094a5d792cdc7cc9b"
   },
 
+  // JSON -> Lua export. Files fill ns.<table>.quests, ns.<table>.npcs, ... in the addon's private
+  // namespace. Lua 5.1 refuses a file with more than 262,143 distinct literals, so a table is split
+  // across numbered files before it reaches maxConstantsPerFile.
+  "export": {
+    "table": "Data",
+    "maxConstantsPerFile": 200000
+  },
+
   // Secondary source, fetched only by you, on your own machine.
   "wowhead": {
     "userAgent": "quest-data-collector/0.1",

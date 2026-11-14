@@ -2,6 +2,7 @@
 using System.Text;
 using System.Text.RegularExpressions;
 using Collector;
+using Collector.Export;
 using Collector.Fetch;
 using Collector.Parse;
 using Collector.QuestieDb;
@@ -18,6 +19,10 @@ const string Usage = """
       parse
           Merge QuestieDB (its own code, run in a sandboxed Lua interpreter), write the normalized
           JSON to data/parsed/ and the validation report to reports/.
+
+      export [--out DIRECTORY]
+          Write data/parsed/ as Lua table files for the addon (default: data/lua/), then load them
+          back in the sandboxed interpreter and check every value against the JSON.
 
       fetch <kind> (--ids 1,2,3 | --ids-file FILE | --urls-file FILE) [--limit N] [--delay SECONDS]
           Fetch pages of a kind defined in collector.json into data/raw/wowhead/<kind>/.
@@ -99,6 +104,27 @@ try
             Console.WriteLine($"Wrote {data.Quests.Count} quests, {data.Relations.Count} relation rows, {data.Npcs.Count} NPCs, {data.Objects.Count} objects, " +
                               $"{data.Items.Count} items, {data.Zones.Count} zones to data/parsed; {data.Failures.Count} parse failure(s). Report: reports/validation.md");
             return 0;
+        }
+
+        case "export":
+        {
+            var parsed = Path.Combine(root, "data", "parsed");
+            var output = Path.GetFullPath(Option(args, "--out") ?? Path.Combine(root, "data", "lua"));
+            var exporter = new LuaExporter(config.Export ?? new ExportConfig());
+            var export = exporter.Run(parsed, output);
+            foreach (var table in export.Tables)
+                Console.WriteLine($"{table.Name,-16} {table.Rows,6} rows in {table.Files.Count} file(s), up to {table.LargestLiteralCount} distinct literals per file");
+            Console.WriteLine($"Wrote {export.Files.Count} Lua files and data.xml to {output} ({export.Bytes / 1024.0 / 1024.0:0.0} MB).");
+
+            var differences = exporter.Verify(parsed, output, export);
+            if (differences.Count == 0)
+            {
+                Console.WriteLine("Verified: the Lua files load and every value matches data/parsed.");
+                return 0;
+            }
+            Console.Error.WriteLine("Export does not match data/parsed:");
+            foreach (var difference in differences) Console.Error.WriteLine("  " + difference);
+            return 1;
         }
 
         case "fetch" when args.Length >= 2:

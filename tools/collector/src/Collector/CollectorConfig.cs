@@ -17,7 +17,10 @@ public sealed record WowheadConfig(
     Dictionary<string, string>? BrowserCaptures,
     int? ReportedQuestCount = null);
 
-public sealed record CollectorConfig(QuestieDbConfig QuestieDb, WowheadConfig Wowhead)
+/// <summary>How the Lua export names its table and how large one file may grow.</summary>
+public sealed record ExportConfig(string Table = "Data", int MaxConstantsPerFile = 200_000);
+
+public sealed record CollectorConfig(QuestieDbConfig QuestieDb, WowheadConfig Wowhead, ExportConfig? Export = null)
 {
     public const string FileName = "collector.json";
 

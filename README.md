@@ -12,7 +12,7 @@ data; the addon itself (Lua) comes later.
 | Validation report | Done: [`reports/validation.md`](reports/validation.md) |
 | Polite, resumable Wowhead fetcher with raw cache | Built and tested against a local test server; not yet run against Wowhead |
 | Wowhead list / quest page parsers | Not built: need a few real sample pages first |
-| JSON → Lua export | Not built (planned as a separate `export` step reading `data/parsed/`) |
+| JSON → Lua export | Done: `collector export`, checked by loading the files back and in Lua 5.1 |
 
 ## Layout
 
@@ -21,6 +21,7 @@ collector.json          pinned sources and fetch settings
 tools/collector/        the C# / .NET 10 collector (runs outside the game)
 data/raw/               raw inputs: QuestieDB checkout, cached Wowhead responses (gitignored)
 data/parsed/            normalized JSON, the source of truth (committed)
+data/lua/               Lua table files generated from data/parsed (gitignored; one command to rebuild)
 reports/                validation report (committed)
 ```
 
@@ -44,6 +45,41 @@ A spawn point of `[-1, -1]` is QuestieDB's placeholder for content inside an ins
 Not in the data yet, because QuestieDB does not carry it: money and item rewards, the patch a
 quest first appeared in, and Wowhead's "new / updated" notes. Faction-specific corrections that
 QuestieDB applies at runtime for the logged-in character are also not included.
+
+## Lua export
+
+`collector export` turns `data/parsed/` into Lua files for the addon, in `data/lua/` or the
+directory given with `--out`. It is a plain translation: same field names, nothing dropped, each
+entity on one line keyed by its id (the id is the key and is not repeated inside the row).
+
+```lua
+local _, ns = ...
+ns.Data = ns.Data or {}
+ns.Data.quests = ns.Data.quests or {}
+local t = ns.Data.quests
+t[2]={name="Sharptalon's Claw",level=30,side="horde",start={items={16305}},["end"]={npcs={12696}},xp=2450}
+```
+
+| Output | Contents |
+| --- | --- |
+| `quests-N.lua`, `questRelations-N.lua`, `npcs-N.lua`, `objects-N.lua`, `items-N.lua`, `zones-N.lua` | `ns.Data.<table>[id] = row` |
+| `manifest.lua` | `ns.Data.manifest`: source commit and counts |
+| `data.xml` | Lists every file as a `<Script>`, so the addon's TOC needs one stable line |
+
+Things to know when designing the addon:
+
+- Zone-keyed maps use numeric keys: `npc.spawns[331][1]` is `{x, y}`.
+- `end` is a Lua keyword, so a quest's turn-in is `quest["end"]`, not `quest.end`.
+- `requiredRaces` can exceed 32 bits (the Skyborne races); the game's `bit` library works on 32
+  bits, so use `side` and `races` instead of masking it.
+- Lua 5.1 refuses a file with more than 262,143 distinct literals. A table is split into
+  numbered files before it gets close; the files can load in any order.
+- Loaded in full, the tables take about 47 MB in stock Lua 5.1. The addon will probably want to
+  load less or load lazily; that is a design decision this step does not make.
+
+After writing, the command loads every file in the sandboxed interpreter, the way the game
+calls an addon file, and compares each value with the JSON. It exits non-zero on any difference.
+`data.xml` and loading inside the actual game client have not been tried.
 
 ## Sources
 
@@ -76,6 +112,7 @@ dotnet build
 dotnet test
 
 dotnet run --project src/Collector -- parse       # sync QuestieDB, merge, write data/parsed and reports
+dotnet run --project src/Collector -- export      # data/parsed -> Lua files in data/lua
 dotnet run --project src/Collector -- status
 
 dotnet run --project src/Collector -- fetch quest --ids 2,5,6 --limit 3

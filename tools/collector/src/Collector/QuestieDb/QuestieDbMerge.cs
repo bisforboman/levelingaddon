@@ -35,7 +35,7 @@ public static class QuestieDbMerge
     }
 
     // Dense 1..n tables become arrays; anything else an object keyed by the stringified key.
-    private const string JsonEncoder = """
+    internal const string JsonEncoder = """
         local function jsonString(s)
           return '"' .. s:gsub('[%c"\\]', function(c)
             if c == '"' then return '\\"' elseif c == '\\' then return '\\\\'
