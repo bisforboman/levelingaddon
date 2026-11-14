@@ -56,15 +56,23 @@ Corpse
 
 Nothing to point at
 
-- [ ] With the current step on another continent there is no arrow (the window still shows the
-      step). It comes back after the boat, zeppelin or portal, without `/reload`
-      (`PLAYER_ENTERING_WORLD`, `ZONE_CHANGED_NEW_AREA`).
+- [ ] With the current step on another continent the arrow's frame shows the step's zone in
+      yellow and the continent under it, in the client's language, with no arrow and no
+      distance (`C_Map.GetMapInfo`: `name`, `parentMapID`, and `mapType` 2 for a continent).
+      The frame is wide enough for both names and stays centred where the arrow was. Try a
+      long zone name.
+- [ ] If the continent line is missing or names something else (the world, a zone), note what
+      `C_Map.GetMapInfo` returns up the chain from that zone.
+- [ ] The arrow comes back after the boat, zeppelin or portal, without `/reload`
+      (`PLAYER_ENTERING_WORLD`, `ZONE_CHANGED_NEW_AREA`), and the frame is narrow again.
+- [ ] Taking a flight while the name shows: the flight timer takes the frame, and the name is
+      back after landing.
 - [ ] In a dungeon there is no arrow and no error, and it comes back on leaving
       (`IsInInstance`).
 - [ ] In both cases `/lvl debug` shows the shared loop is not running for the arrow: with
       `/lvl pin` off as well, the loop's frame count stays still while standing there.
-- [ ] Entering combat in a dungeon, or on another continent than the step, does not bring a
-      stale arrow back.
+- [ ] Entering combat in a dungeon does not bring a stale arrow back; on another continent
+      than the step the name dims like the arrow does.
 
 Settings
 
