@@ -139,14 +139,18 @@ assert(#T.chat == lines + 1, "once")
 
 -- Level-up announcement: off by default, then to the party or the guild, with the level's
 -- time when the tracker (#19) is there.
+ns.Tracker = nil
 fire("PLAYER_LEVEL_UP", 10)
 assert(#chat == 0, "off: nothing announced")
 cmd("party announce party")
 fire("PLAYER_LEVEL_UP", 11)
 assert(chat[1] == "PARTY: Level 11!", chat[1])
-ns.LevelTime = function(level)
-    return ({ [12] = 5025, [13] = 1500, [14] = 42 })[level]
-end
+-- The tracker is asked for the level just finished; a level it saw only part of has no time.
+ns.Tracker = {
+    LevelTime = function(level)
+        return ({ [11] = 5025, [12] = 1500, [13] = 42, [14] = 600 })[level], level == 14
+    end,
+}
 fire("PLAYER_LEVEL_UP", 12)
 assert(chat[2] == "PARTY: Level 12! It took 1 h 23 min.", chat[2])
 group = 0
@@ -160,8 +164,12 @@ fire("PLAYER_LEVEL_UP", 13)
 fire("PLAYER_LEVEL_UP", 14)
 assert(chat[3] == "GUILD: Level 13! It took 25 min." and chat[4] == "GUILD: Level 14! It took 42 s.", chat[4])
 cmd("party announce off")
+cmd("party announce guild")
 fire("PLAYER_LEVEL_UP", 15)
-assert(#chat == 4)
+assert(chat[5] == "GUILD: Level 15!", chat[5])
+cmd("party announce off")
+fire("PLAYER_LEVEL_UP", 16)
+assert(#chat == 5)
 
 -- Quest sharing: off by default, then only in a group and only what can be shared, and the
 -- quest log's selection is left as it was.

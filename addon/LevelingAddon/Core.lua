@@ -94,6 +94,15 @@ end
 -- The shared update loop -----------------------------------------------------------------
 
 local MAX_ERRORS = 3 -- failures in a row before a task is stopped for the session
+local KEPT_ERRORS = 10
+ns.errors = {} -- the last few errors caught below, oldest first, for /lvl report
+
+local function noteError(name, err)
+    table.insert(ns.errors, name .. ": " .. tostring(err))
+    if #ns.errors > KEPT_ERRORS then
+        table.remove(ns.errors, 1)
+    end
+end
 local tasks = {} -- by name, and as a list
 local running = 0 -- tasks switched on; the frame has an OnUpdate only while this is not 0
 
@@ -110,6 +119,7 @@ local function onUpdate(_, elapsed)
                     task.errors = 0
                 else
                     task.errors = task.errors + 1
+                    noteError(task.name, err)
                     if task.errors >= MAX_ERRORS then
                         task.broken = true
                         ns.SetTask(task.name, false)
@@ -185,6 +195,7 @@ ns.Task("jobs", 0, function()
         job.ms = job.ms + ns.Clock() - began
         if not ok then
             table.remove(jobs, 1)
+            noteError(job.name, err)
             say("'" .. job.name .. "' failed: " .. tostring(err))
         elseif coroutine.status(job.co) == "dead" then
             table.remove(jobs, 1)
