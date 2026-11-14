@@ -211,35 +211,40 @@ h3{font:600 15px/1.3 var(--display);margin:0;display:flex;align-items:center;fle
 .legend>span{display:flex;align-items:center;gap:10px}
 .cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:22px 32px}
 .cols>div{min-width:0}
-</style>
 
+/* ---- guide window ---- */
+.step.cur{background:rgba(242,194,48,.16);box-shadow:inset calc(3*var(--u)) 0 0 var(--g-quest)}
+.step.cur.hot{background:rgba(242,194,48,.26)}
+.step .txt small{display:block;font-size:.72em;font-weight:400;color:var(--g-dim)}
+.step{padding-block:calc(5*var(--u))}.step+.step{padding-top:calc(5*var(--u))}
+.demo{position:relative}
+.demo5{align-items:start}
+</style>
 <div class="wrap">
   <header class="stack">
-    <h1>Side card: icons first, words last</h1>
-    <p class="lede">The card now carries only what cannot be drawn: the name of the thing to find, and a count. Step kind is an icon. The boxes tick themselves when the game says a step is done. Skipping is a separate, quiet control: three candidate designs are switchable below.</p>
+    <h1>Guide window: a list you can read ahead and scroll back</h1>
+    <p class="lede">One window beside the game's objective tracker. The current step always sits in the same row; finished and skipped steps stay above it, upcoming ones below. The example is the first stretch of Northshire with six quests interleaved, the way a real route runs.</p>
   </header>
 
   <div class="controls">
     <div class="group"><span>Moment</span>
       <div class="seg" id="moment">
-        <button data-v="rest" aria-pressed="true">Objective</button>
-        <button data-v="hover" aria-pressed="false">Hover</button>
-        <button data-v="done" aria-pressed="false">Just completed</button>
+        <button data-v="rest" aria-pressed="true">Playing</button>
+        <button data-v="hover" aria-pressed="false">Pointer on a step</button>
         <button data-v="skip" aria-pressed="false">After a skip</button>
         <button data-v="scroll" aria-pressed="false">Scrolled back</button>
-        <button data-v="plan" aria-pressed="false">Plan ahead</button>
-        <button data-v="accept" aria-pressed="false">Pick up quest</button>
+        <button data-v="done" aria-pressed="false">Step just finished</button>
         <button data-v="arrive" aria-pressed="false">Arrived</button>
         <button data-v="combat" aria-pressed="false">Combat</button>
         <button data-v="instance" aria-pressed="false">Dungeon</button>
         <button data-v="tomtom" aria-pressed="false">With TomTom</button>
         <button data-v="hidden" aria-pressed="false">Hidden</button>
       </div></div>
-    <div class="group"><span>Skipped look</span>
-      <div class="seg" id="skipv">
-        <button data-v="strike" aria-pressed="true">1 · Crossed out</button>
-        <button data-v="dash" aria-pressed="false">2 · Dash</button>
-        <button data-v="fwd" aria-pressed="false">3 · Skip mark</button>
+    <div class="group"><span>List style</span>
+      <div class="seg" id="style">
+        <button data-v="flat" aria-pressed="true">1 · Plain</button>
+        <button data-v="quest" aria-pressed="false">2 · Quest on current</button>
+        <button data-v="place" aria-pressed="false">3 · Place dividers</button>
       </div></div>
     <div class="group"><span>Screen</span>
       <div class="seg" id="scr">
@@ -247,16 +252,9 @@ h3{font:600 15px/1.3 var(--display);margin:0;display:flex;align-items:center;fle
         <button data-v="wide" aria-pressed="false">Ultrawide 21:9</button>
         <button data-v="tall" aria-pressed="false">16:10</button>
       </div></div>
-    <div class="group"><span>Language</span>
-      <div class="seg" id="lang">
-        <button data-v="en" aria-pressed="true">English</button>
-        <button data-v="de" aria-pressed="false">Deutsch</button>
-        <button data-v="ru" aria-pressed="false">Русский</button>
-        <button data-v="zh" aria-pressed="false">简体中文</button>
-      </div></div>
   </div>
 
-  <div class="screen" id="screen" data-moment="rest" data-screen="std" aria-label="Game screen mockup showing where the addon's card and arrow sit">
+  <div class="screen" id="screen" data-moment="rest" data-screen="std" aria-label="Game screen mockup showing where the guide window and arrow sit">
     <div class="scenery"><div class="hill a"></div><div class="hill b"></div><div class="path"></div></div>
     <div class="hero"></div><div class="foe"></div>
     <div class="third"><span>middle third: kept clear</span></div>
@@ -273,92 +271,55 @@ h3{font:600 15px/1.3 var(--display);margin:0;display:flex;align-items:center;fle
   <dl class="meta">
     <div><dt>Our frames</dt><dd id="m-frames"></dd></div>
     <div><dt>Share of screen</dt><dd id="m-share"></dd></div>
-    <div><dt>Words on the card</dt><dd id="m-words"></dd></div>
+    <div><dt>Steps in view</dt><dd id="m-rows"></dd></div>
     <div class="wide"><dt>What happens here</dt><dd class="say" id="m-what"></dd></div>
   </dl>
 
+  <div class="stack">
+    <h2>How the list behaves</h2>
+    <div class="demo5" id="flow"></div>
+    <ul>
+      <li><b>The current step does not jump.</b> It is always the third row, marked by a band. When a step ends, the list slides up one row under it.</li>
+      <li><b>History is visible.</b> The two rows above the band are what you just did: a tick for finished, crossed out for skipped.</li>
+      <li><b>Skipping keeps the step.</b> A cross appears on the row under the pointer. The skipped step stays in the list, crossed out.</li>
+      <li><b>Scroll back any time.</b> The mouse wheel moves through the whole route. A skipped step offers a restore arrow; restoring makes it the current step again. The list returns to the current step by itself after a few seconds.</li>
+      <li><b>Progress is automatic.</b> Counts fill and steps tick themselves from the quest log. Nothing is ever ticked by hand.</li>
+    </ul>
+  </div>
+
+  <div class="stack">
+    <h2>Three list styles</h2>
+    <p>Same moment in each. They differ in how much they say about which quest or place a step belongs to.</p>
+    <div class="demo5" id="styles"></div>
+    <ul>
+      <li><b>1 · Plain.</b> Icon, name, count. The quest name is in the tooltip. Least text.</li>
+      <li><b>2 · Quest on current.</b> Only the current step carries a small second line naming its quest. Answers "what is this for" without hovering.</li>
+      <li><b>3 · Place dividers.</b> A small label wherever the route moves to a new place. Best for planning trips; most text, and the window grows.</li>
+    </ul>
+  </div>
+
   <div class="cols">
-    <div class="stack"><h2>The whole vocabulary</h2>
+    <div class="stack"><h2>The marks</h2>
       <div class="legend plate">
         <span><span class="kind">!</span>pick up a quest here</span>
         <span><span class="kind">?</span>hand a quest in here</span>
         <span><span class="kind" id="lg-kill"></span>kill</span>
         <span><span class="kind" id="lg-loot"></span>collect</span>
-        <span><span class="kind" id="lg-tick"></span>done (by itself)</span>
-        <span><span class="kind" id="lg-skip"></span>skip (on hover)</span>
-        <span><span class="kind" id="lg-undo"></span>bring back a skipped step</span>
-        <span><span class="kind" id="lg-gear"></span>settings</span>
+        <span><span class="kind" id="lg-tick"></span>finished (by itself)</span>
+        <span><span class="kind" id="lg-kill2"></span><s>crossed out</s>: skipped</span>
+        <span><span class="kind" id="lg-skip"></span>skip (under pointer)</span>
+        <span><span class="kind" id="lg-undo"></span>bring back</span>
       </div>
-      <p class="note">Eight marks. The first two are the ones the game already puts over quest givers' heads, so there is nothing to learn. This legend is for this page; it is not shown in the game.</p>
+      <p class="note">This legend is for this page; it is not shown in the game. Shapes are placeholders drawn for the mockup, not game art.</p>
     </div>
-    <div class="stack"><h2>Where the words went</h2>
+    <div class="stack"><h2>What it costs</h2>
       <ul>
-        <li><b>Accept, Turn in, Kill, Collect</b> became the icon in front of the name.</li>
-        <li><b>Done</b> is automatic: the count fills, the step ticks and fades. The player never marks anything done.</li>
-        <li><b>Skip</b> is one cross at the end of the row under the pointer. A skipped step stays in the list and can be brought back later.</li>
-        <li><b>Quest name and place</b> moved to the game's ordinary tooltip when the pointer rests on a row.</li>
-        <li><b>Distance</b> is on the arrow only.</li>
-        <li><b>Settings</b> is in the addon list by the minimap.</li>
-        <li><b>First login, hidden, dungeon</b> messages are a line in chat, not on the card.</li>
+        <li>Eight rows take about 3.5% of a 1920×1080 screen, against 1.3% for the three-row card. The height would be adjustable by dragging the bottom edge.</li>
+        <li>In combat the window folds to the current row at 40% opacity, then unfolds.</li>
+        <li>Because the route is computed as you play, rows further down are a forecast and can reorder after a level-up or a skip.</li>
+        <li>On the world map, the next few stops are numbered and joined by a dashed line (unchanged from the last round).</li>
       </ul>
     </div>
-  </div>
-
-  <div class="stack">
-    <h2>The card at true size, four languages</h2>
-    <p class="note">One mockup pixel per screen pixel at 1080p, 300 wide. What is left is names and numbers, which come from the game client already translated, so the addon itself has almost nothing to localize.</p>
-    <div class="true" id="true"></div>
-    <p class="note">Names here are illustrative translations. Shapes are placeholders drawn for this mockup, not game art.</p>
-  </div>
-
-  <div class="stack">
-    <h2>Planning ahead</h2>
-    <div class="mapwrap">
-      <div class="stack">
-        <p>At rest the card shows three steps: the current one and the next two. For a longer view there are two places to look, and neither adds anything to the screen while you play.</p>
-        <ul>
-          <li><b>Timeline on the card.</b> Clicking the card unrolls it into the next eight or so steps along a line, grouped under the place they happen in. Try the "Plan ahead" moment above.</li>
-          <li><b>Route on the world map.</b> When you open the map, the next few stops are numbered and joined by a dashed line, so you can see the trip, not just the list.</li>
-        </ul>
-        <p class="note">Because the addon computes the route as you go, steps further out are a forecast: they can change if you level up, pick up another quest, or skip something. Later stops are drawn hollow for that reason.</p>
-      </div>
-      <svg class="map" viewBox="0 0 420 260" role="img" aria-label="Sketch of a zone map with four numbered stops joined by a dashed route">
-        <path class="land" d="M30 60Q90 10 190 30T380 70Q410 150 360 215T160 240Q50 235 30 160Z"/>
-        <path class="road" d="M60 200Q150 170 200 120T350 90"/>
-        <path class="route" d="M150 150 110 95 215 120 305 175 215 120"/>
-        <path class="me" d="M150 138l8 20-8-5-8 5z"/>
-        <circle class="stop" cx="110" cy="95" r="10"/><text x="110" y="99">1</text>
-        <circle class="stop" cx="215" cy="120" r="10"/><text x="215" y="124">2</text>
-        <circle class="stop later" cx="305" cy="175" r="10"/><text x="305" y="179">3</text>
-      </svg>
-    </div>
-  </div>
-
-  <div class="stack">
-    <h2>A list you can scroll back through</h2>
-    <p>The card is one continuous list of steps. Finished steps and skipped steps stay in it, in order, just above the current one. The card shows the current step and what follows; the mouse wheel scrolls back through what came before. A skipped step can be brought back at any time, not only in the first few seconds.</p>
-    <div class="demo5" id="flow"></div>
-    <p class="note">Cards are at true size. Progress is automatic (count, then a tick). The only things you can click are the cross on a pending step and the restore arrow on a skipped one.</p>
-  </div>
-
-  <div class="stack">
-    <h2>How a skipped step differs from a finished one</h2>
-    <p>Each card shows the same stretch of history: two finished steps, one skipped, one more finished, then the current step.</p>
-    <div class="demo5" id="looks"></div>
-    <ul>
-      <li><b>1 · Crossed out.</b> Keeps its own icon, name struck through. Reads as "not doing this" at a glance.</li>
-      <li><b>2 · Dash.</b> A dash where finished steps have a tick. Quietest; the difference is one small mark.</li>
-      <li><b>3 · Skip mark.</b> A double chevron where finished steps have a tick. Says "jumped over" rather than "cancelled".</li>
-    </ul>
-  </div>
-
-  <div class="stack">
-    <h2>Trade-offs to know about</h2>
-    <ul>
-      <li>Icons alone do not say <i>which</i> quest a turn-in is for. The tooltip covers it; players with two quests at one NPC may want the quest name back.</li>
-      <li>In a dungeon the card shrinks to a pause mark. Why it paused is said once in chat.</li>
-      <li>Skip and settings only show on hover. Settings stay reachable from the addon list by the minimap and a slash command, so nothing is hover-only.</li>
-    </ul>
   </div>
 </div>
 
@@ -366,103 +327,92 @@ h3{font:600 15px/1.3 var(--display);margin:0;display:flex;align-items:center;fle
 (function(){
   function svg(d){return '<svg viewBox="0 0 24 24"><path d="'+d+'"/></svg>';}
   var KILL=svg('M5 19 19 5M14 5h5v5M5 9l10 10'), LOOT=svg('M6 9h12l1.5 11h-15zM9 9V7a3 3 0 0 1 6 0v2'),
-      GEAR='<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/></svg>',
-      PAUSE=svg('M9 6v12M15 6v12'), SKIP=svg('M6 6l6 6-6 6M13 6l6 6-6 6'), UNDO=svg('M8 6 3 11l5 5M3 11h11a6 6 0 0 1 0 12h-3'), X=svg('M6 6l12 12M18 6 6 18'),
-      MOUSE='<svg viewBox="0 0 24 24"><rect x="6" y="3" width="12" height="18" rx="6"/><path d="M12 3v7M12 10h6"/><path class="fill" d="M12 3h1a5 5 0 0 1 5 5v2h-6z"/></svg>';
+      PAUSE=svg('M9 6v12M15 6v12'), UNDO=svg('M8 6 3 11l5 5M3 11h11a6 6 0 0 1 0 12h-3'), X=svg('M6 6l12 12M18 6 6 18'), TICK=svg('M5 12l5 5 9-10');
   var ICON={kill:KILL,loot:LOOT,accept:'!',turnin:'?'};
-  [['lg-kill',KILL],['lg-loot',LOOT],['lg-gear',GEAR],['lg-skip',X],['lg-tick',svg('M5 12l5 5 9-10')],['lg-undo',UNDO]].forEach(function(p){document.getElementById(p[0]).innerHTML=p[1];});
-  var T={
-   en:{mob:'Kobold Vermin',npc:'Marshal McBride',quest:'Kobold Camp Cleanup',place:'Echo Ridge Mine',yd:'yd',chatHidden:'Guide hidden. /lvl brings it back.',chatDungeon:'Guide paused in dungeons.'},
-   de:{mob:'Kobold-Ungeziefer',npc:'Marschall McBride',quest:'Säuberung des Koboldlagers',place:'Echokammmine',yd:'m',chatHidden:'Guide ausgeblendet. /lvl blendet ihn wieder ein.',chatDungeon:'Guide pausiert in Dungeons.'},
-   ru:{mob:'Кобольд-вредитель',npc:'Маршал Макбрайд',quest:'Зачистка лагеря кобольдов',place:'Рудник Эхо',yd:'м',chatHidden:'Гид скрыт. /lvl вернёт его.',chatDungeon:'В подземельях гид на паузе.'},
-   zh:{mob:'狗头人害虫',npc:'治安官玛克布莱德',quest:'清剿狗头人营地',place:'回音山矿洞',yd:'码',chatHidden:'指引已隐藏。输入 /lvl 恢复。',chatDungeon:'地下城内指引暂停。'}};
-  var CHEV=svg('M6 9l6 6 6-6'), CHEVUP=svg('M6 15l6-6 6 6');
-  var P={en:['Kobold Worker','Deputy Willem','Red Burlap Bandana','Echo Ridge Mine','Northshire Abbey','Northshire Vineyards'],
-         de:['Koboldarbeiter','Deputy Willem','Rotes Leinenkopftuch','Echokammmine','Abtei von Nordhain','Weinberge von Nordhain'],
-         ru:['Кобольд-рабочий','Помощник Виллем','Красная бандана','Рудник Эхо','Аббатство Североземья','Виноградники Североземья'],
-         zh:['狗头人劳工','副官威利姆','红色粗麻头巾','回音山矿洞','北郡修道院','北郡葡萄园']};
-  function place(n){return '<div class="place">'+n+'</div>';}
+  [['lg-kill',KILL],['lg-kill2',KILL],['lg-loot',LOOT],['lg-undo',UNDO],['lg-skip',X],['lg-tick',TICK]].forEach(function(p){document.getElementById(p[0]).innerHTML=p[1];});
+  var AB='Northshire Abbey', MI='Echo Ridge Mine', VA='Northshire Valley', VI='Northshire Vineyards';
+  // kind, name, count, quest, place
+  var S=[['accept','Deputy Willem','','A Threat Within',AB],['turnin','Marshal McBride','','A Threat Within',AB],
+    ['accept','Marshal McBride','','Kobold Camp Cleanup',AB],['accept','Deputy Willem','','Wolves Across the Border',AB],
+    ['loot','Tough Wolf Meat','3/8','Wolves Across the Border',VA],['kill','Kobold Vermin','6/10','Kobold Camp Cleanup',MI],
+    ['turnin','Marshal McBride','','Kobold Camp Cleanup',AB],['accept','Marshal McBride','','Investigate Echo Ridge',AB],
+    ['accept','Deputy Willem','','Brotherhood of Thieves',AB],['kill','Kobold Worker','0/10','Investigate Echo Ridge',MI],
+    ['loot','Red Burlap Bandana','0/12','Brotherhood of Thieves',VI],['turnin','Deputy Willem','','Brotherhood of Thieves',AB],
+    ['turnin','Marshal McBride','','Investigate Echo Ridge',AB],['accept','Marshal McBride','','Skirmish at Echo Ridge',AB],
+    ['kill','Kobold Laborer','0/12','Skirmish at Echo Ridge',MI],['turnin','Marshal McBride','','Skirmish at Echo Ridge',AB]];
+  // per moment: first row in view, current step, skipped steps, pointer row, mark under pointer, count override
+  var V={rest:{from:3,cur:5,skipped:[4]},
+         hover:{from:3,cur:5,skipped:[4],hot:5,x:X},
+         skip:{from:4,cur:6,skipped:[4,5]},
+         scroll:{from:0,cur:5,skipped:[4],hot:4,x:UNDO},
+         done:{from:4,cur:6,skipped:[4],cnt:{5:'10/10'}},
+         arrive:{from:3,cur:5,skipped:[4]}, tomtom:{from:3,cur:5,skipped:[4]}};
+  var ROWS=8;
   var SAY={
-   plan:'The card was unrolled. It becomes a timeline of the next stops, grouped by place, and rolls back up the same way.',
-   rest:'Working on an objective. Icon, name, count. Nothing here is clickable until the pointer arrives.',
-   done:'The tenth kobold just died. The step marks itself done, the row dims, and the next step lights up. A moment later the finished row slides away.',
-   accept:'Next step is a quest to pick up. The ! is the same mark the giver wears in the world.',
-   arrive:'Within reach of the target. The arrow turns into a ring; the card does not change.',
-   combat:'Fighting. One row, both frames at 40%.',
-   instance:'Inside a dungeon the game reports no position. The arrow goes and the card shrinks to a pause mark.',
+   rest:'Playing. The band marks the current step: kill Kobold Vermin. Above it, one finished step and one skipped. Below it, the next five.',
+   hover:'Pointer on the current step. A cross appears at the end of that row; the tooltip names the quest and place. Any pending row offers the same cross.',
+   skip:'Kobold Vermin was skipped. It stays in the list, crossed out, and the list slid up one row so the next step sits in the band.',
+   scroll:'Scrolled back to the start of the zone with the mouse wheel. The pointer is on the skipped wolf-meat step, which offers a restore arrow. The current step is still marked further down.',
+   done:'The tenth kobold just died. The step ticked itself and the list slid up one row; handing the quest in is now in the band.',
+   arrive:'Within reach of the target. The arrow turns into a ring; the window does not change.',
+   combat:'Fighting. The window folds to the current row and both frames drop to 40%.',
+   instance:'Inside a dungeon the game reports no position. The arrow goes and the window folds to a pause mark.',
    tomtom:'TomTom is installed. It gets the waypoint and we draw no arrow.',
    hidden:'Hidden by the player. One chat line says how to bring it back.'};
-  var SK={"hover": "Pointer on the card. One cross appears on the row under it, and a thin scroll bar shows the list goes on in both directions.", "skip": "The step was skipped. It stays exactly where it was, marked and dimmed, and the next step becomes current.", "scroll": "Later on, scrolled back with the mouse wheel. Finished steps show a tick; the skipped one is still there, and pointing at it offers to bring it back."};
-  var SAYSKIP={strike:SK,dash:SK,fwd:SK};
-  var TICK=svg('M5 12l5 5 9-10'), DASH=svg('M6 12h12');
-  function mk(v){ // one row; o: cls, x (mark shown at row end)
-    return function(kind,name,count,o){ o=o||{}; var cls=o.cls||'', done=/done/.test(cls), sk=/skipd/.test(cls);
-      var ic=done?TICK:sk&&v==='dash'?DASH:sk&&v==='fwd'?SKIP:ICON[kind];
-      return '<div class="row step '+cls+(sk&&v==='strike'?' strike':'')+'"><span class="kind">'+ic+'</span><span class="txt">'+name+'</span>'+
-        (count?'<span class="count">'+count+'</span>':'')+(o.x?'<span class="skipx">'+o.x+'</span>':'')+'</div>'; };
+  function row(i,v,style){
+    var s=S[i], done=i<v.cur&&v.skipped.indexOf(i)<0, sk=v.skipped.indexOf(i)>=0, cur=i===v.cur;
+    var cls=(done?'done ':'')+(sk?'skipd strike ':'')+(cur?'cur ':'')+(!done&&!sk&&!cur?'later ':'')+(v.hot===i?'hot':'');
+    var cnt=(v.cnt&&v.cnt[i])||s[2];
+    return '<div class="row step '+cls+'"><span class="kind">'+(done?TICK:ICON[s[0]])+'</span><span class="txt">'+s[1]+
+      (cur&&style==='quest'?'<small>'+s[3]+'</small>':'')+'</span>'+(cnt&&!(done&&!v.cnt)?'<span class="count">'+cnt+'</span>':'')+
+      (v.hot===i?'<span class="skipx">'+v.x+'</span>':'')+'</div>';
   }
-  function sb(top,h){return '<span class="sb" style="top:'+top+'%;height:'+h+'%"></span>';}
-  function card(m,l,v){
-    var t=T[l], row=mk(v||'strike'), L={cls:'later'}, D={cls:'done'}, rest2=row('turnin',t.npc,'',L)+row('accept',t.npc,'',L);
-    switch(m){
-      case 'hidden': return '';
-      case 'plan': var q=P[l]; return place(q[3])+row('kill',t.mob,'6/10')+place(q[4])+rest2+
-        place(q[3])+row('kill',q[0],'0/10',L)+place(q[4])+row('turnin',t.npc,'',L)+row('accept',q[1],'',L)+
-        place(q[5])+row('loot',q[2],'0/12',L)+place(q[4])+row('turnin',q[1],'',L);
-      case 'instance': return '<div class="row"><span class="kind">'+PAUSE+'</span></div>';
-      case 'combat': return row('kill',t.mob,'6/10');
-      case 'accept': return row('accept',t.npc)+row('kill',t.mob,'0/10',L)+row('turnin',t.npc,'',L);
-      case 'done': return row('kill',t.mob,'10/10',D)+row('turnin',t.npc)+row('accept',t.npc,'',L);
-      case 'skip': return row('kill',t.mob,'6/10',{cls:'skipd'})+row('turnin',t.npc)+row('accept',t.npc,'',L);
-      case 'scroll': return sb(8,45)+row('accept',t.npc,'',D)+row('kill',t.mob,'6/10',{cls:'skipd hot',x:UNDO})+row('turnin',t.npc,'',D)+row('accept',t.npc,'',D)+row('kill',P[l][0],'3/10');
-      case 'history': return row('turnin',t.npc,'',D)+row('accept',t.npc,'',D)+row('kill',t.mob,'6/10',{cls:'skipd'})+row('turnin',t.npc,'',D)+row('kill',P[l][0],'3/10');
-      case 'restored': return row('kill',t.mob,'6/10')+row('kill',P[l][0],'3/10',L)+row('turnin',t.npc,'',L);
-      case 'hover': return sb(52,40)+row('kill',t.mob,'6/10',{cls:'hot',x:X})+rest2;
-      default: return row('kill',t.mob,'6/10')+rest2;
+  function card(m,style){
+    if(m==='hidden') return '';
+    if(m==='instance') return '<div class="row"><span class="kind">'+PAUSE+'</span></div>';
+    if(m==='combat') return row(5,{cur:5,skipped:[]},'flat');
+    var v=V[m], h='', last=null;
+    for(var i=v.from;i<v.from+ROWS;i++){
+      if(style==='place'&&S[i][4]!==last) h+='<div class="place">'+S[i][4]+'</div>';
+      last=S[i][4]; h+=row(i,v,style);
     }
+    return '<span class="sb" style="top:'+(4+92*v.from/S.length)+'%;height:'+(92*ROWS/S.length)+'%"></span>'+h;
   }
-  function arrow(m,l){
-    var t=T[l];
+  function arrow(m){
     if(m==='hidden'||m==='instance'||m==='tomtom') return '';
     if(m==='arrive') return '<svg viewBox="0 0 24 24"><circle class="r" cx="12" cy="12" r="8"/><circle class="f" cx="12" cy="12" r="3"/></svg>';
-    return '<svg class="ptr" viewBox="0 0 24 24"><path class="f" d="M12 2 20 21 12 16 4 21Z"/></svg><span class="dist">'+(m==='accept'?212:(m==='skip'||m==='done')?140:84)+' '+t.yd+'</span>';
+    return '<svg class="ptr" viewBox="0 0 24 24"><path class="f" d="M12 2 20 21 12 16 4 21Z"/></svg><span class="dist">'+((m==='skip'||m==='done')?140:84)+' yd</span>';
   }
   var s=document.getElementById('screen'),c=document.getElementById('card'),a=document.getElementById('arrow'),tip=document.getElementById('tip');
-  var st={moment:'rest',scr:'std',lang:'en',skipv:'strike'};
-  function press(id,v){[].forEach.call(document.getElementById(id).children,function(x){x.setAttribute('aria-pressed',x.dataset.v===v)});}
+  var st={moment:'rest',scr:'std',style:'flat'};
   function seg(id){
-    document.getElementById(id).addEventListener('click',function(e){
+    var el=document.getElementById(id);
+    el.addEventListener('click',function(e){
       var b=e.target.closest('button'); if(!b)return;
-      st[id]=b.dataset.v; press(id,b.dataset.v);
-      if(id==='skipv'&&st.moment!=='skip'&&st.moment!=='scroll'){st.moment='scroll';press('moment','scroll');}
-      render();
+      st[id]=b.dataset.v; [].forEach.call(el.children,function(x){x.setAttribute('aria-pressed',x===b)}); render();
     });
   }
   function render(){
-    s.dataset.moment=st.moment; s.dataset.screen=st.scr;
-    var t=T[st.lang], m=st.moment, hv=(m==='hover'||m==='skip'||m==='scroll'), ch=card(m,st.lang,st.skipv), ah=arrow(m,st.lang);
-    c.innerHTML=ch; c.hidden=!ch; c.lang=st.lang; c.classList.toggle('mini',m==='instance'); c.classList.toggle('plan',m==='plan');
+    var m=st.moment; s.dataset.moment=m; s.dataset.screen=st.scr;
+    var ch=card(m,st.style), ah=arrow(m);
+    c.innerHTML=ch; c.hidden=!ch; c.classList.toggle('mini',m==='instance');
     a.innerHTML=ah; a.hidden=!ah;
-    tip.hidden=m!=='hover'; tip.lang=st.lang;
-    tip.innerHTML='<b>'+t.quest+'</b><span>'+t.place+'</span>';
-    document.getElementById('chat').innerHTML=m==='hidden'?'<b>'+t.chatHidden+'</b>':m==='instance'?'<b>'+t.chatDungeon+'</b>':'Chat';
-    var S=s.getBoundingClientRect(), area=0,n=0;
+    tip.hidden=m!=='hover'; tip.innerHTML='<b>Kobold Camp Cleanup</b><span>Echo Ridge Mine</span>';
+    var hot=c.querySelector('.hot'); if(hot&&!tip.hidden){var S0=s.getBoundingClientRect(),r=hot.getBoundingClientRect();tip.style.top=(100*(r.bottom-S0.top+4)/S0.height)+'%';}
+    document.getElementById('chat').innerHTML=m==='hidden'?'<b>Guide hidden. /lvl brings it back.</b>':m==='instance'?'<b>Guide paused in dungeons.</b>':'Chat';
+    var R=s.getBoundingClientRect(), area=0,n=0;
     [c,a].forEach(function(f){ if(f.hidden)return; var r=f.getBoundingClientRect(); area+=r.width*r.height; n++; });
     var w={std:'1920×1080',wide:'3440×1440',tall:'1728×1080'}[st.scr];
-    var words=0;[].forEach.call(c.querySelectorAll('.txt'),function(x){words+=x.textContent.trim().split(/\s+/).length;});
     document.getElementById('m-frames').textContent=n;
-    document.getElementById('m-share').innerHTML=(100*area/(S.width*S.height)).toFixed(1)+'% <small>of '+w+'</small>';
-    document.getElementById('m-words').innerHTML=words+' <small>all of them names</small>';
-    document.getElementById('m-what').textContent=hv?SAYSKIP[st.skipv][m]:SAY[m];
+    document.getElementById('m-share').innerHTML=(100*area/(R.width*R.height)).toFixed(1)+'% <small>of '+w+'</small>';
+    document.getElementById('m-rows').textContent=c.querySelectorAll('.step').length;
+    document.getElementById('m-what').textContent=SAY[m];
   }
-  var names={en:'English',de:'Deutsch',ru:'Русский',zh:'简体中文'};
-  document.getElementById('true').innerHTML=Object.keys(T).map(function(l){
-    return '<figure><figcaption>'+names[l]+'</figcaption><div class="plate" lang="'+l+'">'+card('rest',l)+'</div></figure>';}).join('');
-  function one(cap,m,v){return '<div class="demo"><span class="cap">'+cap+'</span><div class="plate">'+card(m,'en',v)+'</div></div>';}
-  document.getElementById('flow').innerHTML=one('1 · At rest','rest')+one('2 · Pointer on a step: a cross','hover')+one('3 · Skipped: stays put, next step lights up','skip','strike')+
-    one('4 · Later: scrolled back, pointer on it','scroll','strike')+one('5 · Brought back: it is the current step again','restored');
-  document.getElementById('looks').innerHTML=one('1 · Crossed out','history','strike')+one('2 · Dash','history','dash')+one('3 · Skip mark','history','fwd');
-  ['moment','scr','lang','skipv'].forEach(seg);render();
+  function one(cap,m,style){return '<div class="demo"><span class="cap">'+cap+'</span><div class="plate">'+card(m,style||'flat')+'</div></div>';}
+  document.getElementById('flow').innerHTML=one('1 · Playing','rest')+one('2 · Pointer on a step: a cross','hover')+one('3 · Skipped: stays, list slides up','skip')+
+    one('4 · Scrolled back: restore a skipped step','scroll')+one('5 · A step finished by itself','done');
+  document.getElementById('styles').innerHTML=one('1 · Plain','rest','flat')+one('2 · Quest on current','rest','quest')+one('3 · Place dividers','rest','place');
+  ['moment','scr','style'].forEach(seg);render();
   window.addEventListener('resize',render);
   if(document.fonts&&document.fonts.ready)document.fonts.ready.then(render);
 })();

@@ -292,13 +292,34 @@ bar is gone. Scrollable step history is a familiar concept from other guide addo
 their layout or code is used. The flow is drawn in
 [`mockups/step-list-flow.png`](mockups/step-list-flow.png).
 
-Still to choose: how a skipped step differs from a finished one (tick). Three candidates in
-[`mockups/skipped-looks.png`](mockups/skipped-looks.png): name crossed out, a dash in place of
-the tick, or a double chevron in place of the tick.
+Decided: a skipped step is shown crossed out (name struck through, own icon kept); a finished
+step shows a tick.
 
-**Planning ahead** (owner's question: is there a timeline of following steps?). At rest the
-card shows the current step and the next two. Two on-demand views extend that without adding
-anything to the screen during play:
+**Guide window** (owner, next iteration: history visible at rest, current step must not jump,
+more like a guide window, and a multi-quest example). The three-row card became a window of
+about eight rows:
+
+- The current step is always the third row, marked by a band. When a step ends, the list slides
+  up one row beneath the band.
+- The two rows above the band are recent history (tick or crossed out); the five below are what
+  comes next. A thin scroll bar shows position in the route.
+- A cross appears on the pending row under the pointer. Skipped steps stay in the list.
+- The mouse wheel scrolls through the whole route; a skipped step offers a restore arrow, and
+  restoring makes it current again. The list returns to the current step after a few seconds.
+- In combat the window folds to the current row at 40% opacity.
+
+Cost: about 3.7% of a 1920x1080 screen at eight rows, against 1.3% for the three-row card.
+Height should be adjustable. The mockup uses the first stretch of Northshire with six quests
+interleaved: [`mockups/step-list-flow.png`](mockups/step-list-flow.png),
+[`mockups/guide-window-on-screen.png`](mockups/guide-window-on-screen.png).
+
+Still to choose, drawn in [`mockups/list-styles.png`](mockups/list-styles.png): plain rows;
+quest name as a small second line on the current step only; or place dividers wherever the
+route moves.
+
+**Planning ahead** (owner's question: is there a timeline of following steps?). Superseded in
+part by the guide window above, which shows the next five steps at rest and scrolls further.
+The earlier ideas were:
 
 - Unrolling the card turns it into a timeline of roughly the next eight steps
   along a line, grouped under the place they happen in. Place names are the only added text.
