@@ -264,26 +264,28 @@ with almost no strings of its own to localize. Known trade-offs: icons do not sa
 section 3.2's evidence against hover-only features applies to the gear, which is why settings
 also stay reachable from the compartment and a slash command.
 
-**Skip and undo: three candidates** (third iteration; the owner asked for the boxes to tick
-themselves and for clean skip designs). All three are switchable in the mockup.
+**Skip and undo** (third and fourth iterations). The owner asked for the boxes to tick
+themselves and for clean skip designs. A first set with controls floating beside the card (a
+rail, a per-row x, right-click) was rejected as cluttered: controls should be attached to the
+box and shown on hover. The current set, shown side by side in
+[`mockups/skip-designs.png`](mockups/skip-designs.png):
 
-| | 1. Hover rail | 2. Row x | 3. Right-click |
+| | A. Box only | B. Box + handle | C. Footer strip |
 | --- | --- | --- | --- |
-| How | Hovering the card shows a thin rail beside it with skip and settings; after a skip an undo arrow joins it | Hovering a row shows an x just outside its end; on a skipped row it becomes undo | Right-click a row to skip, again to restore; the tooltip shows a mouse with the right button lit |
-| Skips | The current step | Any step | Any step |
-| Added pixels at rest | None | None | None |
-| Added on hover | Two or three small squares, always in the same place | One square that follows the pointer | Nothing |
-| Risk | Cannot skip a later step directly | More movement inside the card's edge | Easy never to discover |
+| Skip | The hovered row's box turns into a skip button | Same as A | A mark in a strip inside the card's bottom edge |
+| Undo | A skipped row's box turns into undo on hover | Same as A | Joins the strip after a skip |
+| Unroll, settings | Click a row; settings from the addon list | Two small marks in a slim handle at the bottom, on hover | In the strip |
+| Skips | Any step | Any step | The current step |
+| Added on hover | Nothing new, one box changes | One slim line | One slim line |
 
-Recommendation: 1. It keeps the rows as pure status, puts every control in one predictable
-place, and skipping "what I am told to do now" is the case that matters. Undo stays available
-until the next step completes. A key binding for skip can accompany any of them.
+Recommendation: B. Awaiting the owner's choice. Undo stays available until the next step
+completes; a skipped step shows a dash, a finished one a tick.
 
 **Planning ahead** (owner's question: is there a timeline of following steps?). At rest the
 card shows the current step and the next two. Two on-demand views extend that without adding
 anything to the screen during play:
 
-- A chevron on the hover rail unrolls the card into a timeline of roughly the next eight steps
+- Unrolling the card turns it into a timeline of roughly the next eight steps
   along a line, grouped under the place they happen in. Place names are the only added text.
   Unrolled, the card takes about 5% of a 1920x1080 screen.
 - On the world map, the next few stops are numbered and joined by a dashed line.

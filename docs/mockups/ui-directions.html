@@ -159,13 +159,22 @@ ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px;max-wid
 .map .stop{fill:#f2c230;stroke:#201a05;stroke-width:1.5}.map .later{fill:#201a05;stroke:#f2c230}
 .map text{font:600 11px Inter,sans-serif;fill:#201a05;text-anchor:middle}.map .later+text{fill:#f2c230}
 .map .me{fill:#f4f1e6;stroke:#201a05}
-.demo{--u:1px;background:linear-gradient(120deg,#5d86a8,#55713f 70%,#2c4024);border-radius:6px;padding:14px 44px 56px 44px;display:flex;flex-direction:column;gap:8px;align-items:flex-start}
+.demo{--u:1px;background:linear-gradient(120deg,#5d86a8,#55713f 70%,#2c4024);border-radius:6px;padding:14px;display:flex;flex-direction:column;gap:8px;align-items:flex-start}
 .demo .plate{position:relative;width:260px;max-width:100%}
 .demo .cap{font:500 12px var(--body);color:rgba(255,255,255,.85);letter-spacing:.04em}
 .demo .cap:not(:first-child){margin-top:10px}
 .demo .tipbox{width:auto;padding:7px 10px;display:flex;flex-direction:column;font-size:14px;background:rgba(8,10,20,.9);border-radius:5px;margin-left:60px}
 .demo .tipbox b{color:var(--g-quest);font-weight:600}.demo .tipbox span{color:var(--g-dim)}
-.cols3{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:22px 32px}
+.box.act{border-color:var(--g-text);background:rgba(255,255,255,.14);color:var(--g-text)}
+.box.act::after{content:none!important}
+.box svg{width:100%;height:100%;fill:none;stroke:currentColor;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
+.foot{display:flex;justify-content:flex-end;gap:calc(12*var(--u));padding:calc(3*var(--u)) calc(12*var(--u)) calc(5*var(--u));border-top:calc(1*var(--u)) solid var(--g-edge);color:var(--g-dim)}
+.foot.mid{justify-content:center;padding-block:calc(1*var(--u)) calc(2*var(--u))}
+.foot span{width:calc(16*var(--u));height:calc(16*var(--u));display:flex}
+.foot svg{width:100%;height:100%;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.demo3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+@media (max-width:900px){.demo3{grid-template-columns:1fr}}
+.cols3{display:flex;flex-direction:column;gap:28px}
 .cols3>div{min-width:0}
 h3{font:600 15px/1.3 var(--display);margin:0;display:flex;align-items:center;flex-wrap:wrap;gap:8px}
 .mk{display:inline-flex;gap:2px;color:var(--accent)}.mk svg{width:18px;height:18px}
@@ -205,9 +214,9 @@ h3{font:600 15px/1.3 var(--display);margin:0;display:flex;align-items:center;fle
       </div></div>
     <div class="group"><span>Skip design</span>
       <div class="seg" id="skipv">
-        <button data-v="rail" aria-pressed="true">1 · Hover rail</button>
-        <button data-v="rowx" aria-pressed="false">2 · Row ✕</button>
-        <button data-v="rc" aria-pressed="false">3 · Right-click</button>
+        <button data-v="box" aria-pressed="true">A · Box only</button>
+        <button data-v="handle" aria-pressed="false">B · Box + handle</button>
+        <button data-v="strip" aria-pressed="false">C · Footer strip</button>
       </div></div>
     <div class="group"><span>Screen</span>
       <div class="seg" id="scr">
@@ -256,7 +265,7 @@ h3{font:600 15px/1.3 var(--display);margin:0;display:flex;align-items:center;fle
         <span><span class="box dash"></span>skipped</span>
         <span><span class="kind" id="lg-skip"></span>skip</span>
         <span><span class="kind" id="lg-undo"></span>undo</span>
-        <span><span class="kind" id="lg-gear"></span>settings (on hover)</span>
+        <span><span class="kind" id="lg-gear"></span>settings</span>
       </div>
       <p class="note">Nine marks. The first two are the ones the game already puts over quest givers' heads, so there is nothing to learn. This legend is for this page; it is not shown in the game.</p>
     </div>
@@ -264,10 +273,10 @@ h3{font:600 15px/1.3 var(--display);margin:0;display:flex;align-items:center;fle
       <ul>
         <li><b>Accept, Turn in, Kill, Collect</b> became the icon in front of the name.</li>
         <li><b>Done</b> is a box the game ticks: ten of ten kobolds, quest accepted, quest handed in. The player never ticks it.</li>
-        <li><b>Skip and Undo</b> are two small marks that only show on hover (designs below).</li>
+        <li><b>Skip and Undo</b> appear only under the pointer, attached to the card (designs below).</li>
         <li><b>Quest name and place</b> moved to the game's ordinary tooltip when the pointer rests on a row.</li>
         <li><b>Distance</b> is on the arrow only.</li>
-        <li><b>Settings</b> is a gear that shows on hover, plus the addon list by the minimap.</li>
+        <li><b>Settings</b> is in the addon list by the minimap, and optionally a small gear on hover.</li>
         <li><b>First login, hidden, dungeon</b> messages are a line in chat, not on the card.</li>
       </ul>
     </div>
@@ -286,7 +295,7 @@ h3{font:600 15px/1.3 var(--display);margin:0;display:flex;align-items:center;fle
       <div class="stack">
         <p>At rest the card shows three steps: the current one and the next two. For a longer view there are two places to look, and neither adds anything to the screen while you play.</p>
         <ul>
-          <li><b>Timeline on the card.</b> A chevron on the hover rail unrolls the card into the next eight or so steps along a line, grouped under the place they happen in. Try the "Plan ahead" moment above.</li>
+          <li><b>Timeline on the card.</b> Unrolling the card (a click, or a small chevron on hover) turns it into the next eight or so steps along a line, grouped under the place they happen in. Try the "Plan ahead" moment above.</li>
           <li><b>Route on the world map.</b> When you open the map, the next few stops are numbered and joined by a dashed line, so you can see the trip, not just the list.</li>
         </ul>
         <p class="note">Because the addon computes the route as you go, steps further out are a forecast: they can change if you level up, pick up another quest, or skip something. Later stops are drawn hollow for that reason.</p>
@@ -304,22 +313,20 @@ h3{font:600 15px/1.3 var(--display);margin:0;display:flex;align-items:center;fle
   </div>
 
   <div class="stack">
-    <h2>Three clean ways to skip and undo</h2>
+    <h2>Skip and undo, attached to the card</h2>
+    <p>Second set. Nothing floats beside the card any more: controls live in the step's own box or inside the card's edge, and only while the pointer is there.</p>
     <div class="cols3">
-      <div class="stack"><h3><span class="mk" id="s-rail"></span>1 · Hover rail <span class="rec">Recommended</span></h3>
-        <p>Pointing at the card reveals a thin rail beside it: skip, and settings. Skip always acts on the current step. After a skip, an undo arrow joins the rail.</p>
-        <ul><li>Rows never change; all controls live in one place</li><li>One click to skip, one to undo</li><li>Cannot skip a later step without skipping the ones before it</li></ul>
-        <div class="demo" data-demo="rail"></div></div>
-      <div class="stack"><h3><span class="mk" id="s-rowx"></span>2 · Row ✕</h3>
-        <p>Pointing at a row reveals a ✕ just outside its end, so the row itself does not move. On a skipped row the ✕ becomes an undo arrow.</p>
-        <ul><li>Any step can be skipped, and undo sits exactly where the skip was</li><li>Unroll and settings sit on the other side, so two edges of the card carry controls</li><li>The control follows the pointer from row to row</li></ul>
-        <div class="demo" data-demo="rowx"></div></div>
-      <div class="stack"><h3><span class="mk" id="s-rc"></span>3 · Right-click</h3>
-        <p>Right-click a row to skip it; right-click again to bring it back. Nothing is drawn on the card. The tooltip shows a mouse with its right button lit.</p>
-        <ul><li>Zero added pixels</li><li>Matches how the game dismisses buffs and tracked quests</li><li>Invisible until you read the tooltip; easy to never discover</li></ul>
-        <div class="demo" data-demo="rc"></div></div>
+      <div class="stack"><h3>A · Box only</h3>
+        <p>The box of the row you point at turns into a skip button. On a skipped row it turns into undo. That is the whole design: clicking a row unrolls the timeline, and settings live in the addon list by the minimap.</p>
+        <div class="demo3" data-demo="box"></div></div>
+      <div class="stack"><h3>B · Box + handle <span class="rec">Recommended</span></h3>
+        <p>Same box behaviour, plus a slim handle at the bottom of the card on hover with two small marks: unroll the timeline, and settings. One extra line, but nothing has to be guessed.</p>
+        <div class="demo3" data-demo="handle"></div></div>
+      <div class="stack"><h3>C · Footer strip</h3>
+        <p>Boxes never change; they only report status. Hover adds one strip inside the bottom edge with skip, unroll and settings. Undo joins it after a skip. Skip acts on the current step.</p>
+        <div class="demo3" data-demo="strip"></div></div>
     </div>
-    <p class="note">Each example shows the card at true size, first with the pointer on it and then after the first step was skipped. In all three, a skipped step shows a dash in its box, not a tick, so "skipped" and "done" differ by shape. Undo stays available until the next step completes. A key binding for skip costs nothing and can sit alongside any of them.</p>
+    <p class="note">Cards are at true size. A skipped step shows a dash, a finished one a tick, so the two differ by shape. In A and B any step can be skipped from its own box; in C only the current one.</p>
   </div>
 
   <div class="stack">
@@ -340,7 +347,7 @@ h3{font:600 15px/1.3 var(--display);margin:0;display:flex;align-items:center;fle
       PAUSE=svg('M9 6v12M15 6v12'), SKIP=svg('M6 6l6 6-6 6M13 6l6 6-6 6'), UNDO=svg('M9 7 4 12l5 5M4 12h10a5 5 0 0 1 0 10h-2'), X=svg('M6 6l12 12M18 6 6 18'),
       MOUSE='<svg viewBox="0 0 24 24"><rect x="6" y="3" width="12" height="18" rx="6"/><path d="M12 3v7M12 10h6"/><path class="fill" d="M12 3h1a5 5 0 0 1 5 5v2h-6z"/></svg>';
   var ICON={kill:KILL,loot:LOOT,accept:'!',turnin:'?'};
-  [['lg-kill',KILL],['lg-loot',LOOT],['lg-gear',GEAR],['lg-skip',SKIP],['lg-undo',UNDO],['s-rail',SKIP+UNDO],['s-rowx',X+UNDO],['s-rc',MOUSE]].forEach(function(p){document.getElementById(p[0]).innerHTML=p[1];});
+  [['lg-kill',KILL],['lg-loot',LOOT],['lg-gear',GEAR],['lg-skip',SKIP],['lg-undo',UNDO]].forEach(function(p){document.getElementById(p[0]).innerHTML=p[1];});
   var T={
    en:{mob:'Kobold Vermin',npc:'Marshal McBride',quest:'Kobold Camp Cleanup',place:'Echo Ridge Mine',yd:'yd',chatHidden:'Guide hidden. /lvl brings it back.',chatDungeon:'Guide paused in dungeons.'},
    de:{mob:'Kobold-Ungeziefer',npc:'Marschall McBride',quest:'Säuberung des Koboldlagers',place:'Echokammmine',yd:'m',chatHidden:'Guide ausgeblendet. /lvl blendet ihn wieder ein.',chatDungeon:'Guide pausiert in Dungeons.'},
@@ -353,7 +360,7 @@ h3{font:600 15px/1.3 var(--display);margin:0;display:flex;align-items:center;fle
          zh:['狗头人劳工','副官威利姆','红色粗麻头巾','回音山矿洞','北郡修道院','北郡葡萄园']};
   function place(n){return '<div class="place">'+n+'</div>';}
   var SAY={
-   plan:'The chevron on the rail was pressed. The card unrolls into a timeline of the next stops, grouped by place, and rolls back up with the same button.',
+   plan:'The card was unrolled. It becomes a timeline of the next stops, grouped by place, and rolls back up the same way.',
    rest:'Working on an objective. Icon, name, count. The boxes are status only: the game ticks them, not the player.',
    done:'The tenth kobold just died. The box ticked itself, the row dims, and the next step lights up. A moment later the finished row slides away.',
    accept:'Next step is a quest to pick up. The ! is the same mark the giver wears in the world.',
@@ -363,32 +370,36 @@ h3{font:600 15px/1.3 var(--display);margin:0;display:flex;align-items:center;fle
    tomtom:'TomTom is installed. It gets the waypoint and we draw no arrow.',
    hidden:'Hidden by the player. One chat line says how to bring it back.'};
   var SAYSKIP={
-   rail:{hover:'Pointer on the card. A small rail appears beside it: skip the current step, and settings. Rows stay untouched.',
-         skip:'Skip was pressed. The step shows a dash instead of a tick, and an undo arrow joins the rail until the next step is finished.'},
-   rowx:{hover:'Pointer on a row. A ✕ appears at the end of that row only, so any step can be skipped, not just the current one.',
-         skip:'The ✕ was pressed. The row shows a dash and its ✕ becomes an undo arrow.'},
-   rc:{hover:'Pointer on a row. Nothing is added to the card; the tooltip shows a mouse with the right button lit next to the skip mark.',
-       skip:'The row was right-clicked. It shows a dash; right-clicking it again brings it back, as its tooltip shows.'}};
-  function row(kind,name,count,cls,end){
-    return '<div class="row step '+(cls||'')+'"><span class="box"></span><span class="kind">'+ICON[kind]+'</span><span class="txt">'+name+'</span>'+
-      (count?'<span class="count">'+count+'</span>':'')+(end?'<span class="rowbtn">'+end+'</span>':'')+'</div>';
+   box:{hover:'Pointer on the first row. Its box turns into a skip button. Nothing else appears; clicking the row itself unrolls the timeline.',
+        skip:'The step was skipped and shows a dash. With the pointer on it, the box offers undo.'},
+   handle:{hover:'Pointer on the first row. Its box turns into a skip button, and a slim handle at the bottom of the card offers unroll and settings.',
+        skip:'The step was skipped. With the pointer on it, the box offers undo.'},
+   strip:{hover:'Pointer on the card. Boxes stay as they are; one slim strip inside the bottom edge carries skip, unroll and settings.',
+        skip:'The step was skipped and shows a dash. Undo joins the strip.'}};
+  function row(kind,name,count,cls,act){
+    return '<div class="row step '+(cls||'')+'"><span class="box'+(act?' act':'')+'">'+(act||'')+'</span><span class="kind">'+ICON[kind]+'</span><span class="txt">'+name+'</span>'+
+      (count?'<span class="count">'+count+'</span>':'')+'</div>';
+  }
+  function foot(v,m){ // what the pointer reveals at the card's lower edge
+    var f=function(a){return '<span>'+a.join('</span><span>')+'</span>';}, ch=m==='plan'?CHEVUP:CHEV;
+    if(v==='handle') return '<div class="foot mid">'+f([ch,GEAR])+'</div>';
+    if(v==='strip') return '<div class="foot">'+f((m==='skip'?[UNDO]:[]).concat([SKIP,ch,GEAR]))+'</div>';
+    return '';
   }
   function card(m,l,v){
-    var t=T[l], rest2=row('turnin',t.npc,'','later')+row('accept',t.npc,'','later');
+    var t=T[l], rest2=row('turnin',t.npc,'','later')+row('accept',t.npc,'','later'), boxy=v!=='strip';
     switch(m){
       case 'hidden': return '';
-      case 'plan': var q=P[l]; return '<span class="rail"><span>'+SKIP+'</span><span>'+CHEVUP+'</span><span>'+GEAR+'</span></span>'+
-        place(q[3])+row('kill',t.mob,'6/10')+place(q[4])+row('turnin',t.npc,'','later')+row('accept',t.npc,'','later')+
+      case 'plan': var q=P[l]; return place(q[3])+row('kill',t.mob,'6/10')+place(q[4])+row('turnin',t.npc,'','later')+row('accept',t.npc,'','later')+
         place(q[3])+row('kill',q[0],'0/10','later')+place(q[4])+row('turnin',t.npc,'','later')+row('accept',q[1],'','later')+
-        place(q[5])+row('loot',q[2],'0/12','later')+place(q[4])+row('turnin',q[1],'','later');
+        place(q[5])+row('loot',q[2],'0/12','later')+place(q[4])+row('turnin',q[1],'','later')+foot(v,m);
       case 'instance': return '<div class="row"><span class="kind">'+PAUSE+'</span></div>';
       case 'combat': return row('kill',t.mob,'6/10');
       case 'accept': return row('accept',t.npc)+row('kill',t.mob,'0/10','later')+row('turnin',t.npc,'','later');
       case 'done': return row('kill',t.mob,'10/10','done')+row('turnin',t.npc)+row('accept',t.npc,'','later');
-      case 'skip': return (v==='rail'?'<span class="rail"><span>'+UNDO+'</span><span>'+SKIP+'</span><span>'+CHEV+'</span><span>'+GEAR+'</span></span>':'<span class="rail'+(v==='rowx'?' low':'')+'"><span>'+CHEV+'</span><span>'+GEAR+'</span></span>')+
-        row('kill',t.mob,'6/10','skipped hot',v==='rowx'?UNDO:'')+row('turnin',t.npc)+row('accept',t.npc,'','later');
-      case 'hover': return (v==='rail'?'<span class="rail"><span>'+SKIP+'</span><span>'+CHEV+'</span><span>'+GEAR+'</span></span>':'<span class="rail'+(v==='rowx'?' low':'')+'"><span>'+CHEV+'</span><span>'+GEAR+'</span></span>')+
-        row('kill',t.mob,'6/10','hot',v==='rowx'?X:'')+rest2;
+      case 'skip': return row('kill',t.mob,'6/10','skipped hot',boxy?UNDO:'')+row('turnin',t.npc)+row('accept',t.npc,'','later')+foot(v,m);
+      case 'skipidle': return row('kill',t.mob,'6/10','skipped')+row('turnin',t.npc)+row('accept',t.npc,'','later');
+      case 'hover': return row('kill',t.mob,'6/10','hot',boxy?SKIP:'')+rest2+foot(v,m);
       default: return row('kill',t.mob,'6/10')+rest2;
     }
   }
@@ -399,7 +410,7 @@ h3{font:600 15px/1.3 var(--display);margin:0;display:flex;align-items:center;fle
     return '<svg class="ptr" viewBox="0 0 24 24"><path class="f" d="M12 2 20 21 12 16 4 21Z"/></svg><span class="dist">'+(m==='accept'?212:(m==='skip'||m==='done')?140:84)+' '+t.yd+'</span>';
   }
   var s=document.getElementById('screen'),c=document.getElementById('card'),a=document.getElementById('arrow'),tip=document.getElementById('tip');
-  var st={moment:'rest',scr:'std',lang:'en',skipv:'rail'};
+  var st={moment:'rest',scr:'std',lang:'en',skipv:'box'};
   function press(id,v){[].forEach.call(document.getElementById(id).children,function(x){x.setAttribute('aria-pressed',x.dataset.v===v)});}
   function seg(id){
     document.getElementById(id).addEventListener('click',function(e){
@@ -415,7 +426,7 @@ h3{font:600 15px/1.3 var(--display);margin:0;display:flex;align-items:center;fle
     c.innerHTML=ch; c.hidden=!ch; c.lang=st.lang; c.classList.toggle('mini',m==='instance'); c.classList.toggle('plan',m==='plan');
     a.innerHTML=ah; a.hidden=!ah;
     tip.hidden=!hv; tip.lang=st.lang;
-    tip.innerHTML='<b>'+t.quest+'</b><span>'+t.place+'</span>'+(st.skipv==='rc'?'<span class="hint">'+MOUSE+(m==='skip'?UNDO:SKIP)+'</span>':'');
+    tip.innerHTML='<b>'+t.quest+'</b><span>'+t.place+'</span>';
     document.getElementById('chat').innerHTML=m==='hidden'?'<b>'+t.chatHidden+'</b>':m==='instance'?'<b>'+t.chatDungeon+'</b>':'Chat';
     var S=s.getBoundingClientRect(), area=0,n=0;
     [c,a].forEach(function(f){ if(f.hidden)return; var r=f.getBoundingClientRect(); area+=r.width*r.height; n++; });
@@ -430,9 +441,8 @@ h3{font:600 15px/1.3 var(--display);margin:0;display:flex;align-items:center;fle
   document.getElementById('true').innerHTML=Object.keys(T).map(function(l){
     return '<figure><figcaption>'+names[l]+'</figcaption><div class="plate" lang="'+l+'">'+card('rest',l)+'</div></figure>';}).join('');
   [].forEach.call(document.querySelectorAll('[data-demo]'),function(d){
-    var v=d.dataset.demo, t=T.en, tp=function(m){return v==='rc'?'<div class="plate tipbox"><b>'+t.quest+'</b><span>'+t.place+'</span><span class="hint">'+MOUSE+(m==='skip'?UNDO:SKIP)+'</span></div>':'';};
-    d.innerHTML='<span class="cap">Pointer on the first row</span><div class="plate">'+card('hover','en',v)+'</div>'+tp('hover')+
-                '<span class="cap">After skipping it</span><div class="plate">'+card('skip','en',v)+'</div>'+tp('skip');
+    var v=d.dataset.demo, one=function(cap,m){return '<div class="demo"><span class="cap">'+cap+'</span><div class="plate">'+card(m,'en',v)+'</div></div>';};
+    d.innerHTML=one('At rest','rest')+one('Pointer on the first row','hover')+one('After skipping, pointer still there','skip');
   });
   ['moment','scr','lang','skipv'].forEach(seg);render();
   window.addEventListener('resize',render);
