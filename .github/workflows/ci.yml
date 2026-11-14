@@ -1,0 +1,98 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  # Started by the nightly data update on its own branch: a pull request that a workflow opens
+  # does not start the checks by itself.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Decides which of the jobs below have anything to check. `collector` and `lua` are required
+  # checks on main, so they are skipped per job here and not with a `paths` filter on the
+  # workflow: a skipped job counts as passed, a workflow that never starts leaves the pull
+  # request waiting for ever.
+  changes:
+    name: changes
+    runs-on: ubuntu-latest
+    outputs:
+      collector: ${{ steps.areas.outputs.collector }}
+      lua: ${{ steps.areas.outputs.lua }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - id: areas
+        env:
+          EVENT: ${{ github.event_name }}
+          PUSH_BEFORE: ${{ github.event.before }}
+        run: |
+          all=false
+          files=""
+          case "$EVENT" in
+            pull_request)
+              # HEAD is the merge of the pull request into its base; the first parent is the base.
+              files=$(git diff --name-only HEAD^1 HEAD)
+              ;;
+            push)
+              if git cat-file -e "${PUSH_BEFORE}^{commit}" 2>/dev/null; then
+                files=$(git diff --name-only "$PUSH_BEFORE" HEAD)
+              else
+                all=true
+              fi
+              ;;
+            *)
+              all=true
+              ;;
+          esac
+
+          area() {
+            if $all || grep -qE "$2" <<<"$files"; then value=true; else value=false; fi
+            echo "$1=$value" | tee -a "$GITHUB_OUTPUT"
+          }
+          area collector '^(tools/collector/|collector\.json$|\.editorconfig$|\.github/workflows/ci\.yml$)'
+          area lua '(\.lua$|^\.luacheckrc$|^stylua\.toml$|^\.styluaignore$|^\.github/workflows/ci\.yml$)'
+
+  # Each job runs unless `changes` said there is nothing for it, so a failure in `changes`
+  # runs the checks instead of skipping them.
+  collector:
+    name: collector
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.collector != 'false' }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: tools/collector
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+      - run: dotnet restore
+      - run: dotnet build --no-restore
+      - run: dotnet test --no-build
+      - run: dotnet format --verify-no-changes --no-restore
+
+  lua:
+    name: lua
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.lua != 'false' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Luacheck
+        uses: lunarmodules/luacheck@v1
+      - name: StyLua
+        uses: JohnnyMorganz/stylua-action@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          version: 2.6.0
+          args: --check .
