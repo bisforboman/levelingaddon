@@ -141,7 +141,7 @@ ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px;max-wid
 .step{position:relative}
 .rowbtn{position:absolute;left:100%;top:50%;transform:translateY(-50%);margin-left:calc(4*var(--u));width:calc(24*var(--u));height:calc(24*var(--u));padding:calc(3*var(--u));display:flex;color:var(--g-text);
   background:var(--g-plate);border:calc(1*var(--u)) solid var(--g-edge);border-radius:calc(3*var(--u))}
-.rail.low{top:auto;bottom:calc(-1*var(--u))}
+.rail.low{left:auto;right:100%;margin:0 calc(4*var(--u)) 0 0}
 .rowbtn svg,.rail svg,.hint svg,.mk svg{width:100%;height:100%;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
 .rail svg .fill,.hint svg .fill,.mk svg .fill{fill:currentColor;stroke:none}
 .rail{position:absolute;left:100%;top:calc(-1*var(--u));margin-left:calc(4*var(--u));display:flex;flex-direction:column;gap:calc(4*var(--u))}
@@ -159,6 +159,12 @@ ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px;max-wid
 .map .stop{fill:#f2c230;stroke:#201a05;stroke-width:1.5}.map .later{fill:#201a05;stroke:#f2c230}
 .map text{font:600 11px Inter,sans-serif;fill:#201a05;text-anchor:middle}.map .later+text{fill:#f2c230}
 .map .me{fill:#f4f1e6;stroke:#201a05}
+.demo{--u:1px;background:linear-gradient(120deg,#5d86a8,#55713f 70%,#2c4024);border-radius:6px;padding:14px 44px 56px 44px;display:flex;flex-direction:column;gap:8px;align-items:flex-start}
+.demo .plate{position:relative;width:260px;max-width:100%}
+.demo .cap{font:500 12px var(--body);color:rgba(255,255,255,.85);letter-spacing:.04em}
+.demo .cap:not(:first-child){margin-top:10px}
+.demo .tipbox{width:auto;padding:7px 10px;display:flex;flex-direction:column;font-size:14px;background:rgba(8,10,20,.9);border-radius:5px;margin-left:60px}
+.demo .tipbox b{color:var(--g-quest);font-weight:600}.demo .tipbox span{color:var(--g-dim)}
 .cols3{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:22px 32px}
 .cols3>div{min-width:0}
 h3{font:600 15px/1.3 var(--display);margin:0;display:flex;align-items:center;flex-wrap:wrap;gap:8px}
@@ -302,15 +308,18 @@ h3{font:600 15px/1.3 var(--display);margin:0;display:flex;align-items:center;fle
     <div class="cols3">
       <div class="stack"><h3><span class="mk" id="s-rail"></span>1 · Hover rail <span class="rec">Recommended</span></h3>
         <p>Pointing at the card reveals a thin rail beside it: skip, and settings. Skip always acts on the current step. After a skip, an undo arrow joins the rail.</p>
-        <ul><li>Rows never change; all controls live in one place</li><li>One click to skip, one to undo</li><li>Cannot skip a later step without skipping the ones before it</li></ul></div>
+        <ul><li>Rows never change; all controls live in one place</li><li>One click to skip, one to undo</li><li>Cannot skip a later step without skipping the ones before it</li></ul>
+        <div class="demo" data-demo="rail"></div></div>
       <div class="stack"><h3><span class="mk" id="s-rowx"></span>2 · Row ✕</h3>
         <p>Pointing at a row reveals a ✕ just outside its end, so the row itself does not move. On a skipped row the ✕ becomes an undo arrow.</p>
-        <ul><li>Any step can be skipped, and undo sits exactly where the skip was</li><li>Controls appear and disappear inside the card as the pointer moves</li><li>The control follows the pointer from row to row</li></ul></div>
+        <ul><li>Any step can be skipped, and undo sits exactly where the skip was</li><li>Unroll and settings sit on the other side, so two edges of the card carry controls</li><li>The control follows the pointer from row to row</li></ul>
+        <div class="demo" data-demo="rowx"></div></div>
       <div class="stack"><h3><span class="mk" id="s-rc"></span>3 · Right-click</h3>
         <p>Right-click a row to skip it; right-click again to bring it back. Nothing is drawn on the card. The tooltip shows a mouse with its right button lit.</p>
-        <ul><li>Zero added pixels</li><li>Matches how the game dismisses buffs and tracked quests</li><li>Invisible until you read the tooltip; easy to never discover</li></ul></div>
+        <ul><li>Zero added pixels</li><li>Matches how the game dismisses buffs and tracked quests</li><li>Invisible until you read the tooltip; easy to never discover</li></ul>
+        <div class="demo" data-demo="rc"></div></div>
     </div>
-    <p class="note">In all three, a skipped step shows a dash in its box, not a tick, so "skipped" and "done" differ by shape. Undo stays available until the next step completes. A key binding for skip costs nothing and can sit alongside any of them.</p>
+    <p class="note">Each example shows the card at true size, first with the pointer on it and then after the first step was skipped. In all three, a skipped step shows a dash in its box, not a tick, so "skipped" and "done" differ by shape. Undo stays available until the next step completes. A key binding for skip costs nothing and can sit alongside any of them.</p>
   </div>
 
   <div class="stack">
@@ -420,6 +429,11 @@ h3{font:600 15px/1.3 var(--display);margin:0;display:flex;align-items:center;fle
   var names={en:'English',de:'Deutsch',ru:'Русский',zh:'简体中文'};
   document.getElementById('true').innerHTML=Object.keys(T).map(function(l){
     return '<figure><figcaption>'+names[l]+'</figcaption><div class="plate" lang="'+l+'">'+card('rest',l)+'</div></figure>';}).join('');
+  [].forEach.call(document.querySelectorAll('[data-demo]'),function(d){
+    var v=d.dataset.demo, t=T.en, tp=function(m){return v==='rc'?'<div class="plate tipbox"><b>'+t.quest+'</b><span>'+t.place+'</span><span class="hint">'+MOUSE+(m==='skip'?UNDO:SKIP)+'</span></div>':'';};
+    d.innerHTML='<span class="cap">Pointer on the first row</span><div class="plate">'+card('hover','en',v)+'</div>'+tp('hover')+
+                '<span class="cap">After skipping it</span><div class="plate">'+card('skip','en',v)+'</div>'+tp('skip');
+  });
   ['moment','scr','lang','skipv'].forEach(seg);render();
   window.addEventListener('resize',render);
   if(document.fonts&&document.fonts.ready)document.fonts.ready.then(render);
