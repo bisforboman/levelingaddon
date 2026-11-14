@@ -328,8 +328,9 @@ function effects.eliteNotice(set)
     local dangers = data.dangers
     local function start(questID, name)
         data.dangers = { [1] = { mobs = { { id = questID, name = name, at = { 50, 50 } } } } }
-        ns.Steps.Current = function()
-            return { kind = "go", name = "Somewhere", questID = questID, map = 1, x = 50, y = 50 }
+        ns.Steps.Current = function(self)
+            local _, index = current(self)
+            return { kind = "go", name = "Somewhere", questID = questID, map = 1, x = 50, y = 50 }, index or 1
         end
         T.chat = {}
         ns.Refresh()
