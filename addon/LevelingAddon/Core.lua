@@ -266,6 +266,16 @@ function commands.unskip()
     ns.Refresh()
 end
 
+-- The list of commands, built from the table.
+function commands.help()
+    local names = {}
+    for name in pairs(commands) do
+        table.insert(names, name)
+    end
+    table.sort(names)
+    say("/lvl hides or shows the window. /lvl and one of: " .. table.concat(names, ", "))
+end
+
 -- Memory and timings, to hold the addon against its performance budget. The loop numbers
 -- cover the time since the last /lvl debug: stand still, run it, move, run it again.
 function commands.debug()
@@ -299,12 +309,7 @@ SlashCmdList.LEVELINGADDON = function(message)
     elseif commands[command] then
         commands[command](arg)
     else
-        local names = {}
-        for name in pairs(commands) do
-            table.insert(names, name)
-        end
-        table.sort(names)
-        say("/lvl, then one of: " .. table.concat(names, ", "))
+        commands.help()
     end
 end
 

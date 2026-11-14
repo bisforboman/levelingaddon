@@ -3,41 +3,62 @@ std = "lua51"
 max_line_length = 120
 
 -- Not addon source: QuestieDB's checkout (data/raw), the generated tables (data/lua), and the
--- test that stubs the game API (addon/tests).
+-- tests that stub the game API (addon/tests).
 exclude_files = { "data/", "addon/tests/" }
 
 -- Methods and event handlers often leave `self` unused.
 ignore = { "212/self" }
 
--- Names the game client provides. Add each API the addon starts to use, so that a misspelt
--- name is still reported as an undefined global.
+-- Names the game client provides, one per line in alphabetical order. The list is seeded with
+-- what the planned features are expected to need; add any other API the addon starts to use in
+-- its sorted place, so that a misspelt name is still reported as an undefined global.
 read_globals = {
-    "CreateFrame",
-    "UIParent",
-    "C_Timer",
+    "bit",
+    "C_AddOns",
+    "C_ChatInfo",
+    "C_Container",
+    "C_GossipInfo",
     "C_Map",
     "C_QuestLog",
-    "GetLocale",
-    "UnitLevel",
-    "UnitFactionGroup",
-    "UnitRace",
-    "UnitClass",
-    "format",
-    "strsplit",
-    "tinsert",
-    "wipe",
-    "bit",
-    "strtrim",
-    "GetTime",
-    "InCombatLockdown",
-    "GetPlayerFacing",
+    "C_TaxiMap",
+    "C_Timer",
+    "CreateFrame",
     "CreateVector2D",
-    "GameTooltip",
-    "TomTom",
     "debugprofilestop",
-    "UpdateAddOnMemoryUsage",
+    "EventRegistry",
+    "format",
+    "GameTooltip",
     "GetAddOnMemoryUsage",
+    "GetBindLocation",
+    "GetLocale",
+    "GetMoney",
+    "GetPlayerFacing",
+    "GetSubZoneText",
+    "GetTime",
     "GetUnitSpeed",
+    "GetZoneText",
+    "hooksecurefunc",
+    "InCombatLockdown",
+    "IsInInstance",
+    "Minimap",
+    "PlaySound",
+    "Settings",
+    "strsplit",
+    "strtrim",
+    "tinsert",
+    "TomTom",
+    "UIParent",
+    "UnitClass",
+    "UnitFactionGroup",
+    "UnitLevel",
+    "UnitOnTaxi",
+    "UnitPosition",
+    "UnitRace",
+    "UnitXP",
+    "UnitXPMax",
+    "UpdateAddOnMemoryUsage",
+    "wipe",
+    "WorldMapFrame",
 }
 
 -- Names the addon defines for the game to find: saved settings, the slash command, and the
