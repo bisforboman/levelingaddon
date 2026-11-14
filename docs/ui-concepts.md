@@ -417,6 +417,13 @@ settings, both on by default: "Accept quests automatically" and "Hand in quests
 automatically". Not built, because the data has nothing for them: choosing a gossip option,
 taking a flight, confirming an inn.
 
+`FirstRun.lua` asks a character once, at its first login with the addon, whether to include
+dungeon quests and group quests (both off by default, per character), in a small panel shown
+beside the live window, which the player can drag into place meanwhile; "Start" closes it
+(#20). The same two switches are on the settings page and under `/lvl dungeons` and
+`/lvl groups`; `/lvl setup` shows the panel again. The arrow cannot be dragged yet, so the
+panel does not offer it.
+
 `Target.lua` keeps one macro, made on `/lvl macro`, pointed at the names of the current step's
 NPC or creatures, with a raid marker on what it targets (#12; README, "The target macro"). By
 the owner's decision there is no frame of target buttons and no sound or flash.
