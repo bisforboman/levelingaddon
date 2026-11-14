@@ -12,6 +12,8 @@
     "delaySeconds": 5,
     "jitterSeconds": 3,
     "maxConsecutiveFailures": 3,
+    // The total the quest listing showed on 2026-11-14; the validation report compares against it.
+    "reportedQuestCount": 6138,
     // "chrome" or "msedge": the browser installed on your machine.
     "browserChannel": "chrome",
 

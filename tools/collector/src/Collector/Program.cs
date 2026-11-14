@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using Collector;
 using Collector.Fetch;
+using Collector.Parse;
 using Collector.QuestieDb;
 
 const string Usage = """
@@ -13,6 +14,10 @@ const string Usage = """
 
       questiedb sync
           Check out QuestieDB at the commit pinned in collector.json into data/raw/questiedb.
+
+      parse
+          Merge QuestieDB (its own code, run in a sandboxed Lua interpreter), write the normalized
+          JSON to data/parsed/ and the validation report to reports/.
 
       fetch <kind> (--ids 1,2,3 | --ids-file FILE | --urls-file FILE) [--limit N] [--delay SECONDS]
           Fetch pages of a kind defined in collector.json into data/raw/wowhead/<kind>/.
@@ -46,6 +51,55 @@ try
         case "questiedb" when args.ElementAtOrDefault(1) == "sync":
             await QuestieDbSync.EnsureAsync(config.QuestieDb, Path.Combine(rawRoot, "questiedb"), Console.WriteLine);
             return 0;
+
+        case "questiedb" when args.ElementAtOrDefault(1) == "lua":
+            // Debug aid: run a Lua snippet of ours inside the sandbox, against the checkout.
+            Console.WriteLine(QuestieDbMerge.RunSnippet(Path.Combine(rawRoot, "questiedb"), File.ReadAllText(args[2])));
+            return 0;
+
+        case "questiedb" when args.ElementAtOrDefault(1) == "inspect":
+        {
+            // Debug aid: counts, reference data, and the rows named on the command line.
+            var merged = QuestieDbMerge.Run(Path.Combine(rawRoot, "questiedb"));
+            foreach (var (name, document) in new[] { ("Quest", merged.Quests), ("Npc", merged.Npcs), ("Object", merged.Objects), ("Item", merged.Items) })
+            {
+                Console.WriteLine($"== {name}: {document.RootElement.EnumerateObject().Count()} rows");
+                foreach (var id in args.Skip(2))
+                    if (document.RootElement.TryGetProperty(id, out var row)) Console.WriteLine($"   [{id}] {row.GetRawText()}");
+            }
+            foreach (var property in merged.Reference.RootElement.EnumerateObject())
+            {
+                var text = property.Value.GetRawText();
+                Console.WriteLine($"-- {property.Name}: {(text.Length > 700 ? text[..700] + " ..." : text)}");
+            }
+            Console.WriteLine(merged.LuaOutput);
+            return 0;
+        }
+
+        case "parse":
+        {
+            var checkout = await QuestieDbSync.EnsureAsync(config.QuestieDb, Path.Combine(rawRoot, "questiedb"), Console.WriteLine);
+            using var merged = QuestieDbMerge.Run(checkout);
+            var data = new Normalizer(merged).Run();
+            var source = $"{config.QuestieDb.Repository} at commit {config.QuestieDb.Commit}";
+            DataWriter.Write(data, Path.Combine(root, "data", "parsed"), new
+            {
+                schemaVersion = 1,
+                source = new { config.QuestieDb.Repository, config.QuestieDb.Commit, flavor = "Forever", license = "GPL-3.0" },
+                counts = new { quests = data.Quests.Count, questRelations = data.Relations.Count, npcs = data.Npcs.Count, objects = data.Objects.Count, items = data.Items.Count, zones = data.Zones.Count },
+            });
+
+            var report = Validation.Run(data, config.Wowhead.ReportedQuestCount);
+            var reports = Path.Combine(root, "reports");
+            Directory.CreateDirectory(reports);
+            File.WriteAllText(Path.Combine(reports, "validation.md"), Validation.ToMarkdown(report, source));
+            File.WriteAllText(Path.Combine(reports, "validation.json"),
+                System.Text.Json.JsonSerializer.Serialize(report, new System.Text.Json.JsonSerializerOptions(DataWriter.Json) { WriteIndented = true }) + "\n");
+
+            Console.WriteLine($"Wrote {data.Quests.Count} quests, {data.Relations.Count} relation rows, {data.Npcs.Count} NPCs, {data.Objects.Count} objects, " +
+                              $"{data.Items.Count} items, {data.Zones.Count} zones to data/parsed; {data.Failures.Count} parse failure(s). Report: reports/validation.md");
+            return 0;
+        }
 
         case "fetch" when args.Length >= 2:
             return await FetchAsync(args[1], args[2..]);

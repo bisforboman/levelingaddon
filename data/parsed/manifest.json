@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "repository": "https://github.com/Questie/QuestieDB",
+    "commit": "4dbb82440a27856f8dccf57094a5d792cdc7cc9b",
+    "flavor": "Forever",
+    "license": "GPL-3.0"
+  },
+  "counts": {
+    "quests": 5914,
+    "questRelations": 4308,
+    "npcs": 7443,
+    "objects": 1185,
+    "items": 4041,
+    "zones": 133
+  }
+}

@@ -14,7 +14,8 @@ public sealed record WowheadConfig(
     int MaxConsecutiveFailures,
     string BrowserChannel,
     Dictionary<string, KindConfig> Kinds,
-    Dictionary<string, string>? BrowserCaptures);
+    Dictionary<string, string>? BrowserCaptures,
+    int? ReportedQuestCount = null);
 
 public sealed record CollectorConfig(QuestieDbConfig QuestieDb, WowheadConfig Wowhead)
 {
