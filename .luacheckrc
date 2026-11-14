@@ -24,6 +24,7 @@ read_globals = {
     "C_Reputation",
     "C_TaxiMap",
     "C_Timer",
+    "ChatFontNormal",
     "CreateFrame",
     "CreateSettingsButtonInitializer",
     "CreateVector2D",
@@ -33,6 +34,7 @@ read_globals = {
     "GameTooltip",
     "GetAddOnMemoryUsage",
     "GetBindLocation",
+    "GetBuildInfo",
     "GetCVar",
     "GetFactionInfoByID",
     "GetItemInfo",
@@ -95,4 +97,5 @@ globals = {
     "LevelingAddonCharDB",
     "SLASH_LEVELINGADDON1",
     "LevelingAddon_OnCompartmentClick",
+    "LevelingAddonEvents",
 }
