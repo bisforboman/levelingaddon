@@ -417,6 +417,10 @@ settings, both on by default: "Accept quests automatically" and "Hand in quests
 automatically". Not built, because the data has nothing for them: choosing a gossip option,
 taking a flight, confirming an inn.
 
+`Target.lua` keeps one macro, made on `/lvl macro`, pointed at the names of the current step's
+NPC or creatures, with a raid marker on what it targets (#12; README, "The target macro"). By
+the owner's decision there is no frame of target buttons and no sound or flash.
+
 `ItemButton.lua` adds one secure button for the usable item the current step's quest needs,
 shown while the item is in the bags or equipped (#11). It is its own frame beside the window,
 never anchored to it, dragged with the right mouse button, with the item's cooldown and
