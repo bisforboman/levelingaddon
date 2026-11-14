@@ -247,6 +247,11 @@ and from the character's own flights.
 - **Known flight points**: each time the flight map is open, the points on it that the
   character has discovered are remembered per character (`ns.char.flights.known`, by taxi node
   id). `/lvl flights` prints how many are known, how many flights are timed, and the ratio.
+- **For the arrow**: `ns.Flights.PointTowards(uiMapId)` returns the flight point to walk to for
+  a step on that map, as `{ map, x, y, name }` (the flight master's place in map percent), or
+  nil: the point nearest the character from which a route leads to the point nearest the
+  middle of that map. It uses the points the character knows, and before any is known all of
+  the character's side. No flight crosses the sea, so it is nil for another continent.
 - **Cost**: the flight map is read once when it opens; the tooltip line is worked out when a
   point is hovered; one task, five times a second, runs only during a flight and hands the
   frame a new text once a second.
