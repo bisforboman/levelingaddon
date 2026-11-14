@@ -5,8 +5,9 @@
 -- the list stay above the plan as history, so the window can scroll back to them.
 --
 -- A step is { kind, name, need, questID, objective, map, x, y }:
---   kind       "accept" (pick a quest up), "turnin" (hand it in), "kill", "loot", or "go"
---              (be somewhere: an escort, an exploration)
+--   kind       "accept" (pick a quest up), "turnin" (hand it in), "kill", "loot", "go"
+--              (be somewhere: an escort, an exploration), or "sell" (a vendor, when the bags
+--              run low; its questID is ns.SELL, which is no quest)
 --   name       the NPC, creature, item or place to find
 --   need       how many, for a kill or loot step whose quest is in the log
 --   objective  which of the quest's objectives in the log a kill, loot or go step is about;
@@ -139,6 +140,15 @@ local KINDS = {
                 done = true
             end
             return done, count
+        end,
+    },
+    -- A stop at a vendor (Junk.lua): over once the player is at one or has room in the bags
+    -- again, and it stays over.
+    sell = {
+        events = { "BAG_UPDATE_DELAYED", "MERCHANT_SHOW" },
+        read = function(step)
+            step.sold = step.sold or ns.SellDone()
+            return step.sold
         end,
     },
 }

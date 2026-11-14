@@ -122,6 +122,14 @@ the quest log and its objectives, level, class, race, faction, zone and position
   finished, or the current step has changed and the objective is no longer near the way to the
   new one, the next pass ranks it like any other step. It is an ordinary row, found in the same
   pass, and the arrow stays on the current step.
+- **Bag space** (issue #15): with three or fewer free bag slots (`LOW_SLOTS` in `Junk.lua`) a
+  "sell" row names a vendor that lies within `SIDE_YARDS` of the way to the current step, right
+  under that step; with no free slot the row is the current step, at the nearest vendor in the
+  zones the pass looks at. Vendors are the NPCs with the vendor flag in the data that the
+  character's faction can use; the data only has NPCs a quest refers to, so "nearest" means
+  nearest known. The row ends when a vendor window opens or the bags have room again, and can
+  be skipped like any step; a skip, or a visit that left the bags low, holds until there has
+  been room again. It follows bag changes (`BAG_UPDATE_DELAYED`), never movement.
 - **Working set**: the current zone, the zones whose maps overlap its map, and the 5-level band
   the character is in. Where nothing there suits the character, the best-fitting other zones
   on the continent are tried one at a time (three at most), so a character standing somewhere

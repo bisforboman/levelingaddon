@@ -156,8 +156,104 @@ local function scan()
     end
 end
 
+-- Bag space: a stop at a vendor among the steps -------------------------------------------
+-- When the bags run low the planner adds a "sell" step for the nearest vendor the data knows
+-- (Planner.lua asks ns.SellStep and ns.Vendors; the step kind is in Steps.lua).
+
+local LOW_SLOTS = 3 -- free bag slots at which a vendor near the way is suggested
+local VENDOR_FLAG = 4 -- in the data's npcFlags
+ns.SELL = 0 -- what a sell step carries as its quest id: skips are kept by quest id
+
+local visited = false -- a vendor window was opened while the bags were low: said enough
+local space -- the bag space the planner last heard of
+
+-- Free slots in the backpack and the ordinary bags; a quiver or a bag for one kind of item does
+-- not count. Plenty where the client cannot say.
+local function freeSlots()
+    if not (C_Container and C_Container.GetContainerNumFreeSlots) then
+        return math.huge
+    end
+    local free = 0
+    for bag = 0, 4 do
+        local slots, family = C_Container.GetContainerNumFreeSlots(bag)
+        if (family or 0) == 0 then
+            free = free + (slots or 0)
+        end
+    end
+    return free
+end
+
+local function bagSpace()
+    local free = freeSlots()
+    return free == 0 and "full" or free <= LOW_SLOTS and "low" or nil
+end
+
+-- For the planner: "full", "low", or nil when there is no stop to suggest: the bags have room,
+-- the player skipped the stop, or has been to a vendor since the bags ran low.
+function ns.SellStep()
+    space = bagSpace()
+    return not visited and not ns.char.skipped[ns.SELL] and space or nil
+end
+
+-- For the step: over once the player is at a vendor or has room again.
+function ns.SellDone()
+    return atVendor or not bagSpace()
+end
+
+-- The vendors the data knows that the character's side can use, each as the planner takes a
+-- target: { name, map, x, y, map, x, y, ... }. Read from the NPC table once.
+local vendors
+function ns.Vendors(side)
+    if vendors then
+        return vendors
+    end
+    local start = ns.Clock()
+    vendors = {}
+    local letter = side == "horde" and "H" or "A"
+    local zones = ns.Data.zones or {}
+    local ids = {}
+    for id, npc in pairs(ns.Data.npcs or {}) do
+        local usable = not npc.friendlyTo or npc.friendlyTo:find(letter)
+        if usable and npc.spawns and (npc.npcFlags or 0) % (VENDOR_FLAG * 2) >= VENDOR_FLAG then
+            ids[#ids + 1] = id
+        end
+    end
+    table.sort(ids)
+    for _, id in ipairs(ids) do
+        local npc = ns.Data.npcs[id]
+        local vendor = { npc.name }
+        for zoneId, points in pairs(npc.spawns) do
+            local map = zones[zoneId] and zones[zoneId].uiMapId
+            for i = 1, map and #points or 0, 2 do
+                if points[i] ~= -1 then -- -1, -1: inside an instance
+                    vendor[#vendor + 1] = map
+                    vendor[#vendor + 1] = points[i]
+                    vendor[#vendor + 1] = points[i + 1]
+                end
+            end
+        end
+        vendors[#vendors + 1] = vendor
+    end
+    ns.Report("vendors read", ns.Clock() - start)
+    return vendors
+end
+
+-- The bags changed: with room again the stop may be suggested the next time, and a change
+-- between room, low and full is a reason for a planner pass.
+ns.On("BAG_UPDATE_DELAYED", function()
+    local now = bagSpace()
+    if not now then
+        visited = false
+        ns.char.skipped[ns.SELL] = nil
+    end
+    if now ~= space then
+        ns.Planner.Request()
+    end
+end)
+
 ns.On("MERCHANT_SHOW", function()
     atVendor = true
+    visited = bagSpace() ~= nil
     scan()
 end)
 
