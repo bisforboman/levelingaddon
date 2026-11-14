@@ -9,7 +9,7 @@
 -- as the zones lie. World x runs north and world y runs west, as in the game.
 local RECTS = {
     [1429] = { 0, 0, 3470, 2314 }, -- Elwynn Forest
-    [1453] = { 1200, 900, 1737, 1158 }, -- Stormwind City, over Elwynn's north-west
+    [1453] = { 400, 900, 1737, 1158 }, -- Stormwind City, over Elwynn's north-west corner
     [1436] = { -800, 2600, 3500, 2333 }, -- Westfall, to the west
     [1431] = { -2100, -200, 2700, 1800 }, -- Duskwood, to the south
     [1433] = { 300, -2000, 2170, 1447 }, -- Redridge, to the east
@@ -263,6 +263,16 @@ local step = ns.Steps.list[1]
 assert(step.map == 1429 and step.x == 48.17 and step.y == 42.94 and step.objective == nil)
 assert(T.completedReads == 1 and ns.Stats().timers["planner pass"] and ns.Stats().timers["completed quests read"])
 
+-- /lvl plan says what the pass saw: Elwynn's neighbours by overlapping maps, not Dun Morogh.
+chat = {}
+SlashCmdList.LEVELINGADDON("plan")
+assert(chat[1]:find("level 1 HUMAN WARRIOR, alliance"), chat[1])
+assert(
+    chat[2]:find("Elwynn Forest %(map 1429%), next to: Duskwood, Redridge Mountains, Stormwind City, Westfall$"),
+    chat[2]
+)
+assert(chat[3]:find("read in one call, quest log listed, 12 steps"), chat[3])
+
 -- Accepting, progress and handing in move the list; what was done stays above as history.
 accept(783)
 assert(row(1) == "v accept Deputy Willem 783" and current() == "turnin Marshal McBride 783", current())
@@ -282,6 +292,13 @@ assert(T.passes == passes + 1 and find("turnin", 7), "a finished objective does"
 assert(find("accept", 15) > find("turnin", 7), "the next in the chain is planned after the hand-in")
 turnIn(7)
 assert(current() == "accept Marshal McBride 15", current())
+-- The log can lag the accept: a quest whose objectives are not there yet is not taken for
+-- finished, and the quest log update that brings them is planned from.
+accept(15)
+assert(not find("turnin", 15) and not find("kill", 15), "not planned on while the log is empty")
+T.log[15] = { monster(10) }
+fire("QUEST_LOG_UPDATE")
+assert(find("kill", 15) and find("kill", 15) < find("turnin", 15))
 assert(T.completedReads == 1, "completed quests are read once, then kept current from events")
 
 -- A burst of events is one pass.

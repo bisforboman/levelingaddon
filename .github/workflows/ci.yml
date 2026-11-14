@@ -101,3 +101,4 @@ jobs:
           sudo apt-get update -q
           sudo apt-get install -y -q lua5.1
           lua5.1 addon/tests/smoke.lua addon/LevelingAddon
+          lua5.1 addon/tests/test_planner.lua

@@ -522,5 +522,5 @@ cmd("mine 42")
 assert(got == "42")
 chat = {}
 cmd("nonsense")
-assert(chat[1]:find("arrow, debug, hide, mine, reset, rows, scale, show, skipped, unskip"), chat[1])
+assert(chat[1]:find("arrow, debug, hide, mine, plan, reset, rows, scale, show, skipped, unskip"), chat[1])
 print("ALL OK")

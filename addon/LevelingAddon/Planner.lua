@@ -298,6 +298,9 @@ local function objectiveOfType(quest, kind, n)
     end
 end
 
+local UNREAD_TRIES = 5
+local unread = {} -- [quest id] = passes that found fewer objectives in the log than the data has
+
 -- Plan from the given state, looking only at the zones in `working`. Returns the rows.
 local function plan(working, me, log, logListed, px, py)
     local quests, zones = ns.Data.plannerQuests, ns.Data.plannerZones
@@ -330,8 +333,21 @@ local function plan(working, me, log, logListed, px, py)
         if quest and not ns.char.skipped[id] then
             logged[#logged + 1] = id
             open[id] = {}
+            local listed = C_QuestLog.GetQuestObjectives(id) or {}
+            -- Just after a quest is accepted the log may not hold its objectives yet. Such a
+            -- quest is left alone, and the next quest log update asks for another pass (a few
+            -- times at most, in case the data counts objectives the game does not have).
+            local expected = 0
+            for _, objective in ipairs(quest.obj or {}) do
+                expected = expected + (objective[1] ~= "event" and 1 or 0)
+            end
+            if #listed < expected then
+                stuck[id] = true
+                unread[id] = (unread[id] or 0) + 1
+                Planner.waiting = Planner.waiting or unread[id] <= UNREAD_TRIES
+            end
             local seen = {}
-            for index, objective in ipairs(C_QuestLog.GetQuestObjectives(id) or {}) do
+            for index, objective in ipairs(listed) do
                 local kind = objective.type
                 local target
                 if kind then
@@ -511,10 +527,12 @@ local function plan(working, me, log, logListed, px, py)
 end
 
 local warned = false
+local last -- what the last pass looked at, for /lvl plan
 
 -- One pass, now. Feature code asks for one with Planner.Request instead.
 function Planner:Run()
     local rows
+    self.waiting = false
     if not (ns.Data and ns.Data.plannerQuests and ns.Data.plannerZones) then
         if not warned then
             warned = true
@@ -534,6 +552,7 @@ function Planner:Run()
         if px then
             local me = readCharacter()
             local log, logListed = readLog()
+            last = { map = map, me = me, logListed = logListed }
             rows = plan(workingSet(map), me, log, logListed, px, py)
             -- Nothing to do here or next door: look into the best few zones elsewhere, one at
             -- a time.
@@ -553,6 +572,34 @@ function Planner:Run()
         ns.Steps:Sync()
     end
     ns.Refresh()
+end
+
+-- What the last pass saw, to check the planner against the game: the character as it was
+-- read, the zone, and the zones taken as its neighbours.
+function ns.commands.plan()
+    if not last then
+        ns.say("no pass has run with a known zone and position yet.")
+        return
+    end
+    local zones, me = ns.Data.plannerZones, last.me
+    local names = {}
+    for map in pairs(workingSet(last.map)) do
+        if map ~= last.map then
+            names[#names + 1] = zones[map].name or tostring(map)
+        end
+    end
+    table.sort(names)
+    ns.say(string.format("level %d %s %s, %s.", me.level, tostring(me.race), tostring(me.class), tostring(me.side)))
+    ns.say((zones[last.map].name or last.map) .. " (map " .. last.map .. "), next to: " .. table.concat(names, ", "))
+    local text = "completed quests %s, quest log %s, %d steps."
+    ns.say(
+        string.format(
+            text,
+            completedInBulk and "read in one call" or "asked one by one",
+            last.logListed and "listed" or "not listable",
+            ns.Steps:Count()
+        )
+    )
 end
 
 -- The one way to ask for a pass: after an event, a changed preference, a skip. A burst of

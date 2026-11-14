@@ -80,10 +80,10 @@ local function read(self)
 end
 
 -- Called after quest events. A step that finished (or came back) means the plan is stale, so a
--- pass is asked for as well.
+-- pass is asked for as well; and so does a planner that is waiting for the log to fill in.
 function Steps:Sync()
     local changed, moved = read(self)
-    if moved then
+    if moved or ns.Planner.waiting then
         ns.Planner.Request()
     end
     return changed
