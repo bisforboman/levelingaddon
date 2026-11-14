@@ -13,6 +13,7 @@ ignore = { "212/self" }
 -- what the planned features are expected to need; add any other API the addon starts to use in
 -- its sorted place, so that a misspelt name is still reported as an undefined global.
 read_globals = {
+    "AbandonQuest",
     "AcceptQuest",
     "bit",
     "C_AddOns",
@@ -58,6 +59,7 @@ read_globals = {
     "GetProfessionInfo",
     "GetProfessions",
     "GetQuestID",
+    "GetQuestLogIndexByID",
     "GetQuestLogPushable",
     "GetQuestLogSelection",
     "GetQuestLogTitle",
@@ -74,6 +76,7 @@ read_globals = {
     "IsInGroup",
     "IsInGuild",
     "IsInInstance",
+    "IsQuestComplete",
     "IsQuestCompletable",
     "IsShiftKeyDown",
     "ItemRefTooltip",
@@ -87,6 +90,7 @@ read_globals = {
     "SelectAvailableQuest",
     "SelectQuestLogEntry",
     "SendChatMessage",
+    "SetAbandonQuest",
     "Settings",
     "SOUNDKIT",
     "strsplit",
@@ -95,6 +99,7 @@ read_globals = {
     "TomTom",
     "TooltipDataProcessor",
     "UIParent",
+    "UISpecialFrames",
     "UnitClass",
     "UnitFactionGroup",
     "UnitIsGhost",
