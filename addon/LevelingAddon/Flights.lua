@@ -6,11 +6,6 @@
 local _, ns = ...
 
 ns.defaults.flightTimer = true
-ns.AddSetting({
-    key = "flightTimer",
-    label = "Flight timer",
-    tooltip = "While flying, show the time left and the destination where the arrow is.",
-})
 -- Per character: a perk makes one character's flights faster than another's.
 ns.charDefaults.flights = {
     known = {}, -- [taxi node id] = true for the flight points seen as known on the flight map
@@ -239,17 +234,10 @@ ns.On("PLAYER_CONTROL_GAINED", function()
     end
 end)
 
--- During a flight: the time left, or the time flown where no time is known. The frame is
--- handed a new text only when the text changes, once a second.
-ns.Task("flight", 0.2, function()
+-- The time left, or the time flown where no time is known; nothing while the timer is switched
+-- off or another addon draws one. The frame is handed a text only when the text changes.
+local function draw()
     local flown = GetTime() - flight.lost
-    if UnitOnTaxi("player") then
-        flight.air = true
-    elseif flight.air then
-        return land() -- landed without the event
-    elseif flown > NOT_A_FLIGHT then
-        return stop()
-    end
     local text
     if ns.db.flightTimer and not otherTimer() then
         text = flight.seconds and clock(math.max(flight.seconds - flown, 0)) or "+" .. clock(flown)
@@ -258,7 +246,29 @@ ns.Task("flight", 0.2, function()
         flight.text = text
         ns.Arrow:SetFlight(text, flight.name:match("^[^,]+"))
     end
+end
+
+ns.Task("flight", 0.2, function()
+    if UnitOnTaxi("player") then
+        flight.air = true
+    elseif flight.air then
+        return land() -- landed without the event
+    elseif GetTime() - flight.lost > NOT_A_FLIGHT then
+        return stop()
+    end
+    draw()
 end)
+
+ns.AddSetting({
+    key = "flightTimer",
+    label = "Flight timer",
+    tooltip = "While flying, show the time left and the destination where the arrow is.",
+    onChange = function()
+        if flight then
+            draw()
+        end
+    end,
+})
 
 function ns.commands.flights()
     local saved, known, timed = ns.char.flights, 0, 0

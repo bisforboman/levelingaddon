@@ -63,14 +63,6 @@ function IsAddOnLoaded(name)
 end
 function TakeTaxiNode() end
 function TaxiNodeOnButtonEnter() end
--- The game's own: hooks a global function by its name.
-function hooksecurefunc(name, hook)
-    local original = _G[name]
-    _G[name] = function(...)
-        original(...)
-        hook(...)
-    end
-end
 local tooltip = {}
 function GameTooltip:AddLine(text)
     tooltip[#tooltip + 1] = text
@@ -231,9 +223,10 @@ onTaxi = true
 fly(1)
 assert(shownTime == "1:01", shownTime)
 ns.Set("flightTimer", false)
-fly(1)
 assert(shownTime == nil and A.flight == nil, "switched off at once")
+fly(1)
 ns.Set("flightTimer", true)
+assert(shownTime == "1:00", shownTime)
 fly(1)
 assert(shownTime == "0:59", shownTime)
 -- Hidden with the window, and back with it.

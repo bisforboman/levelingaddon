@@ -112,6 +112,21 @@ function GetNumGroupMembers()
 end
 QuestLogPushQuest = call("shared")
 
+-- A flight map with one flight on it, and a character who is in the air once it is taken.
+function TakeTaxiNode() end
+function NumTaxiNodes()
+    return 2
+end
+function TaxiNodeName(slot)
+    return slot == 1 and "Here, Zone" or "There, Zone"
+end
+function TaxiNodeGetType(slot)
+    return slot == 1 and "CURRENT" or "REACHABLE"
+end
+function UnitOnTaxi()
+    return true
+end
+
 -- The quest windows.
 local quest, choices = 0, 0
 function IsShiftKeyDown()
@@ -437,6 +452,25 @@ function effects.itemButton(set)
     assert(not button.shown)
     set(true)
     assert(button.shown)
+end
+
+-- In flight: the timer is in the arrow's frame, or the frame is the arrow's again.
+function effects.flightTimer(set)
+    ns.Data = ns.Data or {}
+    ns.Data.taxiNodes = { [1] = { name = "Here, Zone" }, [2] = { name = "There, Zone" } }
+    ns.Data.taxiPaths = { [1] = { to = { [2] = 90 } } }
+    fire("TAXIMAP_OPENED")
+    TakeTaxiNode(2)
+    fire("PLAYER_CONTROL_LOST")
+    tick(0.2)
+    assert(ns.Arrow.flightTime.text == "1:30" and ns.Arrow.flightName.text == "There")
+    set(false)
+    assert(ns.Arrow.flightTime.text == "", "the timer goes in the middle of a flight")
+    set(true)
+    assert(ns.Arrow.flightTime.text == "1:30")
+    fire("PLAYER_CONTROL_GAINED")
+    assert(ns.Arrow.flightTime.text == "")
+    ns.Data.taxiNodes, ns.Data.taxiPaths = nil, nil
 end
 
 -- The preferences: settings that change what the planner suggests. They are checked further
