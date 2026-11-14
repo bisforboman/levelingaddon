@@ -3,3 +3,4 @@ data/lua/
 bin/
 obj/
 *.tmp
+addon/LevelingAddon/Data/

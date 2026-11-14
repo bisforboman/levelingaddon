@@ -69,10 +69,9 @@ public sealed class LuaExporter(ExportConfig config)
         manifestLua.Append('\n');
         files.Add(WriteFile(outputDirectory, "manifest.lua", manifestLua));
 
-        foreach (var (file, table, key) in Sources)
+        void WriteTable(string file, string table, string key, JsonElement rows)
         {
-            using var document = JsonDocument.Parse(File.ReadAllBytes(Path.Combine(parsedDirectory, file)));
-            var (chunks, largest) = Chunk(document.RootElement, key);
+            var (chunks, largest) = Chunk(rows, key);
             var names = new List<string>();
             for (var i = 0; i < chunks.Count; i++)
             {
@@ -83,8 +82,19 @@ public sealed class LuaExporter(ExportConfig config)
                 names.Add(WriteFile(outputDirectory, $"{table}-{i + 1}.lua", lua));
             }
             files.AddRange(names);
-            tables.Add(new ExportedTable(table, document.RootElement.GetArrayLength(), names, largest));
+            tables.Add(new ExportedTable(table, rows.GetArrayLength(), names, largest));
         }
+
+        foreach (var (file, table, key) in Sources)
+        {
+            using var document = JsonDocument.Parse(File.ReadAllBytes(Path.Combine(parsedDirectory, file)));
+            WriteTable(file, table, key, document.RootElement);
+        }
+
+        // What the addon's planner looks up, derived from the same files.
+        var planner = PlannerIndex.Build(parsedDirectory);
+        WriteTable("*.json", "plannerQuests", "id", planner.Quests);
+        WriteTable("*.json", "plannerZones", "id", planner.Zones);
 
         // One stable line in the addon's TOC can include everything through this file.
         var xml = new StringBuilder("<Ui xmlns=\"http://www.blizzard.com/wow/ui/\">\n");

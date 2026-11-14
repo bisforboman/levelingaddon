@@ -191,9 +191,11 @@ C_Timer = {
 
 local ns = {}
 LevelingAddonDB = { nested = { kept = 1 } } -- saved by an earlier session
-for _, f in ipairs({ "Core", "Steps", "Window", "Arrow" }) do
+for _, f in ipairs({ "Core", "Steps", "Window", "Arrow", "Planner" }) do
     assert(loadfile(arg[1] .. "/" .. f .. ".lua"))("LevelingAddon", ns)
 end
+-- A fixed route and no quest data: the planner has nothing to plan from and leaves the list.
+ns.Steps.list = dofile("addon/tests/northshire.lua")
 local events
 for _, f in ipairs(frames) do
     if f.scripts.OnEvent then
@@ -287,6 +289,7 @@ progress(33, 3)
 assert(S:Progress(5) == 3 and rowFor(5).count.text == "3/8")
 
 -- The player skips the wolves: the step stays, crossed out, and the kobolds become current.
+-- A skip is for the whole quest, so its turn-in (step 9) is crossed out as well.
 local wolf = rowFor(5)
 W.frame.over = true
 wolf.over = true
@@ -294,7 +297,8 @@ tick()
 assert(wolf.skip.shown and not wolf.restore.shown, "a pending row offers skip")
 wolf.skip.scripts.OnClick()
 print("skip wolves  ", view())
-assert(view() == "4v 5x 6* 7 8 9 10 11", view())
+assert(view() == "4v 5x 6* 7 8 9x 10 11", view())
+assert(ns.char.skipped[33] and ns.db.skipped == nil, "skips are kept per quest and per character")
 W.frame.over = false
 wolf.over = false
 
@@ -302,7 +306,7 @@ progress(7, 9)
 assert(S:CurrentIndex() == 6 and S:Progress(6) == 9)
 progress(7, 1)
 print("kobolds done ", view())
-assert(S:Status(6) == "done" and view() == "5x 6v 7* 8 9 10 11 12", view())
+assert(S:Status(6) == "done" and view() == "5x 6v 7* 8 9x 10 11 12", view())
 
 -- Finishing a skipped step in the game anyway marks it done: the game's word wins.
 progress(33, 5)
@@ -375,8 +379,16 @@ assert(not W.frame.shown and not A.frame.shown)
 cmd("")
 assert(W.frame.shown)
 S:Skip(5)
-cmd("unskip")
-assert(S:Status(5) == "pending")
+chat = {}
+cmd("skipped")
+assert(chat[1]:find("^.-33 ") and chat[2]:find("/lvl unskip"), chat[1])
+cmd("unskip 33")
+assert(S:Status(5) == "pending" and S:Status(9) == "pending")
+S:Skip(5)
+S:Skip(8)
+assert(S:Status(8) == "skipped" and S:Status(11) == "skipped")
+cmd("unskip all")
+assert(S:Status(5) == "pending" and S:Status(8) == "pending")
 
 -- TomTom takes the waypoint and follows the current step.
 local added, removed = 0, 0
@@ -402,6 +414,7 @@ end
 fire("QUEST_LOG_UPDATE")
 print("route done   ", view())
 assert(S:CurrentIndex() == nil)
+fire("QUEST_LOG_UPDATE") -- lets the pass that the finished steps asked for run
 
 -- The shared machinery. Nothing is left to point at and the window is hidden: the loop is off.
 cmd("hide")
@@ -509,5 +522,5 @@ cmd("mine 42")
 assert(got == "42")
 chat = {}
 cmd("nonsense")
-assert(chat[1]:find("arrow, debug, hide, mine, reset, rows, scale, show, unskip"), chat[1])
+assert(chat[1]:find("arrow, debug, hide, mine, reset, rows, scale, show, skipped, unskip"), chat[1])
 print("ALL OK")

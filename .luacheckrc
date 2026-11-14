@@ -4,7 +4,7 @@ max_line_length = 120
 
 -- Not addon source: QuestieDB's checkout (data/raw), the generated tables (data/lua), and the
 -- test that stubs the game API (addon/tests).
-exclude_files = { "data/", "addon/tests/" }
+exclude_files = { "data/", "addon/tests/", "addon/LevelingAddon/Data/" }
 
 -- Methods and event handlers often leave `self` unused.
 ignore = { "212/self" }
@@ -38,6 +38,13 @@ read_globals = {
     "UpdateAddOnMemoryUsage",
     "GetAddOnMemoryUsage",
     "GetUnitSpeed",
+    "C_Reputation",
+    "GetFactionInfoByID",
+    "GetNumQuestLogEntries",
+    "GetProfessionInfo",
+    "GetProfessions",
+    "GetQuestLogTitle",
+    "GetQuestsCompleted",
 }
 
 -- Names the addon defines for the game to find: saved settings, the slash command, and the
