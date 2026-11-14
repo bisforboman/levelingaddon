@@ -29,6 +29,9 @@ local T = {
     zoom = 0, -- minimap zoom level
     indoors = false,
     cvars = {}, -- GetCVar
+    ghost = false, -- UnitIsGhost
+    instance = false, -- IsInInstance
+    corpse = nil, -- { x, y }: the corpse's map position
 }
 local function widget()
     local w = { scripts = {}, shown = true, h = 20, alpha = 1 }
@@ -216,6 +219,17 @@ C_Map = {
 function UnitPosition()
     return -T.py * 1000, -T.px * 1000, 0, 0
 end
+function UnitIsGhost()
+    return T.ghost
+end
+function IsInInstance()
+    return T.instance
+end
+C_DeathInfo = {
+    GetCorpseMapPosition = function()
+        return T.corpse and CreateVector2D(T.corpse[1], T.corpse[2])
+    end,
+}
 function IsIndoors()
     return T.indoors
 end
