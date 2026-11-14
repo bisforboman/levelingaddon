@@ -313,7 +313,8 @@ Height should be adjustable. The mockup uses the first stretch of Northshire wit
 interleaved: [`mockups/step-list-flow.png`](mockups/step-list-flow.png),
 [`mockups/guide-window-on-screen.png`](mockups/guide-window-on-screen.png).
 
-Decided: the current step carries its quest name as a small second line; other rows are plain.
+Decided: rows are plain (icon, name, count). A quest-name line on the current step was tried
+and dropped: the player does not need it there. The quest name remains in the hover tooltip.
 
 Decided after two placements were drawn: skip is a cross at the right end of the pending row
 under the pointer; restore is an arrow on the left of a skipped row, taking the place of its
@@ -359,7 +360,7 @@ Not in v1: secure "use item" button, automation, an all-quests map layer, toolti
 ## 9. What is built
 
 `addon/LevelingAddon/` implements the guide window and arrow described in section 6 against a
-fixed sample route: fixed current row with quest name, history above, crossed-out skipped
+fixed sample route: fixed current row, history above, crossed-out skipped
 steps, skip on the right and restore on the left under the pointer, mouse-wheel scrolling with
 automatic return, combat folding, saved position, TomTom hand-off. Checked only by lint and a
 stubbed smoke test; not yet run in the game client.

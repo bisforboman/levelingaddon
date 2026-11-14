@@ -10,7 +10,7 @@ ns.Window = Window
 
 local WIDTH = 240
 local ROW_HEIGHT = 20
-local CURRENT_HEIGHT = 36 -- the current step has a second line naming its quest
+local CURRENT_HEIGHT = 26 -- the current step is set in larger type
 local HISTORY_ROWS = 2 -- rows kept above the current step, so it sits in the third row
 local RETURN_AFTER = 5 -- seconds before a scrolled list goes back to the current step
 local COMBAT_ALPHA = 0.4
@@ -64,13 +64,9 @@ local function createRow(parent)
     row.name = row:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
     row.name:SetJustifyH("LEFT")
     row.name:SetWordWrap(false)
-    row.quest = row:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-    row.quest:SetJustifyH("LEFT")
-    row.quest:SetWordWrap(false)
-    row.quest:SetPoint("TOPLEFT", row.name, "BOTTOMLEFT", 0, -2)
-    row.quest:SetPoint("RIGHT", row, "RIGHT", -30, 0)
     row.count = row:CreateFontString(nil, "ARTWORK", "GameFontNormal")
     row.count:SetPoint("RIGHT", -30, 0)
+    row.name:SetPoint("LEFT", row, "LEFT", 32, 0)
     row.name:SetPoint("RIGHT", row.count, "LEFT", -6, 0)
 
     -- A line through the name of a skipped step.
@@ -106,7 +102,7 @@ local function drawRow(row, index, currentIndex)
     local step = ns.Steps.list[index]
     row.index = index
     row.step = step
-    for _, region in ipairs({ row.band, row.bar, row.icon, row.glyph, row.name, row.quest, row.count, row.strike }) do
+    for _, region in ipairs({ row.band, row.bar, row.icon, row.glyph, row.name, row.count, row.strike }) do
         region:SetShown(step ~= nil)
     end
     if not step then
@@ -126,16 +122,6 @@ local function drawRow(row, index, currentIndex)
     row.name:SetFontObject(current and "GameFontHighlightLarge" or "GameFontHighlight")
     row.name:SetText(step.name)
     row.name:SetTextColor(color[1], color[2], color[3])
-    row.name:ClearAllPoints()
-    if current then
-        row.name:SetPoint("TOPLEFT", row, "TOPLEFT", 32, -4)
-    else
-        row.name:SetPoint("LEFT", row, "LEFT", 32, 0)
-    end
-    row.name:SetPoint("RIGHT", row.count, "LEFT", -6, 0)
-    row.quest:SetShown(current)
-    row.quest:SetText(step.quest)
-    row.quest:SetTextColor(DIM[1], DIM[2], DIM[3])
 
     -- Progress is automatic: a count while the step is open, a tick once it is finished.
     local done = status == "done"

@@ -279,7 +279,6 @@ h3{font:600 15px/1.3 var(--display);margin:0;display:flex;align-items:center;fle
     <div class="demo5" id="flow"></div>
     <ul>
       <li><b>The current step does not jump.</b> It is always the third row, marked by a band. When a step ends, the list slides up one row under it.</li>
-      <li><b>The current step names its quest.</b> A small second line, on that row only.</li>
       <li><b>History is visible.</b> The two rows above the band are what you just did: a tick for finished, crossed out for skipped.</li>
       <li><b>Skipping keeps the step.</b> A cross appears at the right end of the row under the pointer. The skipped step stays in the list, crossed out.</li>
       <li><b>Scroll back any time.</b> The mouse wheel moves through the whole route. A skipped step offers a restore arrow on its left, where its icon was; restoring makes it the current step again. The list returns to the current step by itself after a few seconds.</li>
@@ -353,7 +352,7 @@ h3{font:600 15px/1.3 var(--display);margin:0;display:flex;align-items:center;fle
     var cls=(done?'done ':'')+(sk?'skipd strike ':'')+(cur?'cur ':'')+(!done&&!sk&&!cur?'later ':'')+(hot?'hot':'');
     var cnt=(v.cnt&&v.cnt[i])||s[2], ic=done?TICK:ICON[s[0]];
     return '<div class="row step '+cls+'">'+(hot&&sk?'<span class="kind sw"><span class="lbtn">'+UNDO+'</span></span>':'<span class="kind">'+ic+'</span>')+
-      '<span class="txt">'+s[1]+(cur?'<small>'+s[3]+'</small>':'')+'</span>'+(cnt&&!(done&&!v.cnt)?'<span class="count">'+cnt+'</span>':'')+
+      '<span class="txt">'+s[1]+'</span>'+(cnt&&!(done&&!v.cnt)?'<span class="count">'+cnt+'</span>':'')+
       (hot&&!sk?'<span class="skipx">'+X+'</span>':'')+'</div>';
   }
   function card(m,pos){
