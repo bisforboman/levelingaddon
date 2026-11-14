@@ -135,12 +135,15 @@ Nothing about the browser is disguised; if Wowhead still refuses, the run stops.
 
 ## Checks
 
-`.github/workflows/ci.yml` runs on every pull request and on every push to `main`:
+`.github/workflows/ci.yml` runs on every pull request and on every push to `main`. Each job
+runs only when something it checks has changed, and is skipped otherwise:
 
-| Job | Runs |
-| --- | --- |
-| `collector` | `dotnet build`, `dotnet test` and `dotnet format --verify-no-changes` in `tools/collector` |
-| `lua` | `luacheck .` and `stylua --check .` from the repository root |
+| Job | Runs | When these change |
+| --- | --- | --- |
+| `collector` | `dotnet build`, `dotnet test` and `dotnet format --verify-no-changes` in `tools/collector` | `tools/collector/`, `collector.json`, `.editorconfig` |
+| `lua` | `luacheck .` and `stylua --check .` from the repository root | any `.lua` file, `.luacheckrc`, `stylua.toml`, `.styluaignore` |
+
+A change to `ci.yml` itself runs both.
 
 `main` is protected: changes reach it only through a pull request, and both jobs must pass
 before it can merge.
@@ -158,6 +161,21 @@ and the generated tables.
 | `stylua.toml`, `.styluaignore` | [StyLua](https://github.com/JohnnyMorganz/StyLua), the formatter: Lua 5.1 syntax, 4 spaces, 120 columns |
 | `.luarc.json` | [lua-language-server](https://github.com/LuaLS/lua-language-server), for type checking in the editor. Not run in CI. |
 | `.vscode/extensions.json` | Suggests the Lua, StyLua and [WoW API](https://github.com/Ketho/vscode-wow-api) extensions; the last one supplies the game's API annotations once the folder has a `.toc` file |
+
+## Nightly data update
+
+`.github/workflows/update-data.yml` runs every night at 03:23 UTC, and on demand from the
+Actions tab. If QuestieDB's newest commit is not the one pinned in `collector.json`, it moves
+the pin, runs `collector parse`, and opens a pull request with the new `data/parsed/` and
+`reports/`. The pull request merges itself once `collector` and `lua` pass; nobody reads it
+first. If it is still open the next night, it is updated in place.
+
+Nothing is proposed, and the run fails, if any row fails to parse or the result no longer
+exports to Lua. The run that executes QuestieDB's code has a read-only token; a second job,
+which only receives the resulting files, commits them.
+
+It needs two repository settings: "Allow GitHub Actions to create and approve pull requests"
+(Settings, Actions, General) and "Allow auto-merge" (Settings, General).
 
 ## Licence
 
