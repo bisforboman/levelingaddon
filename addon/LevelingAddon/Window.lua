@@ -28,6 +28,7 @@ local KIND_TEXTURE = {
     kill = "Interface\\Cursor\\Attack",
     loot = "Interface\\Cursor\\Pickup",
     go = "Interface\\Cursor\\Taxi", -- be somewhere: an escort, an exploration
+    sell = "Interface\\Cursor\\Buy", -- a vendor, when the bags run low
 }
 local KIND_GLYPH = { accept = "!", turnin = "?" }
 
