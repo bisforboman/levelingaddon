@@ -12,6 +12,7 @@ A leveling addon for World of Warcraft: Forever, and the collector that gathers 
 | Polite, resumable Wowhead fetcher with raw cache | Built and tested against a local test server; not yet run against Wowhead |
 | Wowhead list / quest page parsers | Not built: need a few real sample pages first |
 | Class spells per level, with training cost (#17) | Fetch prepared, not yet run: see "Fetching class spells". No parser yet |
+| Flight points and flight times (#16) | Done: 65 points, 286 flights, converted by `collector parse` from a second pinned source (see "Sources") |
 | JSON → Lua export | Done: `collector export`, with reduced spawn lists and a per-table memory report; checked by loading the files back |
 
 ## Addon
@@ -78,6 +79,8 @@ character who skipped ahead, a full quest log, skips, and the events that ask fo
 `test_automation.lua` checks accepting and handing in.
 `test_rewards.lua` checks the reward marks.
 `test_support.lua` checks the report, the events for other addons and verbose output.
+`test_flights.lua` checks the flight time on the flight map, the flight timer and what is
+remembered per character.
 `test_steps.lua` checks that steps complete themselves: each kind on its event, a quest with
 several objectives, the grace period, steps already done, and that only the steps in view are
 read. They cannot check how
@@ -194,10 +197,44 @@ installed.
 - **Nowhere to point**: with the target on another continent, or in an instance, nothing is
   drawn. What to show for another continent instead is an open question
   (`docs/ui-concepts.md`, section 8).
+- **In flight**: the frame shows the flight timer instead (see "Flights"); `Flights.lua` hands
+  it a time and a name through `ns.Arrow:SetFlight(time, name)`, and `SetFlight(nil)` gives the
+  frame back.
 - **Cost**: ten updates a second on the shared loop: one `UnitPosition`, one `GetPlayerFacing`
   and arithmetic. The nearest place is looked for twice a second, the texture turns only for a
   change of about a degree, the distance text changes only with the number, and the task is
   off while there is nothing to point at.
+
+### Flights
+
+`Flights.lua` shows how long a flight takes and how much of it is left (issue #16). The client
+reports no flight time, so the times come from the flight tables in the data (see "Sources")
+and from the character's own flights.
+
+- **On the flight map**: the tooltip of a flight point that can be flown to gets one line,
+  "Flight time: about 1:18". For a flight through other points the hops the game says it will
+  fly are added up; where the client does not say, the quickest way over the table through
+  points the character knows is taken.
+- **While flying**: the arrow has nothing to point at, so its frame shows the time left, large,
+  and the destination under it, and the arrow rests until the landing. A flight with no time in
+  the data counts up instead ("+0:42"). One setting, on by default: "Flight timer"
+  (`/lvl set flightTimer`).
+- **Another flight timer**: while the addon `EllesmereUIForeverEssentials` is loaded, ours is
+  not drawn, the way the arrow steps aside for TomTom. The tooltip line and the measuring stay.
+- **Measured**: every flight the character completes is timed from take-off to landing and
+  kept per character (a perk makes one character's flights faster than another's). A route
+  flown before shows its own time, without "about". The times of direct flights are also
+  compared with the table's, and every time not yet measured is scaled by that ratio. A flight
+  that ends at under half or over one and a half times what was expected is not kept.
+- **Known flight points**: each time the flight map is open, the points on it that the
+  character has discovered are remembered per character (`ns.char.flights.known`, by taxi node
+  id). `/lvl flights` prints how many are known, how many flights are timed, and the ratio.
+- **Cost**: the flight map is read once when it opens; the tooltip line is worked out when a
+  point is hovered; one task, five times a second, runs only during a flight and hands the
+  frame a new text once a second.
+
+Not built yet: the planner does not take flights into account (the second half of #16). Boats
+and zeppelins are not in the data.
 
 ### Automation
 
@@ -428,6 +465,19 @@ omitted. Re-running `parse` on the same QuestieDB commit produces identical file
 | `items.json` | Items a quest refers to, with their sources (`npcDrops`, `objectDrops`, `itemDrops`, `vendors`). |
 | `zones.json` | Zones used by the data: QuestieDB's symbol, an English name, `uiMapId`, parent zone. Sub-zones QuestieDB has no symbol for have no name. |
 | `manifest.json` | Source repository, commit and counts. |
+| `taxi-nodes.json` | Flight points, from the taxi source: the game's taxi node id, name, `faction` (absent: both sides), continent (`map`: 0 or 1) and world `x`, `y` in yards. Where QuestieDB has a flight master there: `npcId`, `npcName`, and the master's place as `uiMapId`, `mapX`, `mapY` (map percent). |
+| `taxi-paths.json` | Direct flights: `from`, `to`, `seconds`, and `estimated` where the source had no measured time. Sorted by `from`, then `to`. |
+| `taxi-notice.txt` | Where the two files above come from, their licence, and the header of the source file with InFlight's MIT notice. Copied into the head of the exported Lua files. |
+
+The three `taxi-` files are written by the same `parse` run but are not QuestieDB's: see
+"Sources". QuestieDB marks 61 NPCs as flight masters (`npcFlags` bit 8), and `npcs.json` keeps
+only the 12 a quest refers to. The others are kept here, on their flight point. A flight
+master is linked by position: its spawn point is turned into world yards with its zone map's
+rectangle (from `Data/Zones.lua` of the taxi source), and each flight point takes the nearest
+master of its side on its continent within 100 yards. On this data 61 of the 65 points have a
+master. The four without are the two in Riverglades (new in Forever) and the two on Mount
+Hyjal, for which QuestieDB has no flight master. Two flight masters are linked to nothing: the
+druid-only ones in Moonglade, whose flights the source leaves out.
 
 A spawn point of `[-1, -1]` is QuestieDB's placeholder for content inside an instance.
 
@@ -455,6 +505,8 @@ t[228]={name="Avette Fellwood",minLevel=24,zoneId=10,spawns={[10]={73.03,44.42}}
 | --- | --- |
 | `quests-N.lua`, `questRelations-N.lua`, `npcs-N.lua`, `objects-N.lua`, `items-N.lua`, `zones-N.lua` | `ns.Data.<table>[id] = row` |
 | `plannerQuests-N.lua`, `plannerZones-N.lua` | The planner index: see below |
+| `taxiNodes-N.lua` | `ns.Data.taxiNodes[id] = row`, as in `taxi-nodes.json` |
+| `taxiPaths-N.lua` | `ns.Data.taxiPaths[from] = { to = { [to] = seconds, ... }, est = { [to] = true, ... } }`: the flights out of each point, `est` only where a time is estimated. The two taxi files carry `taxi-notice.txt` in their head. |
 | `manifest.lua` | `ns.Data.manifest`: source commit and counts |
 | `data.xml` | Lists every file as a `<Script>`, so the addon's TOC needs one stable line |
 
@@ -605,6 +657,20 @@ table and math libraries: no `os`, `io`, `package` or `debug`, text chunks only,
 confined to the checkout. 2,601 of QuestieDB's own correction checks pass in that interpreter;
 the remainder of its test suite needs temp files or subprocesses and cannot run there.
 
+**shortest-path-forever (flight points and flight times).** `github.com/cjber/shortest-path-forever`,
+pinned by commit under `taxi` in `collector.json`, licensed GPL-3.0-or-later. `collector parse`
+reads two of its files: `Data/Taxi.lua` (65 flight points with world coordinates, name and
+faction, and 286 direct flights with their seconds) and `Data/Zones.lua` (the zone maps'
+rectangles in world yards, used only to link flight masters to flight points). Both are data
+in Lua syntax, generated by that project from the client's tables (via wago.tools), CMaNGOS
+classic-db (GPL-3.0) and the InFlight addon's recorded flight times (MIT; 266 of the 286 times
+are InFlight's, the other 20 are that project's estimates from the path's length at 32 yards a
+second). They are loaded in the same sandboxed interpreter as QuestieDB's code and only their
+tables are read; the path points are not kept. InFlight's MIT notice travels with the data: in
+`data/parsed/taxi-notice.txt` and in the head of the exported `taxiNodes` and `taxiPaths`
+files. To move to a newer commit, change `revision` and run `parse`; the nightly update moves
+only QuestieDB's pin.
+
 **Wowhead (secondary).** For what QuestieDB lacks, and the total to reconcile against (6,138 on
 2026-11-14). Findings from that date:
 
@@ -634,8 +700,9 @@ dotnet run --project src/Collector -- fetch npc-tooltip --ids-file ids.txt
 dotnet run --project src/Collector -- fetch list --urls-file slices.txt
 ```
 
-`parse` needs `git` on the path and takes a few seconds once QuestieDB is checked out. To move to
-a newer QuestieDB, change the commit in `collector.json` and run it again.
+`parse` needs `git` on the path and takes a few seconds once QuestieDB and the taxi source are
+checked out (`data/raw/questiedb`, `data/raw/taxi`). To move to a newer QuestieDB, change the
+commit in `collector.json` and run it again.
 
 `fetch` makes one request at a time, waits `delaySeconds` plus jitter between requests, honours
 `robots.txt` (including a crawl-delay), and writes every response under
@@ -741,4 +808,8 @@ It needs two repository settings: "Allow GitHub Actions to create and approve pu
 
 The data in `data/parsed/` is derived from QuestieDB, which its maintainers publish under the
 GNU General Public License v3. This repository is therefore licensed under GPL-3.0; see
-[`LICENSE.md`](LICENSE.md). Quest, NPC and item names are Blizzard Entertainment's.
+[`LICENSE.md`](LICENSE.md). The flight points and flight times are derived from
+shortest-path-forever (GPL-3.0-or-later), which includes flight times recorded by the InFlight
+addon under the MIT licence; that notice is kept in
+[`data/parsed/taxi-notice.txt`](data/parsed/taxi-notice.txt). Quest, NPC and item names are
+Blizzard Entertainment's.

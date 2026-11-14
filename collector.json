@@ -6,6 +6,14 @@
     "commit": "3f10ca075123d3aeb110315adc17dc85d7c20f5e"
   },
 
+  // Flight points and flight times (#16): Data/Taxi.lua of this repository, GPL-3.0-or-later,
+  // with InFlight's measured times (MIT); see README.md. Pinned like QuestieDB, but under other
+  // key names, because the nightly update finds QuestieDB's pin by "repository" and "commit".
+  "taxi": {
+    "source": "https://github.com/cjber/shortest-path-forever",
+    "revision": "bc9eaa96154c319a3ab7ef30433e73b2c6b86839"
+  },
+
   // JSON -> Lua export. Files fill ns.<table>.quests, ns.<table>.npcs, ... in the addon's private
   // namespace. Lua 5.1 refuses a file with more than 262,143 distinct literals, so a table is split
   // across numbered files before it reaches maxConstantsPerFile.

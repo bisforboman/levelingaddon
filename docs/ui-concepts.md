@@ -438,4 +438,10 @@ as it is, and brought up to date when combat ends (section 2, "Secure buttons").
 on by default: "Quest item button". Not built, by the owner's choice: a bar of several
 buttons, and buttons for spells.
 
+`Flights.lua` adds one line to the flight map's tooltip, the flight time, and while flying
+shows the time left and the destination in the arrow's frame: the time large in the arrow's
+yellow, the destination's name under it, on the same plate (#16; README, "Flights"). By the
+owner's decision there is no frame of its own for it, and nothing of ours is drawn while
+Ellesmere UI's flight timer is loaded.
+
 Not built yet: the numbered route on the world map.

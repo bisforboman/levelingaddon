@@ -31,6 +31,14 @@ public sealed class LuaExportTests : IDisposable
         File.WriteAllText(Path.Combine(Parsed, "objects.json"), "[]");
         File.WriteAllText(Path.Combine(Parsed, "items.json"), """[{"id":16305,"name":"Sharptalon's Claw","npcDrops":[12676]}]""");
         File.WriteAllText(Path.Combine(Parsed, "zones.json"), """[{"id":331,"key":"ASHENVALE","name":"Ashenvale"}]""");
+        File.WriteAllText(Path.Combine(Parsed, "taxi-nodes.json"), """
+            [
+            {"id":2,"name":"Stormwind, Elwynn","faction":"Alliance","map":0,"x":-8832.77,"y":478.623,"npcId":352,"npcName":"Dungar Longdrink","uiMapId":1453,"mapX":71.29,"mapY":72.23},
+            {"id":80,"name":"Ratchet, The Barrens","map":1,"x":-894.59,"y":-3773.01}
+            ]
+            """);
+        File.WriteAllText(Path.Combine(Parsed, "taxi-paths.json"), """[{"from":2,"to":4,"seconds":78},{"from":2,"to":80,"seconds":123.8,"estimated":true},{"from":4,"to":2,"seconds":86}]""");
+        File.WriteAllText(Path.Combine(Parsed, "taxi-notice.txt"), "From elsewhere, GPL-3.0-or-later.\n\nMIT License\n");
     }
 
     public void Dispose() => Directory.Delete(_directory, recursive: true);
@@ -61,6 +69,23 @@ public sealed class LuaExportTests : IDisposable
         Assert.Contains("ns.Data.quests=ns.Data.quests or {}", lines);
         Assert.Contains("""t[2]={name="Sharptalon's Claw",level=30,start={items={16305}},["end"]={npcs={12696}},requiredRaces=8589934770,repeatable=true,origin="era",side="horde"}""", lines);
         Assert.Contains("t[2]={preQuestSingle={6383},nextQuestInChain=25}", File.ReadAllLines(Path.Combine(Output, "questRelations-1.lua")));
+    }
+
+    [Fact]
+    public void Flight_points_and_flights_are_exported_under_their_own_notice()
+    {
+        new LuaExporter(new ExportConfig()).Run(Parsed, Output);
+
+        var nodes = File.ReadAllLines(Path.Combine(Output, "taxiNodes-1.lua"));
+        Assert.Equal(["-- From elsewhere, GPL-3.0-or-later.", "--", "-- MIT License"], nodes[1..4]);
+        Assert.DoesNotContain(nodes, line => line.Contains("Derived from QuestieDB"));
+        Assert.Contains("""t[2]={name="Stormwind, Elwynn",faction="Alliance",map=0,x=-8832.77,y=478.623,npcId=352,npcName="Dungar Longdrink",uiMapId=1453,mapX=71.29,mapY=72.23}""", nodes);
+        Assert.Contains("""t[80]={name="Ratchet, The Barrens",map=1,x=-894.59,y=-3773.01}""", nodes);
+
+        var paths = File.ReadAllLines(Path.Combine(Output, "taxiPaths-1.lua"));
+        Assert.Contains("-- MIT License", paths);
+        Assert.Contains("t[2]={to={[4]=78,[80]=123.8},est={[80]=true}}", paths);
+        Assert.Contains("t[4]={to={[2]=86}}", paths);
     }
 
     [Fact]
@@ -112,7 +137,7 @@ public sealed class LuaExportTests : IDisposable
 
         var memory = exporter.Verify(Parsed, Output, exporter.Run(Parsed, Output)).Memory;
 
-        Assert.Equal(["manifest", "quests", "questRelations", "npcs", "objects", "items", "zones", "plannerQuests", "plannerZones"], memory.Select(m => m.Table));
+        Assert.Equal(["manifest", "quests", "questRelations", "npcs", "objects", "items", "zones", "taxiNodes", "plannerQuests", "plannerZones", "taxiPaths"], memory.Select(m => m.Table));
         Assert.All(memory, m => Assert.InRange(m.Megabytes, 0.00001, 1));
         Assert.Equal(0, memory.Single(m => m.Table == "objects").Megabytes, 3);
     }
@@ -125,7 +150,7 @@ public sealed class LuaExportTests : IDisposable
         var export = exporter.Run(Parsed, Output);
 
         Assert.Empty(exporter.Verify(Parsed, Output, export).Differences);
-        Assert.Equal(["manifest.lua", "quests-1.lua", "questRelations-1.lua", "npcs-1.lua", "objects-1.lua", "items-1.lua", "zones-1.lua", "plannerQuests-1.lua", "plannerZones-1.lua"], export.Files);
+        Assert.Equal(["manifest.lua", "quests-1.lua", "questRelations-1.lua", "npcs-1.lua", "objects-1.lua", "items-1.lua", "zones-1.lua", "taxiNodes-1.lua", "plannerQuests-1.lua", "plannerZones-1.lua", "taxiPaths-1.lua"], export.Files);
         var xml = File.ReadAllText(Path.Combine(Output, "data.xml"));
         Assert.All(export.Files, file => Assert.Contains($"<Script file=\"{file}\"/>", xml));
     }

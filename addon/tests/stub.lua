@@ -242,6 +242,9 @@ function GetCVar(name)
     return T.cvars[name]
 end
 function hooksecurefunc(t, name, hook)
+    if type(t) == "string" then -- a global function, by its name
+        t, name, hook = _G, t, name
+    end
     local original = t[name]
     rawset(t, name, function(...)
         original(...)

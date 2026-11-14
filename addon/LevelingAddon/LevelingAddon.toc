@@ -25,6 +25,7 @@ Automation.lua
 Target.lua
 Rewards.lua
 ItemButton.lua
+Flights.lua
 FirstRun.lua
 
 # The quest data, built by the collector (README, "Building the quest data"). Not in the repository.

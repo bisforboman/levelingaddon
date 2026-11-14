@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
+using Collector.Parse;
 using Collector.QuestieDb;
 
 namespace Collector.Export;
@@ -43,6 +44,7 @@ public sealed class LuaExporter(ExportConfig config)
         ("objects.json", "objects", "id"),
         ("items.json", "items", "id"),
         ("zones.json", "zones", "id"),
+        (Taxi.NodesFile, "taxiNodes", "id"),
     ];
 
     private static readonly UTF8Encoding Utf8 = new(encoderShouldEmitUTF8Identifier: false);
@@ -69,13 +71,17 @@ public sealed class LuaExporter(ExportConfig config)
         manifestLua.Append('\n');
         files.Add(WriteFile(outputDirectory, "manifest.lua", manifestLua));
 
+        // The flight tables come from another source and carry its notices instead.
+        var taxiNotice = File.ReadAllLines(Path.Combine(parsedDirectory, Taxi.NoticeFile));
+
         void WriteTable(string file, string table, string key, JsonElement rows)
         {
+            var notice = table.StartsWith("taxi", StringComparison.Ordinal) ? taxiNotice : null;
             var (chunks, largest) = Chunk(rows, key);
             var names = new List<string>();
             for (var i = 0; i < chunks.Count; i++)
             {
-                var lua = new StringBuilder(Header(file, provenance, chunks.Count > 1 ? $"Part {i + 1} of {chunks.Count}." : null));
+                var lua = new StringBuilder(Header(file, provenance, chunks.Count > 1 ? $"Part {i + 1} of {chunks.Count}." : null, notice));
                 lua.Append($"ns.{config.Table}.{table}=ns.{config.Table}.{table} or {{}}\n");
                 lua.Append($"local t=ns.{config.Table}.{table}\n");
                 foreach (var line in chunks[i]) lua.Append(line).Append('\n');
@@ -95,6 +101,15 @@ public sealed class LuaExporter(ExportConfig config)
         var planner = PlannerIndex.Build(parsedDirectory);
         WriteTable("*.json", "plannerQuests", "id", planner.Quests);
         WriteTable("*.json", "plannerZones", "id", planner.Zones);
+
+        // taxiPaths[from] = { to = { [to] = seconds }, est = { [to] = true } }: the flights out of each point.
+        var flights = JsonSerializer.Deserialize<List<TaxiPath>>(File.ReadAllBytes(Path.Combine(parsedDirectory, Taxi.PathsFile)), DataWriter.Json)!;
+        WriteTable(Taxi.PathsFile, "taxiPaths", "id", JsonSerializer.SerializeToElement(flights.GroupBy(f => f.From).OrderBy(g => g.Key).Select(g => new
+        {
+            id = g.Key,
+            to = g.ToDictionary(f => f.To, f => f.Seconds),
+            est = g.Any(f => f.Estimated == true) ? g.Where(f => f.Estimated == true).ToDictionary(f => f.To, _ => true) : null,
+        }), DataWriter.Json));
 
         // One stable line in the addon's TOC can include everything through this file.
         var xml = new StringBuilder("<Ui xmlns=\"http://www.blizzard.com/wow/ui/\">\n");
@@ -257,9 +272,11 @@ public sealed class LuaExporter(ExportConfig config)
         lua.Append('}');
     }
 
-    private string Header(string sourceFile, string provenance, string? part) =>
+    private string Header(string sourceFile, string provenance, string? part, string[]? notice = null) =>
         $"{GeneratedMarker} from data/parsed/{sourceFile} ({provenance}). Do not edit.\n" +
-        $"-- Derived from QuestieDB; licensed GPL-3.0.{(part is null ? "" : " " + part)}\n" +
+        (notice is null
+            ? $"-- Derived from QuestieDB; licensed GPL-3.0.{(part is null ? "" : " " + part)}\n"
+            : string.Concat(notice.Select(line => $"-- {line}".TrimEnd() + "\n")) + (part is null ? "" : $"-- {part}\n")) +
         "local _, ns = ...\n" +
         $"ns.{config.Table}=ns.{config.Table} or {{}}\n";
 
