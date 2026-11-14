@@ -101,5 +101,6 @@ The data
 
 - [ ] Flight masters: 61 of the 65 flight points carry the flight master QuestieDB has there
       (name and map position), linked by position. Nothing shows them yet; a "take this
-      flight" step would use them. Spot-check a few in `addon/LevelingAddon/Data/taxiNodes-1.lua` against the
-      game: the NPC named is the flight master standing at that point.
+      flight" step would use them. Spot-check a few in
+      `addon/LevelingAddon/Data/taxiNodes-1.lua` against the game: the NPC named is the flight
+      master standing at that point.
