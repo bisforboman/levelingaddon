@@ -22,6 +22,7 @@ Tracker.lua
 Support.lua
 Hints.lua
 Automation.lua
+Rewards.lua
 
 # The quest data, built by the collector (README, "Building the quest data"). Not in the repository.
 Data\data.xml

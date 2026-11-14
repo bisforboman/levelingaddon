@@ -69,6 +69,7 @@ machinery below. `test_planner.lua` checks the planner on quest data cut from a 
 (`planner_data.lua`): a fresh character, a mid-level character with a half-finished zone, a
 character who skipped ahead, a full quest log, skips, and the events that ask for a pass.
 `test_automation.lua` checks accepting and handing in.
+`test_rewards.lua` checks the reward marks.
 `test_support.lua` checks the report, the events for other addons and verbose output.
 `test_steps.lua` checks that steps complete themselves: each kind on its event, a quest with
 several objectives, the grace period, steps already done, and that only the steps in view are
@@ -198,6 +199,22 @@ default, each with its own setting: "Accept quests automatically" (`/lvl set aut
 - **Any state**: if the steps change while an NPC's window is open, the window is looked at
   again.
 - Not built, because the data has nothing for them: gossip options, flights (#16), inns.
+
+### Reward marks
+
+`Rewards.lua` marks a choice of quest rewards (issue #10), with a setting, "Mark quest rewards"
+(`/lvl set rewardMarks`), on by default. It never picks: the player chooses.
+
+- **Sells for most**: the game's gold coin on the icon of the reward with the highest sell
+  price times count. No coin on a tie.
+- **Upgrade**: the game's green bag arrow on the reward with the biggest gain in item level
+  over what is worn in its slot, among the rewards the game says the character can use. Rings,
+  trinkets and one-hand weapons are held against the weaker of the two worn. This is a rough
+  rule: it knows no stats. Where nothing fair can be compared (a ranged weapon, a shield beside
+  a two-hander, item data not loaded) there is no arrow.
+- **Cost**: everything is read from the client on `QUEST_COMPLETE` and again when item data
+  arrives, only while a window with a choice is open. Two badge frames, made once.
+- Not built: stat weights per class, and an automatic pick.
 
 ### Writing a feature
 
