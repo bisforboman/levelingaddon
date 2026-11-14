@@ -641,12 +641,19 @@ function Planner:Run()
         local turnin = first and first.kind == "turnin" and first.questID or 0
         if noticed ~= turnin then
             noticed = turnin
-            ns.say(
-                "the quest log is full, so "
-                    .. quests[blocked].name
-                    .. " cannot be picked up"
-                    .. (turnin ~= 0 and ": hand in " .. quests[turnin].name .. " at " .. first.name .. " first." or ".")
-            )
+            local advice = "."
+            if turnin ~= 0 then
+                advice = ": hand in " .. quests[turnin].name .. " at " .. first.name .. " first."
+            else
+                -- Nothing to hand in: point at the list of quests not worth keeping (#13), if
+                -- it has any. The player opens it and confirms; nothing is abandoned from here.
+                local n = ns.QuestsToAbandon and #ns.QuestsToAbandon() or 0
+                if n > 0 then
+                    advice =
+                        string.format(". %d quest%s not worth keeping: /lvl abandon", n, n == 1 and " is" or "s are")
+                end
+            end
+            ns.say("the quest log is full, so " .. quests[blocked].name .. " cannot be picked up" .. advice)
         end
     elseif rows then
         noticed = nil
