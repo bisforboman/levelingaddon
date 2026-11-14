@@ -13,6 +13,7 @@ ignore = { "212/self" }
 -- what the planned features are expected to need; add any other API the addon starts to use in
 -- its sorted place, so that a misspelt name is still reported as an undefined global.
 read_globals = {
+    "BINDING_HEADER_LEVELINGADDON",
     "AcceptQuest",
     "bit",
     "C_AddOns",
@@ -60,6 +61,7 @@ read_globals = {
     "GetQuestID",
     "GetQuestLogPushable",
     "GetQuestLogSelection",
+    "GetQuestLogSpecialItemInfo",
     "GetQuestLogTitle",
     "GetQuestReward",
     "GetQuestsCompleted",
@@ -112,6 +114,7 @@ read_globals = {
 -- Names the addon defines for the game to find: saved settings, the slash command, and the
 -- function the TOC names for the addon list by the minimap.
 globals = {
+    "BINDING_HEADER_LEVELINGADDON",
     "SlashCmdList",
     "LevelingAddonDB",
     "LevelingAddonCharDB",
