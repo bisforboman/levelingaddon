@@ -313,9 +313,13 @@ Height should be adjustable. The mockup uses the first stretch of Northshire wit
 interleaved: [`mockups/step-list-flow.png`](mockups/step-list-flow.png),
 [`mockups/guide-window-on-screen.png`](mockups/guide-window-on-screen.png).
 
-Still to choose, drawn in [`mockups/list-styles.png`](mockups/list-styles.png): plain rows;
-quest name as a small second line on the current step only; or place dividers wherever the
-route moves.
+Decided: the current step carries its quest name as a small second line; other rows are plain.
+
+The owner also asked for skip and restore to share one spot on the left of the row instead of
+the right end. Two placements are drawn in
+[`mockups/skip-position.png`](mockups/skip-position.png): a narrow left gutter where the button
+appears beside the step's icon (recommended, the icon stays visible), or the button taking the
+icon's place under the pointer (no extra column). Awaiting the owner's choice.
 
 **Planning ahead** (owner's question: is there a timeline of following steps?). Superseded in
 part by the guide window above, which shows the next five steps at rest and scrolls further.
