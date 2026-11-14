@@ -111,8 +111,8 @@ the quest log and its objectives, level, class, race, faction, zone and position
   counts the quests in it. The plan never holds more pick-ups than there are free places; with
   two or fewer free, hand-ins come before everything else, nearest first. When the log is full
   and a pick-up would otherwise have come first, one chat line says so, naming the nearest quest
-  ready to hand in if there is one; it is said once, and again only when that hand-in changes
-  or the log has had room in between. Where the client does not tell the limit, pick-ups are
+  ready to hand in if there is one, or else pointing at `/lvl abandon` when that list has rows;
+  it is said once, and again only when that hand-in changes or the log has had room in between. Where the client does not tell the limit, pick-ups are
   not held back. `/lvl plan` prints the count and the limit.
 - **Side tasks** (issue #8): a kill or collect objective the character already has in the log
   comes right under the current step when any of its points in the data lies within 200 yards
@@ -134,13 +134,22 @@ the quest log and its objectives, level, class, race, faction, zone and position
   the character is in. Where nothing there suits the character, the best-fitting other zones
   on the continent are tried one at a time (three at most), so a character standing somewhere
   too low or too high is still pointed at something.
+- **Flights** (issue #16): those other zones are ranked by how well they fit the character's
+  level, and among zones that fit equally by how soon the character can be there. That time is
+  the walk to the middle of the zone at 7 yards a second (`RUN_SPEED`), or, where it is
+  quicker, the walk to the nearest flight point the character knows, the flight from there to
+  the known flight point nearest the zone (see "Flights"), and the walk from that one. When the
+  zone the steps end up in is reached soonest by flight, one chat line says so: "nothing left
+  to do around here. The next steps are in Duskwood: fly from Ironforge to Darkshire (about
+  4:10)." It is said once per flight. Only flights are known: boats, zeppelins and so the other
+  continent are not in the data, and there is no "take this flight" step yet.
 - **When**: on quest accepted, removed or handed in, a finished objective, level up, zone
   change and entering the world, folded into one pass 0.2 seconds later. Never per frame.
   `ns.Planner.Request()` asks for a pass (after a changed preference, for example). The time
   of the last pass and of the one read of completed quests show in `/lvl debug`.
 
-First-version limits, by the owner's decision on #3: no travel links between zones (#16), no
-list of quests not worth doing, no pinning. Quests without XP in the data rank on level fit and
+First-version limits, by the owner's decision on #3: no travel links between zones other than
+flights, no list of quests not worth doing, no pinning. Quests without XP in the data rank on level fit and
 distance alone. A quest with no giver in the data, or a giver without coordinates, is never
 offered as a pick-up; once it is in the log its objectives and hand-in are still suggested.
 Repeatable quests and world-event quests are not offered either: the first never count as
@@ -202,12 +211,13 @@ installed.
   8 yards (30 for a kill or collect step with one place): the arrow becomes a ring until the
   step completes.
 - **Dead**: a ghost is pointed to the corpse.
-- **Nowhere to point**: with the target on another continent, or in an instance, nothing is
-  drawn. What to show for another continent instead is an open question
-  (`docs/ui-concepts.md`, section 8).
-- **In flight**: the frame shows the flight timer instead (see "Flights"); `Flights.lua` hands
-  it a time and a name through `ns.Arrow:SetFlight(time, name)`, and `SetFlight(nil)` gives the
-  frame back.
+- **Another continent**: the step has no direction from here, so the frame shows the name of
+  its zone and of the continent under it instead, both from the client (`C_Map.GetMapInfo`),
+  and grows to fit them. Decided by the owner on 2026-11-14; pointing at the flight point that
+  leads there is to follow, once the flight data offers one. In an instance nothing is drawn.
+- **For other features**: `ns.Arrow.Places(step)` returns the places the arrow walks for a
+  step, as one flat list `{ x1, y1, x2, y2, ... }` of positions on `step.map`, each from 0 to
+  1; never empty.
 - **Cost**: ten updates a second on the shared loop: one `UnitPosition`, one `GetPlayerFacing`
   and arithmetic. The nearest place is looked for twice a second, the texture turns only for a
   change of about a degree, the distance text changes only with the number, and the task is
@@ -241,8 +251,8 @@ and from the character's own flights.
   point is hovered; one task, five times a second, runs only during a flight and hands the
   frame a new text once a second.
 
-Not built yet: the planner does not take flights into account (the second half of #16). Boats
-and zeppelins are not in the data.
+The planner uses the known flight points and these times when it has to send the character to
+another zone (see "The planner", "Flights"). Boats and zeppelins are not in the data.
 
 ### Automation
 

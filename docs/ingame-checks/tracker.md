@@ -26,4 +26,14 @@ None of this has been run in the game client yet. Tick each off in the game. The
       each (`GetRealZoneText`, `ZONE_CHANGED_NEW_AREA`), and no "?" row.
 - [ ] `/reload` and logging out keep the time (`PLAYER_LOGOUT` fires for both), and after
       logging back in the level is not marked partial.
+- [ ] Level up on a level that was recorded from its start: one line in chat, "level N took
+      ..., ... XP an hour", once. No line for the level the addon was installed on.
+- [ ] Switch "Level time in chat" off on the settings page (or `/lvl set levelLine off`): the
+      next level-up prints no line.
+- [ ] With "Announce level-ups" set to party and in a party: the party message carries the
+      time, and our own line is left out. Outside a party the line is back.
+- [ ] After that level-up, `LevelingAddonDB.runs` in the account's saved-variables file has
+      one key of eight hex digits with the level under it, and a second character adds a
+      second key (`math.random` gives a different number on each character).
+- [ ] `/lvl report` shows `runs` and no character name.
 - [ ] Record for issue #2: `/lvl debug` memory with and without a long history.
