@@ -1,0 +1,6 @@
+<!-- The key binding for the quest item button (ItemButton.lua). The game loads a file of this
+     name from the addon's folder by itself; it is not listed in the TOC. The binding clicks the
+     button, so the key does what a left click does. -->
+<Bindings>
+  <Binding name="CLICK LevelingAddonItemButton:LeftButton" header="LEVELINGADDON" category="ADDONS" />
+</Bindings>

@@ -349,10 +349,11 @@ Decided by the owner since, also on 2026-11-14:
   without a click; Shift does the opposite for one window, a choice of rewards is always left
   to the player, and repeatable quests are never touched (#9, section 9).
 - Item tooltip hint ("Needed for: quest"): in (#14).
+- Quest item button: in, as one button, not a bar (#11, section 9). Chosen from mockups.
 
-Not yet decided by the owner: a secure "use item" button and an all-quests map layer. An
-earlier version of this section listed these two, automation and tooltip lines as "Not in v1"
-under the owner's choices; the owner does not recall deciding that, so it is not a decision.
+Not yet decided by the owner: an all-quests map layer. An earlier version of this section
+listed it, the item button, automation and tooltip lines as "Not in v1" under the owner's
+choices; the owner does not recall deciding that, so it is not a decision.
 
 ## 8. Open questions
 
@@ -422,5 +423,19 @@ beside the live window, which the player can drag into place meanwhile; "Start" 
 (#20). The same two switches are on the settings page and under `/lvl dungeons` and
 `/lvl groups`; `/lvl setup` shows the panel again. The arrow cannot be dragged yet, so the
 panel does not offer it.
+
+`Target.lua` keeps one macro, made on `/lvl macro`, pointed at the names of the current step's
+NPC or creatures, with a raid marker on what it targets (#12; README, "The target macro"). By
+the owner's decision there is no frame of target buttons and no sound or flash.
+
+`ItemButton.lua` adds one secure button for the usable item the current step's quest needs,
+shown while the item is in the bags or equipped (#11). It is its own frame beside the window,
+never anchored to it, dragged with the right mouse button, with the item's cooldown and
+tooltip and a key binding in the game's key bindings screen. The item is the quest log's own
+"special item" for the quest where the client names one, otherwise the first of the quest's
+items in the data that the client says has a use effect. In combat the button is left exactly
+as it is, and brought up to date when combat ends (section 2, "Secure buttons"). One setting,
+on by default: "Quest item button". Not built, by the owner's choice: a bar of several
+buttons, and buttons for spells.
 
 Not built yet: the numbered route on the world map.
