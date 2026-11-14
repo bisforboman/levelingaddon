@@ -705,6 +705,8 @@ function Planner:Run()
                 ns.say("nothing left to do around here. The next steps are in " .. name .. ": " .. route .. ".")
             end
             flown = flight
+            -- For the arrow (#5): the zone the steps are in when a flight gets there soonest.
+            Planner.byFlight = flight and there.map or nil
         end
         ns.Report("planner pass", ns.Clock() - start)
     end
