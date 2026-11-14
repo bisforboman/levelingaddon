@@ -85,6 +85,13 @@ function Flights.Seconds(from, to, hops)
     return total or shortest(from, to), false
 end
 
+-- A flight in words, for a line of chat: "fly from Ironforge to Darkshire (about 4:10)".
+function Flights.Route(from, to)
+    local nodes, seconds, measured = ns.Data.taxiNodes, Flights.Seconds(from, to)
+    local text = "fly from " .. nodes[from].name:match("^[^,]+") .. " to " .. nodes[to].name:match("^[^,]+")
+    return text .. (seconds and " (" .. (measured and "" or "about ") .. clock(seconds) .. ")" or "")
+end
+
 -- The points the game will fly through to the button `slot`, as node ids starting where the
 -- character is. The client gives each leg's ends as positions on the flight map; they are
 -- matched to the buttons' own positions. Nil where the client does not say.

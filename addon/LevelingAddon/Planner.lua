@@ -8,7 +8,9 @@
 -- A pass looks only at the current zone, the zones whose maps overlap it, and the level band
 -- the character is in; the collector prepared those sets (ns.Data.plannerZones, plannerQuests;
 -- see PlannerIndex.cs for the layout). It plays the next few actions forward on a copy of the
--- state, always taking the best-ranked action, and hands the result to ns.Steps.
+-- state, always taking the best-ranked action, and hands the result to ns.Steps. Where nothing
+-- there suits the character, the zones elsewhere on the continent are tried, those reached
+-- soonest first, on foot or by the flights the character knows (Flights.lua).
 --
 -- Passes run on events, folded into one by Planner.Request; never per frame.
 local _, ns = ...
@@ -28,6 +30,7 @@ local ELSEWHERE = 3 -- zones tried, one by one, when nothing here or next door s
 local LEVELS_BELOW = 7 -- a quest this many levels under the character is no longer offered
 local NEARLY_FULL = 2 -- free places in the quest log at which hand-ins come before everything else
 local SIDE_YARDS = 200 -- a kill or collect this close to the way to the current step is a side task
+local RUN_SPEED = 7 -- yards a second on foot: what a flight is held against
 
 -- Ranking weights. First guesses, to be tuned in the game: one point is worth YARDS_PER_POINT
 -- of travel.
@@ -273,24 +276,54 @@ local function fit(level, low, high, fade)
     return math.max(0, 1 - gap / fade)
 end
 
+-- Seconds to a place on this continent: on foot, or, where that is quicker, on foot to the
+-- nearest flight point the character knows, by flight to the known point nearest the place and
+-- on foot from there (#16). With a flight, the two flight points are returned as well.
+local function travel(continent, px, py, tx, ty)
+    local function walk(ax, ay, bx, by)
+        return math.sqrt((ax - bx) ^ 2 + (ay - by) ^ 2) / RUN_SPEED
+    end
+    local seconds = walk(px, py, tx, ty)
+    local nodes = ns.Flights and ns.Data.taxiNodes
+    local from, to, before, after
+    for id in pairs(nodes and ns.char.flights.known or {}) do
+        local node = nodes[id]
+        if node and node.map == continent then
+            local a, b = walk(px, py, node.x, node.y), walk(node.x, node.y, tx, ty)
+            if not before or a < before then
+                from, before = id, a
+            end
+            if not after or b < after then
+                to, after = id, b
+            end
+        end
+    end
+    local flight = from and from ~= to and ns.Flights.Seconds(from, to)
+    if flight and before + flight + after < seconds then
+        return before + flight + after, from, to
+    end
+    return seconds
+end
+
 -- Where nothing here suits the character: the other zones on this continent, those whose level
--- range fits best first, and the nearest of those first.
+-- range fits best first, and of those the one reached soonest first.
 local function otherZones(map, me, px, py)
     local here = frameOf(map)
     local list = {}
     for other, zone in pairs(here and ns.Data.plannerZones or {}) do
         local there = frameOf(other)
         if other ~= map and zone.min and there and there.continent == here.continent then
-            local dx, dy = (there.minX + there.maxX) / 2 - px, (there.minY + there.maxY) / 2 - py
-            list[#list + 1] =
-                { map = other, fit = fit(me.level, zone.min, zone.max, BAND_WIDTH), yards = dx * dx + dy * dy }
+            local cx, cy = (there.minX + there.maxX) / 2, (there.minY + there.maxY) / 2
+            local seconds, from, to = travel(here.continent, px, py, cx, cy)
+            local fits = fit(me.level, zone.min, zone.max, BAND_WIDTH)
+            list[#list + 1] = { map = other, fit = fits, seconds = seconds, from = from, to = to }
         end
     end
     table.sort(list, function(a, b)
         if a.fit ~= b.fit then
             return a.fit > b.fit
-        elseif a.yards ~= b.yards then
-            return a.yards < b.yards
+        elseif a.seconds ~= b.seconds then
+            return a.seconds < b.seconds
         end
         return a.map < b.map
     end)
@@ -593,6 +626,7 @@ end
 
 local warned = false
 local last -- what the last pass looked at, for /lvl plan
+local flown -- the flight named in the line already said about steps a flight away, nil when none
 local noticed -- the hand-in named (or 0 for none) in the full-log line already said, nil when not full
 
 -- One pass, now. Feature code asks for one with Planner.Request instead.
@@ -625,12 +659,22 @@ function Planner:Run()
             -- Nothing to do here or next door: look into the best few zones elsewhere, one at
             -- a time.
             local elsewhere = not rows[1] and otherZones(map, me, px, py)
+            local there -- the zone the steps are in, when it is not here or next door
             for i = 1, elsewhere and math.min(#elsewhere, ELSEWHERE) or 0 do
                 rows = plan({ [elsewhere[i].map] = true }, me, log, logListed, px, py, free)
                 if rows[1] then
+                    there = elsewhere[i]
                     break
                 end
             end
+            -- That zone is reached soonest by flight: said once per flight.
+            local flight = there and there.from and there.from .. ">" .. there.to or nil
+            if flight and flight ~= flown then
+                local name = ns.Data.plannerZones[there.map].name or "another zone"
+                local route = ns.Flights.Route(there.from, there.to)
+                ns.say("nothing left to do around here. The next steps are in " .. name .. ": " .. route .. ".")
+            end
+            flown = flight
         end
         ns.Report("planner pass", ns.Clock() - start)
     end
