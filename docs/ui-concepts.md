@@ -144,13 +144,17 @@ owner's attention before more is built. Its code was not read for this document.
   [Dugi forum](https://www.dugiguides.com/forums/topic/objective-tracker-moving/)).
 - For us: sit beside it, never inside it.
 
-**Automation is opt-in and narrow**
+**Automation is narrow**
 - Evidence: auto-accept complaints in Questie: firing with the setting off, blocking vendors,
   looping on repeatables ([#5970](https://github.com/Questie/Questie/issues/5970),
   [#1537](https://github.com/Questie/Questie/issues/1537),
   [#7032](https://github.com/Questie/Questie/issues/7032) **[snippet]**). Leatrix Plus ships with
   everything off ([page](https://www.curseforge.com/wow/addons/leatrix-plus) **[snippet]**).
-- For us: no automation in v1.
+- For us: the evidence argues for opt-in. The owner decided otherwise on 2026-11-14: accepting
+  and handing in quests is in and on by default, and kept narrow to avoid these complaints: only
+  quests the addon currently suggests, Shift does the opposite for one window, a choice of
+  rewards is left to the player, repeatable quests are never touched (#9, section 7). Selling
+  grey items is the one automation that stays off by default (#15).
 
 **Look like the host, with one accent**
 - Evidence: Baganator and Chattynator ship skins matching the default UI and popular overhauls
@@ -208,7 +212,8 @@ design is not a reason to withhold it. It is a reason to keep it small.
 4. Outside the middle third of the screen; dimmed in combat; nil-safe in instances.
 5. Dark backplate, game fonts, 18 px minimum at 1080p, one accent colour, shape plus colour.
 6. Detail on demand in the same frame: why this step, next three, Skip with Undo.
-7. Pins for the current target only. No tracker replacement. No automation.
+7. Pins for the current target only. No tracker replacement. Automation only for what the
+   addon itself suggests (section 7).
 8. Moved through Edit Mode; position saved by us; three ways to open settings.
 
 ## 6. Three directions
