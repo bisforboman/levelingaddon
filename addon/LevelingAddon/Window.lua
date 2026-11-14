@@ -196,27 +196,6 @@ function Window:Create()
         self:Refresh()
     end)
 
-    local elapsed = 0
-    frame:SetScript("OnUpdate", function(_, seconds)
-        elapsed = elapsed + seconds
-        if elapsed < 0.05 then
-            return
-        end
-        elapsed = 0
-        local over = frame:IsMouseOver()
-        for _, row in ipairs(self.rows) do
-            setHot(row, over and row:IsShown() and row:IsMouseOver())
-        end
-        if self.scroll ~= 0 then
-            if over then
-                self.returnAt = GetTime() + RETURN_AFTER
-            elseif GetTime() > (self.returnAt or 0) then
-                self.scroll = 0
-                self:Refresh()
-            end
-        end
-    end)
-
     frame:RegisterEvent("PLAYER_REGEN_DISABLED")
     frame:RegisterEvent("PLAYER_REGEN_ENABLED")
     frame:SetScript("OnEvent", function(_, event)
@@ -227,6 +206,23 @@ function Window:Create()
 
     self:RestorePosition()
 end
+
+-- While the window is shown: which row is under the pointer, and the return of a scrolled list.
+ns.Task("window", 0.05, function()
+    local self = Window
+    local over = self.frame:IsMouseOver()
+    for _, row in ipairs(self.rows) do
+        setHot(row, over and row:IsShown() and row:IsMouseOver())
+    end
+    if self.scroll ~= 0 then
+        if over then
+            self.returnAt = GetTime() + RETURN_AFTER
+        elseif GetTime() > (self.returnAt or 0) then
+            self.scroll = 0
+            self:Refresh()
+        end
+    end
+end)
 
 -- The position is kept in our own saved settings. SetUserPlaced(false) stops the client's
 -- layout cache from restoring it as well.
@@ -255,6 +251,7 @@ function Window:Refresh()
         return
     end
     frame:SetShown(ns.db.shown)
+    ns.SetTask("window", ns.db.shown)
     if not ns.db.shown then
         return
     end

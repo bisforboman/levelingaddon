@@ -12,7 +12,6 @@ ignore = { "212/self" }
 -- Names the game client provides. Add each API the addon starts to use, so that a misspelt
 -- name is still reported as an undefined global.
 read_globals = {
-    "SlashCmdList",
     "CreateFrame",
     "UIParent",
     "C_Timer",
@@ -35,6 +34,10 @@ read_globals = {
     "CreateVector2D",
     "GameTooltip",
     "TomTom",
+    "debugprofilestop",
+    "UpdateAddOnMemoryUsage",
+    "GetAddOnMemoryUsage",
+    "GetUnitSpeed",
 }
 
 -- Names the addon defines for the game to find: saved settings, the slash command, and the
@@ -42,6 +45,7 @@ read_globals = {
 globals = {
     "SlashCmdList",
     "LevelingAddonDB",
+    "LevelingAddonCharDB",
     "SLASH_LEVELINGADDON1",
     "LevelingAddon_OnCompartmentClick",
 }
