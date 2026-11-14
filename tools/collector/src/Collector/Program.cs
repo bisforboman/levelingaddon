@@ -21,8 +21,9 @@ const string Usage = """
           JSON to data/parsed/ and the validation report to reports/.
 
       export [--out DIRECTORY]
-          Write data/parsed/ as Lua table files for the addon (default: data/lua/), then load them
-          back in the sandboxed interpreter and check every value against the JSON.
+          Write data/parsed/ as Lua table files for the addon (default: data/lua/), with spawn
+          lists reduced as collector.json says. Then load them back in the sandboxed interpreter,
+          report the memory each table takes and check every value against the JSON.
 
       fetch <kind> (--ids 1,2,3 | --ids-file FILE | --urls-file FILE) [--limit N] [--delay SECONDS]
           Fetch pages of a kind defined in collector.json into data/raw/wowhead/<kind>/.
@@ -116,14 +117,20 @@ try
                 Console.WriteLine($"{table.Name,-16} {table.Rows,6} rows in {table.Files.Count} file(s), up to {table.LargestLiteralCount} distinct literals per file");
             Console.WriteLine($"Wrote {export.Files.Count} Lua files and data.xml to {output} ({export.Bytes / 1024.0 / 1024.0:0.0} MB).");
 
-            var differences = exporter.Verify(parsed, output, export);
-            if (differences.Count == 0)
+            Console.WriteLine($"Spawn points: {export.SpawnPoints} in data/parsed, {export.SpawnPointsKept} exported.");
+
+            var verification = exporter.Verify(parsed, output, export);
+            Console.WriteLine("Memory once loaded, in the collector's interpreter:");
+            foreach (var (table, megabytes) in verification.Memory) Console.WriteLine($"  {table,-16} {megabytes,6:0.00} MB");
+            Console.WriteLine($"  {"total",-16} {verification.Memory.Sum(m => m.Megabytes),6:0.00} MB");
+
+            if (verification.Differences.Count == 0)
             {
-                Console.WriteLine("Verified: the Lua files load and every value matches data/parsed.");
+                Console.WriteLine("Verified: the Lua files load, spawns follow the reduction rule and every other value matches data/parsed.");
                 return 0;
             }
             Console.Error.WriteLine("Export does not match data/parsed:");
-            foreach (var difference in differences) Console.Error.WriteLine("  " + difference);
+            foreach (var difference in verification.Differences) Console.Error.WriteLine("  " + difference);
             return 1;
         }
 
