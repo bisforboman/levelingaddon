@@ -19,12 +19,19 @@ local T = {
     timers = {}, -- functions waiting in C_Timer.After
     chat = {}, -- lines printed
     frames = {},
+    level = 1, -- UnitLevel
+    xp = 0, -- UnitXP
+    xpMax = 400, -- UnitXPMax
+    zone = "Elwynn Forest", -- GetRealZoneText
     ns = {},
     mapID = 1429, -- the map the world map shows
     canvasScale = 1,
     zoom = 0, -- minimap zoom level
     indoors = false,
     cvars = {}, -- GetCVar
+    ghost = false, -- UnitIsGhost
+    instance = false, -- IsInInstance
+    corpse = nil, -- { x, y }: the corpse's map position
 }
 local function widget()
     local w = { scripts = {}, shown = true, h = 20, alpha = 1 }
@@ -162,6 +169,21 @@ end
 function GetUnitSpeed()
     return T.speed
 end
+function UnitLevel()
+    return T.level
+end
+function UnitXP()
+    return T.xp
+end
+function UnitXPMax()
+    return T.xpMax
+end
+function UnitFactionGroup()
+    return "Alliance"
+end
+function GetRealZoneText()
+    return T.zone
+end
 function InCombatLockdown()
     return T.combat
 end
@@ -200,6 +222,17 @@ C_Map = {
 function UnitPosition()
     return -T.py * 1000, -T.px * 1000, 0, 0
 end
+function UnitIsGhost()
+    return T.ghost
+end
+function IsInInstance()
+    return T.instance
+end
+C_DeathInfo = {
+    GetCorpseMapPosition = function()
+        return T.corpse and CreateVector2D(T.corpse[1], T.corpse[2])
+    end,
+}
 function IsIndoors()
     return T.indoors
 end

@@ -163,6 +163,45 @@ public sealed class FetchRunnerTests : IDisposable
         Assert.Equal("[{\"id\":2}]", File.ReadAllText(Path.Combine(cache.Root, "list", "all.listview.json")));
     }
 
+    [Fact]
+    public async Task A_page_without_the_required_capture_stops_the_run_and_is_not_cached()
+    {
+        // The first class page has the spell list; the second loads but has no such list.
+        var (runner, cache, pages, _) = Build(url => url.AbsolutePath.EndsWith("warrior")
+            ? Ok("<html>") with { Captures = new Dictionary<string, string> { ["spells"] = "[{\"id\":78,\"level\":1}]" } }
+            : Ok("<html>no list</html>") with { Captures = new Dictionary<string, string> { ["listview"] = "[]" } });
+        var plan = new[] { "warrior", "mage", "priest" }
+            .Select(name => new FetchRequest("class-spells", name, new Uri($"https://example.test/forever/spells/abilities/{name}"))).ToList();
+
+        var summary = await runner.RunAsync(plan, new FetchOptions(RequiredCapture: "spells"), default);
+
+        Assert.True(summary.Aborted);
+        Assert.Contains("capture 'spells' found nothing", summary.AbortReason);
+        Assert.Contains("/forever/spells/abilities/mage", summary.AbortReason);
+        Assert.Equal((1, 1, 2), (summary.Fetched, summary.Failed, summary.Remaining));
+        Assert.Equal(2, pages.Requests.Count); // no retry, and the third page is not asked for
+        Assert.Equal("[{\"id\":78,\"level\":1}]", File.ReadAllText(Path.Combine(cache.Root, "class-spells", "warrior.spells.json")));
+        Assert.False(cache.Has(plan[1]));
+        Assert.Equal(1, cache.Count("class-spells"));
+        Assert.Equal("<html>no list</html>", File.ReadAllText(Path.Combine(cache.Root, "class-spells", "mage.rejected.html")));
+    }
+
+    [Fact]
+    public void Collector_json_defines_the_class_spell_fetch()
+    {
+        var root = CollectorConfig.FindRepositoryRoot(AppContext.BaseDirectory);
+        var wowhead = CollectorConfig.Load(root).Wowhead;
+
+        var kind = wowhead.Kinds["class-spells"];
+        Assert.Equal("browser", kind.Source);
+        Assert.Contains(kind.RequiredCapture!, wowhead.BrowserCaptures!.Keys);
+
+        var urls = File.ReadAllLines(Path.Combine(root, "tools", "collector", "class-spells.txt"))
+            .Where(line => line.Length > 0 && !line.StartsWith('#')).Select(line => new Uri(line)).ToList();
+        Assert.Equal(9, urls.Distinct().Count());
+        Assert.All(urls, url => Assert.StartsWith("/forever/", url.AbsolutePath));
+    }
+
     private sealed class FakeSource(Func<Uri, FetchResult> respond) : IPageSource
     {
         public List<Uri> Requests { get; } = [];

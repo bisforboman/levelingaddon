@@ -6,8 +6,10 @@
 ## SavedVariablesPerCharacter: LevelingAddonCharDB
 ## AddonCompartmentFunc: LevelingAddon_OnCompartmentClick
 
-# Core.lua first. A feature adds its file as one line at the end.
+# Core.lua first, then Settings.lua, which the features call as they load. A feature adds its
+# file as one line at the end.
 Core.lua
+Settings.lua
 Steps.lua
 Window.lua
 Arrow.lua
@@ -16,6 +18,10 @@ Junk.lua
 Party.lua
 Pins.lua
 Planner.lua
+Tracker.lua
+Support.lua
+Hints.lua
+Automation.lua
 
 # The quest data, built by the collector (README, "Building the quest data"). Not in the repository.
 Data\data.xml

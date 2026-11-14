@@ -343,7 +343,16 @@ Chosen by the owner on 2026-11-14:
 - Settings page (scale, backplate opacity, arrow on/off, pin on/off, combat dimming, reset
   position), Edit Mode positioning, compartment entry and slash command.
 
-Not in v1: secure "use item" button, automation, an all-quests map layer, tooltip lines.
+Decided by the owner since, also on 2026-11-14:
+
+- Automation: in, and on by default. Quests the addon suggests are accepted and handed in
+  without a click; Shift does the opposite for one window, a choice of rewards is always left
+  to the player, and repeatable quests are never touched (#9, section 9).
+- Item tooltip hint ("Needed for: quest"): in (#14).
+
+Not yet decided by the owner: a secure "use item" button and an all-quests map layer. An
+earlier version of this section listed these two, automation and tooltip lines as "Not in v1"
+under the owner's choices; the owner does not recall deciding that, so it is not a decision.
 
 ## 8. Open questions
 
@@ -386,7 +395,25 @@ shared machinery in `Core.lua` (README, "Writing a feature").
 
 Checked only by lint and stubbed tests; not yet run in the game client.
 
-Not built yet: the numbered route on
-the world map, a settings page (slash commands only for now), Edit Mode positioning (drag
-only), the arrow's "arrived" ring (the arrow hides instead), and the pause mark in dungeons
-(the arrow hides; the window stays).
+The settings page of section 7 is built in the game's own settings panel (`Settings.lua`):
+scale, backplate opacity, steps in view, arrow, map pin, combat dimming, lock and reset
+position, each applied at once. `/lvl set` reaches the same settings where the client has no
+such panel. In an instance the window shrinks to a pause mark and says so in chat once.
+
+Edit Mode positioning is not built. The game offers addons no way into Edit Mode; the library
+that does it, LibEditMode, is "All rights reserved" with its own terms (read 2026-11-14: it may
+be shipped unmodified inside an addon, not distributed otherwise), which do not fit this
+GPL-3.0 project. The window is moved by dragging, with a lock and a reset.
+
+The arrow points at the nearest of a step's places, at the corpse while the player is a ghost,
+and becomes the "arrived" ring within reach of a single place (README, "The arrow"). With the
+target on another continent it is hidden for now; what it should show there is the open
+question in section 8.
+
+`Automation.lua` accepts and hands in the quests that have a pending "accept" or "turnin" step,
+from the quest windows and from an NPC's list of quests, on the game's own events (#9). Two
+settings, both on by default: "Accept quests automatically" and "Hand in quests
+automatically". Not built, because the data has nothing for them: choosing a gossip option,
+taking a flight, confirming an inn.
+
+Not built yet: the numbered route on the world map.

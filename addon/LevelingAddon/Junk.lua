@@ -46,30 +46,46 @@ local function buildIndex()
             link(itemID, item.startQuest)
         end
     end
+    for _, list in pairs(questsByItem) do
+        table.sort(list) -- so that the quest the tooltip names is the same every session
+        for i = #list, 2, -1 do
+            if list[i] == list[i - 1] then -- the data can link a pair in more than one way
+                table.remove(list, i)
+            end
+        end
+    end
     ns.Report("junk index", ns.Clock() - start)
 end
 
+local OTHER_SIDE = { Alliance = "horde", Horde = "alliance" }
+
 -- True when a quest the character has not handed in needs the item: as an objective, as an
--- item to hold or use for it, or as the item that starts it. Also true for anything the client
--- classes as a quest item, which covers what the data lacks. Shared: the bags, the vendor and
--- the item tooltip all ask here.
+-- item to hold or use for it, or as the item that starts it. Quests of the other faction do
+-- not count. Also true for anything the client classes as a quest item, which covers what the
+-- data lacks. Shared: the bags, the vendor and the item tooltip all ask here. The tooltip also
+-- takes the second and third value: one of those quests, from the quest log if any is there,
+-- and how many they are.
 function ns.QuestNeedsItem(itemID)
-    if select(12, GetItemInfo(itemID)) == QUEST_CLASS then
-        return true
-    end
+    local first, count = nil, 0
     local items = ns.Data and ns.Data.items
-    if not items or not items[itemID] then
-        return false
-    end
-    if not questsByItem then
-        buildIndex()
-    end
-    for _, questID in ipairs(questsByItem[itemID] or {}) do
-        if not C_QuestLog.IsQuestFlaggedCompleted(questID) then
-            return true
+    if items and items[itemID] then
+        if not questsByItem then
+            buildIndex()
+        end
+        local otherSide = OTHER_SIDE[UnitFactionGroup("player")]
+        local firstInLog
+        for _, questID in ipairs(questsByItem[itemID] or {}) do
+            local quest = ns.Data.quests and ns.Data.quests[questID]
+            if not C_QuestLog.IsQuestFlaggedCompleted(questID) and not (quest and quest.side == otherSide) then
+                count = count + 1
+                if not firstInLog then
+                    firstInLog = C_QuestLog.IsOnQuest(questID)
+                    first = (firstInLog or not first) and questID or first
+                end
+            end
         end
     end
-    return false
+    return count > 0 or select(12, GetItemInfo(itemID)) == QUEST_CLASS, first, count
 end
 
 local function money(copper)

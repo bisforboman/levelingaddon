@@ -11,6 +11,7 @@ A leveling addon for World of Warcraft: Forever, and the collector that gathers 
 | Validation report | Done: [`reports/validation.md`](reports/validation.md) |
 | Polite, resumable Wowhead fetcher with raw cache | Built and tested against a local test server; not yet run against Wowhead |
 | Wowhead list / quest page parsers | Not built: need a few real sample pages first |
+| Class spells per level, with training cost (#17) | Fetch prepared, not yet run: see "Fetching class spells". No parser yet |
 | JSON → Lua export | Done: `collector export`, with reduced spawn lists and a per-table memory report; checked by loading the files back |
 
 ## Addon
@@ -38,8 +39,11 @@ chat that it has no quest data. Then copy `addon/LevelingAddon` into the game's
 | Command | Does |
 | --- | --- |
 | `/lvl` | Hide or show the window and arrow |
+| `/lvl settings` | Open the addon's page in the game's settings panel |
+| `/lvl set`, `/lvl set key value` | List the settings, or change one (`/lvl set opacity 0.4`, `/lvl set combatDim off`) |
 | `/lvl rows N`, `/lvl scale N` | Steps in view (3 to 16), window scale (0.6 to 2) |
 | `/lvl arrow` | Turn our arrow on or off |
+| `/lvl lock` | Lock the window in place, or unlock it |
 | `/lvl skipped` | List the quests skipped on this character |
 | `/lvl unskip NUMBER`, `/lvl unskip all` | Bring one skipped quest back (by the number in the list), or all of them |
 | `/lvl reset` | Put the window back where it starts |
@@ -49,17 +53,26 @@ chat that it has no quest data. Then copy `addon/LevelingAddon` into the game's
 In the window: drag to move, mouse wheel to scroll through the steps, the cross on a pending
 step skips its quest, the arrow on a skipped step brings the quest back. A skipped quest stays
 out of the suggestions, on that character only, until it is brought back.
+In a dungeon the window shrinks to a pause mark.
+
+The settings page holds scale, background opacity, steps in view, arrow, map pin, combat
+dimming, lock and reset position. Every change applies at once.
 
 The tests in `addon/tests/` run the addon outside the game, against a stub of the game API
 with a fake quest log (`stub.lua`). Run each from the repository root, for example
 `lua5.1 addon/tests/test_ui.lua`. `test_ui.lua` checks tracking, skip and restore, combat
 folding, the arrow's direction and distance, and the TomTom hand-off, on a fixed route
-(`northshire.lua`) with no quest data loaded; `test_core.lua` checks the shared machinery
-below. `test_planner.lua` checks the planner on quest data cut from a real export
+(`northshire.lua`) with no quest data loaded; `test_arrow.lua` checks the rest of the arrow on
+the same route (see "The arrow"); `test_settings.lua` checks the settings page, the
+lock, the pause mark and that only changed rows are redrawn; `test_core.lua` checks the shared
+machinery below. `test_planner.lua` checks the planner on quest data cut from a real export
 (`planner_data.lua`): a fresh character, a mid-level character with a half-finished zone, a
-character who skipped ahead, skips, and the events that ask for a pass. `test_steps.lua` checks
-that steps complete themselves: each kind on its event, a quest with several objectives, the
-grace period, steps already done, and that only the steps in view are read. They cannot check how
+character who skipped ahead, a full quest log, skips, and the events that ask for a pass.
+`test_automation.lua` checks accepting and handing in.
+`test_support.lua` checks the report, the events for other addons and verbose output.
+`test_steps.lua` checks that steps complete themselves: each kind on its event, a quest with
+several objectives, the grace period, steps already done, and that only the steps in view are
+read. They cannot check how
 anything looks, or what the game client really returns; that needs the game client.
 
 ### The planner
@@ -83,6 +96,13 @@ the quest log and its objectives, level, class, race, faction, zone and position
   the best-ranked one, and whatever can be done within 40 yards of where the character stands
   is done before moving on, so actions that share a place come together. Steps further down
   are a forecast and change as the character does things.
+- **Quest log limit** (issue #23): a pass asks the client how many quests the log holds and
+  counts the quests in it. The plan never holds more pick-ups than there are free places; with
+  two or fewer free, hand-ins come before everything else, nearest first. When the log is full
+  and a pick-up would otherwise have come first, one chat line says so, naming the nearest quest
+  ready to hand in if there is one; it is said once, and again only when that hand-in changes
+  or the log has had room in between. Where the client does not tell the limit, pick-ups are
+  not held back. `/lvl plan` prints the count and the limit.
 - **Working set**: the current zone, the zones whose maps overlap its map, and the 5-level band
   the character is in. Where nothing there suits the character, the best-fitting other zones
   on the continent are tried one at a time (three at most), so a character standing somewhere
@@ -122,8 +142,9 @@ and one function that reads the character's real state.
 | `go` | the row's objective is finished in the quest log, or the character has stood within `ns.Steps.ARRIVE_YARDS` (8) of the point with the quest in the log | `QUEST_LOG_UPDATE`, and the position twice a second |
 
 - **Only the steps in view are followed**: the two rows above the current step and as many
-  rows as the window has. Only the events of their kinds lead to a check, 0.2 seconds later,
-  and the check reads those steps alone. A planner pass reads its whole list once.
+  rows as the window has. `Steps.lua` acts only on the events of their kinds, and a check, 0.2
+  seconds later, reads those steps alone. A planner pass reads its whole list once. `Core.lua`
+  still asks for a check on every quest event as well; that check too reads only these steps.
 - **Already done**: when a step finishes, the steps that come into view are read at once, so
   whatever the character has already done is ticked the moment it is shown.
 - **Grace period**: for 3 seconds after `QUEST_ACCEPTED` or `QUEST_TURNED_IN` the event is
@@ -136,6 +157,47 @@ and one function that reads the character's real state.
 Not built, by the brief for #7: the kinds for reaching a level, training, buying, setting the
 hearthstone and taking a flight. The planner does not suggest them yet; each will be one entry
 in `KINDS`.
+
+### The arrow
+
+`Arrow.lua` points at the current step (issue #5), or hands the waypoint to TomTom when that is
+installed.
+
+- **Several places**: a planner step carries one point, but the thing to find often has many.
+  When a step becomes current the arrow looks the step's name up among what the quest names in
+  the plain tables (`quests`, then `npcs`, `objects`, `items`: the quest's givers and takers,
+  its creatures and objects, and for an item whatever drops or sells it), takes their spawn
+  points on the step's map, and converts them to world coordinates once, with the client's
+  `C_Map.GetWorldPosFromMapPos`. It points at the nearest. With no match in the data it uses
+  the step's own point.
+- **Reached**: a kill or collect step with several places counts a place as reached within 30
+  yards and moves on to the next nearest, round and round. Any other step is arrived at within
+  8 yards (30 for a kill or collect step with one place): the arrow becomes a ring until the
+  step completes.
+- **Dead**: a ghost is pointed to the corpse.
+- **Nowhere to point**: with the target on another continent, or in an instance, nothing is
+  drawn. What to show for another continent instead is an open question
+  (`docs/ui-concepts.md`, section 8).
+- **Cost**: ten updates a second on the shared loop: one `UnitPosition`, one `GetPlayerFacing`
+  and arithmetic. The nearest place is looked for twice a second, the texture turns only for a
+  change of about a degree, the distance text changes only with the number, and the task is
+  off while there is nothing to point at.
+
+### Automation
+
+`Automation.lua` removes the clicks that carry no decision (issue #9). Both halves are on by
+default, each with its own setting: "Accept quests automatically" (`/lvl set autoAccept`) and
+"Hand in quests automatically" (`/lvl set autoTurnIn`).
+
+- **Only what is suggested**: a quest is accepted when a pending "accept" step names it, and
+  handed in when a pending "turnin" step names it and the game says it is ready. That covers
+  the quest's own windows and picking it from an NPC's list of quests. Any other quest is left
+  to the player.
+- **Shift** held while the window opens does the opposite of the setting for that window.
+- **Never**: choosing between rewards (it stops at the reward window), and repeatable quests.
+- **Any state**: if the steps change while an NPC's window is open, the window is looked at
+  again.
+- Not built, because the data has nothing for them: gossip options, flights (#16), inns.
 
 ### Writing a feature
 
@@ -151,7 +213,7 @@ shares, so that no feature needs a frame for events or an `OnUpdate` of its own.
   cloud session can run the game, so whatever only the client can confirm goes there.
 - Do not edit another feature's file. `Core.lua`, the TOC header, `stub.lua` and `ci.yml` belong
   to the shared machinery (#2); `Planner.lua` to the planner (#3); `Steps.lua` to #7; `Window.lua`
-  to #4; `Arrow.lua` to #5. Commands, defaults and events are added from your own file, with
+  and `Settings.lua` to #4; `Arrow.lua` to #5. Commands, defaults and events are added from your own file, with
   the names below.
 - Work happens on events. Nothing is recomputed per frame.
 - No `OnUpdate` of your own: register a task on the shared loop, and switch it off whenever it
@@ -172,7 +234,11 @@ shares, so that no feature needs a frame for events or an `OnUpdate` of its own.
 | `ns.commands.name = function(arg) end` | Adds `/lvl name arg`. The help line is built from the table. |
 | `ns.defaults.key = value` | A default for an account-wide setting, set at file scope and read as `ns.db.key` from `ADDON_LOADED` on. A table default is copied, and filled in key by key. |
 | `ns.charDefaults.key = value` | The same per character, read as `ns.char.key`. |
+| `ns.AddSetting({ key = "name", label = "Text" })` | Puts a control for `ns.db.name` on the addon's settings page, and under `/lvl set name`. Call it at file scope, after setting `ns.defaults.name`: a boolean default gives a checkbox, a number a slider, which also needs `min`, `max` and `step`. Optional: `tooltip`, and `onChange = function(value) end`, called after the value has changed; without it `ns.Refresh()` is called. Either way a change applies at once, with no reload. `ns.AddSetting({ label = "Text", func = function() end })` adds a button. |
+| `ns.Set(key, value)` | Changes a setting added with `ns.AddSetting` from code (a slash command, say) and applies it the same way. |
 | `ns.say(text)` | Prints a line to chat under the addon's name. |
+| `ns.Debug(text)` | The same, but only while verbose output is on (`/lvl verbose`). For anything worth seeing while chasing a bug and not otherwise. |
+| `ns.errors` | The last ten errors the shared loop and the jobs caught, oldest first, as text. `/lvl report` lists them. |
 | `ns.Refresh()` | Redraws the window and the arrow after a change. |
 
 An example, `addon/LevelingAddon/Example.lua`:
@@ -182,6 +248,7 @@ local _, ns = ...
 
 ns.charDefaults.visits = 0 -- per character
 ns.defaults.greet = true -- account-wide
+ns.AddSetting({ key = "greet", label = "Greet at login" }) -- a checkbox on the settings page
 
 -- Many events, one pass a moment later, spread over frames.
 local replan = ns.Debounce(0.2, function()
@@ -214,6 +281,50 @@ lists the commands, so the command table above does not need a row per feature. 
 memory, the last time of each reported piece of work, and the shared loop's time per frame
 while standing still and while moving, counted since the previous `/lvl debug`. The targets
 for these numbers are not set yet; they are measured in the game (issue #2).
+
+### Bug reports and verbose output
+
+`/lvl report` opens a box with text to copy into a bug report: client version, character level
+and class, zone and position, the steps around the current one, the settings, the data version
+(`ns.Data.manifest`, or "not loaded"), the timings of `/lvl debug`, and the last errors the
+addon caught. It never asks the game for the character's name, realm, guild or account. A
+feature that saves settings should keep names out of them for the same reason: the settings
+are printed as they are.
+
+`/lvl verbose` switches verbose output on or off (saved account-wide). While it is on, the
+addon prints what `ns.Debug` is given, including every event below as it is sent.
+
+### Events for other addons
+
+The addon announces three things for other addons to build on. The names and arguments are
+meant to stay as they are; arguments may be added at the end.
+
+| Event | When | Arguments |
+| --- | --- | --- |
+| `LevelingAddon.StepShown` | The current step has changed: at login, and whenever a step is finished or skipped, or the planner changes its mind, so that another one becomes current. Not on a redraw or a new plan with the same current step, and not when there is nothing to suggest. Also sent while the window is hidden. | `index`: the step's place in `ns.Steps.list` right now, from 1; it moves as the planner rebuilds the list, so do not keep it. `step`: the addon's own table for the step, to read and not to change: `kind` (`"accept"`, `"turnin"`, `"kill"`, `"loot"` or `"go"`), `name`, `questID`, `need`, `objective`, `map` (a `uiMapId`), `x` and `y` (map percent), as described under "The planner". |
+| `LevelingAddon.QuestAccepted` | The player accepted a quest, any quest, on the route or not. | `questID` |
+| `LevelingAddon.QuestTurnedIn` | The player handed a quest in, any quest. | `questID` |
+
+Listen through the global `LevelingAddonEvents`. Make your addon load after this one
+(`## OptionalDeps: LevelingAddon` in your TOC), and always pass an owner: any table or string
+of yours. It comes back as the first argument, and it is the handle to stop listening.
+
+```lua
+local owner = {}
+LevelingAddonEvents:RegisterCallback("LevelingAddon.StepShown", function(_, index, step)
+    print("now at step", index, step.kind, step.questID)
+end, owner)
+LevelingAddonEvents:RegisterCallback("LevelingAddon.QuestTurnedIn", function(_, questID)
+    print("handed in", questID)
+end, owner)
+-- later: LevelingAddonEvents:UnregisterCallback("LevelingAddon.StepShown", owner)
+```
+
+Where the client has the game's `EventRegistry`, `LevelingAddonEvents` is that same object,
+so `EventRegistry:RegisterCallback(...)` works as well and needs no load order. Where the
+client has none, `LevelingAddonEvents` is a small stand-in of the addon's own with the same
+three methods (`RegisterCallback`, `UnregisterCallback`, `TriggerEvent`), one callback per
+event and owner. An error in a listener does not stop the addon or the other listeners.
 
 ## Layout
 
@@ -321,8 +432,8 @@ The data has no quest type, so the marks are derived, and were checked against t
 
 On this data: 512 raid, 357 dungeon, 99 pvp and 233 group quests out of 5,768. The two tables
 take 5.7 MB (plannerQuests) and 0.3 MB in the collector's interpreter, 7.7 and 0.4 MB in stock
-Lua 5.1. The planner reads only these two tables; the six plain tables are loaded for the
-features to come.
+Lua 5.1. The planner reads only these two tables; the arrow reads `quests`, `npcs`, `objects`,
+`items` and `zones` for a step's places, and the rest are loaded for the features to come.
 
 ### Spawns and waypoints
 
@@ -460,8 +571,55 @@ without a network request, so re-running a command resumes it. A page that does 
 recorded once and not asked for again. A refusal or bot challenge is never cached: the run backs
 off, retries, and stops after `maxConsecutiveFailures` in a row.
 
-Browser kinds (`quest`, `list`) open a visible window of the browser named by `browserChannel`.
-Nothing about the browser is disguised; if Wowhead still refuses, the run stops.
+Browser kinds (`quest`, `list`, `class-spells`) open a visible window of the browser named by
+`browserChannel`. Nothing about the browser is disguised; if Wowhead still refuses, the run stops.
+
+On every browser page the expressions under `browserCaptures` in `collector.json` are evaluated,
+and each one that finds something is stored beside the page as `<key>.<capture>.json`. A kind
+may name one of them as its `requiredCapture`: a page on which that capture finds nothing stops
+the run at once, with no retry, and is not cached. The page is kept as `<key>.rejected.html` to
+look at, and is asked for again on the next run.
+
+### Fetching class spells
+
+The trainer suggestions (#17) need the spells each class learns at each level and what they
+cost to train. QuestieDB has neither, so they come from Wowhead's ability listing of each
+class. This is prepared and has not been run: like every Wowhead fetch, you run it on your own
+machine, never from a cloud agent session. **Read Wowhead's terms of use first**; nobody has
+yet (see "Sources").
+
+```sh
+cd tools/collector
+dotnet build
+dotnet run --project src/Collector -- fetch class-spells --urls-file class-spells.txt --limit 1   # a one-page trial
+dotnet run --project src/Collector -- fetch class-spells --urls-file class-spells.txt             # the rest
+```
+
+- **Requests**: ten in all. One page per class, nine classes, listed in
+  `tools/collector/class-spells.txt`, plus `robots.txt` once, each `delaySeconds` plus jitter
+  apart: about a minute. The second command skips what the trial already fetched.
+- **Where it lands**: `data/raw/wowhead/class-spells/` (gitignored). Per class, the page
+  (`forever_spells_abilities_<class>-<hash>.html`), its `.meta.json`, and the rows of the spell
+  list as `forever_spells_abilities_<class>-<hash>.spells.json`.
+- **What to send back**: two or three classes' `.spells.json` and `.html` files, so that the
+  parser can be written against real pages. Either attach them to #17, or commit them to a
+  branch that is not meant to be merged (`git add -f`, since `data/raw/` is ignored).
+
+Three things here are assumptions, because the site cannot be opened from where this was
+written:
+
+| Assumption | Where to correct it |
+| --- | --- |
+| The pages are at `https://www.wowhead.com/forever/spells/abilities/<class>` | `tools/collector/class-spells.txt` |
+| The page keeps the rows of its spell list in `g_listviews.spells.data`, as the quest listing does in `g_listviews.quests.data` | `browserCaptures.spells` in `collector.json` |
+| One page holds all of a class's abilities, with level and training cost in the rows | Not checked by the collector: look at the row count in a `.spells.json` |
+
+That is what the one-page trial is for. With a wrong address it reports the page as
+"recorded as missing", or the site sends the browser somewhere else and the run ends as below.
+With a wrong list name the run ends with "the browser capture 'spells' found nothing", stops at
+that page and leaves a `.rejected.html`. Then open the address in your browser, type
+`Object.keys(g_listviews)` in the developer console to see what the list is called, and correct
+the expression; or send the `.rejected.html` back instead of the samples.
 
 ## Checks
 

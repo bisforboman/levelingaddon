@@ -2,7 +2,8 @@ using System.Text;
 
 namespace Collector.Fetch;
 
-public sealed record FetchOptions(int? Limit = null, int MaxConsecutiveFailures = 3, TimeSpan? MaxBackOff = null);
+/// <param name="RequiredCapture">A browser capture every page must yield; a page without it stops the run.</param>
+public sealed record FetchOptions(int? Limit = null, int MaxConsecutiveFailures = 3, TimeSpan? MaxBackOff = null, string? RequiredCapture = null);
 
 public sealed record FetchSummary(int Planned, int AlreadyCached, int Fetched, int NotFound, int RefusedByRobots, int Failed, bool Aborted, string? AbortReason)
 {
@@ -73,6 +74,17 @@ public sealed class FetchRunner(
             }
             finally { gate.MarkFinished(); }
             networkRequests++;
+
+            if (result is { BotChallenge: false, Status: 200 } && options.RequiredCapture is { } required
+                && result.Captures?.ContainsKey(required) != true)
+            {
+                // The page loaded but is not laid out as collector.json assumes. Asking again
+                // would not help, so stop at once; the page is kept aside to look at, not cached.
+                failed++;
+                var kept = cache.WriteRejected(request, result);
+                return Summary($"{request.Url} loaded, but the browser capture '{required}' found nothing on it. " +
+                               $"The capture's expression in collector.json (browserCaptures) or the page address is wrong. The page is in {kept}");
+            }
 
             if (result is { BotChallenge: false, Status: 200 })
             {

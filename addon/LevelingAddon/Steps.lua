@@ -16,8 +16,8 @@
 -- State is read from the game, never set by hand: a step is done when the game says so. The one
 -- thing the player decides is which quests to skip, and that is kept per character.
 --
--- Only the steps in view are followed: the events of their kinds are the only ones that lead
--- to a check, and a check reads those steps alone. A step that comes into view is read at
+-- Only the steps in view are followed: of the events handled here, only those of their kinds
+-- lead to a check, and a check reads those steps alone. A step that comes into view is read at
 -- once, so what the player already did is done the moment it is shown.
 local _, ns = ...
 
@@ -177,7 +177,6 @@ local function inView(self)
     return math.max(1, top), math.min(#self.list, top + rowsSeen - 1)
 end
 
-local stale = true -- something that can change a step in view happened since the last check
 local watched = {} -- [event] = true for the events of the steps in view
 local hooked = {} -- [event] = true once our handler is on it
 
@@ -198,7 +197,6 @@ local function onEvent(event, a, b)
     elseif event == "QUEST_TURNED_IN" then
         note("turnin", a)
     end
-    stale = true
     checkSoon()
 end
 
@@ -230,16 +228,12 @@ local function watch(self)
     ns.SetTask("steps", polling)
 end
 
--- Check the steps in view, if anything happened that can change them; a finished step brings
--- others into view, and those are read as well. A step that finished (or came back) means the
+-- Check the steps in view; a finished step brings others into view, and those are read as
+-- well. A step that finished (or came back) means the
 -- plan is stale, so a pass is asked for; and so does a planner that is waiting for the log.
 -- Returns whether anything changed. With `polled`, the check starts from the steps whose
 -- kind's poll holds.
 function Steps:Sync(polled)
-    if not stale then
-        return false
-    end
-    stale = false
     local changed, moved = false, false
     repeat
         local stepChanged, stepMoved = read(self, polled, inView(self))
@@ -260,14 +254,12 @@ end
 local refresh = ns.Refresh
 function ns.Refresh()
     if rowsSeen ~= ns.db.rows then
-        stale = true
         Steps:Sync()
     end
     refresh()
 end
 
 ns.Task("steps", POLL, function()
-    stale = true
     if Steps:Sync(true) then
         ns.Refresh()
     end
@@ -300,7 +292,6 @@ function Steps:SetPlan(rows)
     self.list = list
     wipe(self.state)
     read(self, false, 1, #list)
-    stale = false
     watch(self)
 end
 
@@ -338,12 +329,6 @@ function Steps:Current()
     return index and self.list[index], index
 end
 
--- After a skip or a restore: other steps are in view now, and the plan is stale.
-local function replan()
-    stale = true
-    ns.Planner:Run()
-end
-
 -- The player's own choices. Skipping a step skips its quest: nothing of that quest is
 -- suggested again until the player restores it. Only a pending step can be skipped; a finished
 -- step is never changed by hand.
@@ -352,7 +337,7 @@ function Steps:Skip(index)
     if step and self:Status(index) == "pending" then
         ns.char.skipped[step.questID] = true
         step.kept = true -- this step stays in view, crossed out, to restore from
-        replan()
+        ns.Planner:Run()
     end
 end
 
@@ -366,7 +351,7 @@ end
 function Steps:RestoreQuest(questID)
     if ns.char.skipped[questID] then
         ns.char.skipped[questID] = nil
-        replan()
+        ns.Planner:Run()
     end
 end
 
@@ -392,7 +377,7 @@ function ns.commands.unskip(arg)
     local questID = tonumber(arg)
     if arg == "all" then
         wipe(ns.char.skipped)
-        replan()
+        ns.Planner:Run()
     elseif questID and ns.char.skipped[questID] then
         Steps:RestoreQuest(questID)
     else

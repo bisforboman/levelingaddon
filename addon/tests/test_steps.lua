@@ -114,12 +114,12 @@ log[2] = {}
 fire("QUEST_ACCEPTED", 2)
 assert(S:CurrentIndex() == 7)
 
--- Three rows: steps 5 to 7 are in view, a turn-in and an accept. A quest log update is not one
--- of their events, so nothing is read on it.
+-- Three rows: steps 5 to 7 are in view, and a check reads their quests alone.
 T.cmd("rows 3")
 asked = {}
 fire("QUEST_LOG_UPDATE")
-assert(next(asked) == nil, "no step in view listens to QUEST_LOG_UPDATE")
+assert(asked[1] and asked[2] and not (asked[3] or asked[4] or asked[5] or asked[6]), "three steps in view")
+asked = {}
 
 -- Handing in quest 2 reads the steps in view, then the ones that come into view: quest 3 is
 -- in the log and quest 4 is handed in, so their steps are done the moment they are shown.

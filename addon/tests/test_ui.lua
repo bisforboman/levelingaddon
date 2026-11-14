@@ -141,13 +141,11 @@ assert(turnSet == nil, "a turn too small to see does not redraw the arrow")
 T.px, T.py = 0.462, 0.465
 A:Update()
 assert(A.distance.text == "" and not A.texture.shown, "arrived")
-local position = C_Map.GetPlayerMapPosition
-C_Map.GetPlayerMapPosition = function()
-    return nil
-end
+local position = UnitPosition
+function UnitPosition() end
 A:Update()
 assert(A.frame.alpha == 0, "no position: nothing drawn")
-C_Map.GetPlayerMapPosition = position
+UnitPosition = position
 
 -- Settings.
 cmd("rows 5")
