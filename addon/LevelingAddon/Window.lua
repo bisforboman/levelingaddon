@@ -151,7 +151,7 @@ local function drawRow(row, index, currentIndex)
     row:SetAlpha((done or status == "skipped") and 0.8 or 1)
 end
 
--- Show the one control the pointer's row offers, and the tooltip naming the quest and place.
+-- Show the one control the pointer's row offers: skip on a pending step, restore on a skipped one.
 local function setHot(row, hot)
     if row.hot == hot and row.hotStatus == row.status then
         return
@@ -166,14 +166,6 @@ local function setHot(row, hot)
     if skipped then
         row.icon:SetShown(not hot and not KIND_GLYPH[row.step.kind])
         row.glyph:SetShown(not hot and KIND_GLYPH[row.step.kind] ~= nil)
-    end
-    if hot and row.step then
-        GameTooltip:SetOwner(row, "ANCHOR_LEFT")
-        GameTooltip:SetText(row.step.quest)
-        GameTooltip:AddLine(row.step.place, 1, 1, 1)
-        GameTooltip:Show()
-    elseif GameTooltip:IsOwned(row) then
-        GameTooltip:Hide()
     end
 end
 

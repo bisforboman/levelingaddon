@@ -7,8 +7,7 @@ ns.defaults = {
     arrow = true, -- draw our own arrow (ignored when TomTom takes the waypoint)
     rows = 8, -- steps in view
     scale = 1,
-    status = {}, -- [step index] = "done" | "skipped"; pending steps have no entry
-    progress = {}, -- [step index] = count so far, for the sample route
+    skipped = {}, -- [step index] = true for steps the player chose to skip
 }
 
 local function say(text)
@@ -76,17 +75,10 @@ function commands.reset()
     ns.Window:RestorePosition()
 end
 
--- The sample route has no quest tracking yet, so this stands in for the game reporting
--- progress: it adds one to the current step's count, or finishes it.
-function commands.next()
-    ns.Steps:Advance()
-    ns.Refresh()
-end
-
--- Start the sample route again from the top.
-function commands.restart()
-    wipe(ns.db.status)
-    wipe(ns.db.progress)
+-- Bring every skipped step back.
+function commands.unskip()
+    wipe(ns.db.skipped)
+    ns.Steps:Sync()
     ns.Refresh()
 end
 
@@ -99,7 +91,7 @@ SlashCmdList.LEVELINGADDON = function(message)
     elseif commands[command] then
         commands[command](arg)
     else
-        say("/lvl, /lvl show, hide, arrow, rows N, scale N, reset, next, restart")
+        say("/lvl, /lvl show, hide, arrow, rows N, scale N, reset, unskip")
     end
 end
 
@@ -108,12 +100,28 @@ function LevelingAddon_OnCompartmentClick()
     ns.SetShown(not ns.db.shown)
 end
 
+-- Quest events arrive in bursts (QUEST_LOG_UPDATE especially), so they only mark the state as
+-- stale; one read of the quest log follows a moment later.
+local syncPending = false
+local function syncSoon()
+    if syncPending then
+        return
+    end
+    syncPending = true
+    C_Timer.After(0.2, function()
+        syncPending = false
+        if ns.Steps:Sync() then
+            ns.Refresh()
+        end
+    end)
+end
+
 local events = CreateFrame("Frame")
 events:RegisterEvent("ADDON_LOADED")
 events:RegisterEvent("PLAYER_LOGIN")
-events:SetScript("OnEvent", function(_, event, name)
+events:SetScript("OnEvent", function(self, event, arg)
     if event == "ADDON_LOADED" then
-        if name ~= addonName then
+        if arg ~= addonName then
             return
         end
         LevelingAddonDB = LevelingAddonDB or {}
@@ -125,11 +133,20 @@ events:SetScript("OnEvent", function(_, event, name)
             end
         end
     elseif event == "PLAYER_LOGIN" then
+        for _, name in ipairs({ "QUEST_ACCEPTED", "QUEST_REMOVED", "QUEST_TURNED_IN", "QUEST_LOG_UPDATE" }) do
+            self:RegisterEvent(name)
+        end
+        ns.Steps:Sync()
         ns.Window:Create()
         ns.Arrow:Create()
         ns.Refresh()
         if ns.firstRun then
             say("is on. Drag the window to move it. /lvl hides or shows it.")
         end
+    else
+        if event == "QUEST_TURNED_IN" then
+            ns.Steps:NoteTurnedIn(arg)
+        end
+        syncSoon()
     end
 end)

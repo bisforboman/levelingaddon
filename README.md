@@ -16,28 +16,31 @@ data; the addon itself (Lua) comes later.
 
 ## Addon (UI shell)
 
-`addon/LevelingAddon/` is a first, untested-in-game shell of the interface: a guide window and
-an arrow, fed by a fixed sample route (the first stretch of Northshire, with names and
-coordinates taken from `data/parsed`). It does not read the quest log or the quest data yet.
-The design and the reasons behind it are in [`docs/ui-concepts.md`](docs/ui-concepts.md).
+`addon/LevelingAddon/` is a first shell of the interface, not yet run in the game: a guide
+window and an arrow for a fixed sample route (the first stretch of Northshire, the human
+start, with quest ids, names and coordinates taken from `data/parsed`). Step progress is read
+from the game's quest log: accepting a quest, objective counts and handing a quest in move the
+list by themselves. The route is not yet computed from the quest data. The design and the
+reasons behind it are in [`docs/ui-concepts.md`](docs/ui-concepts.md).
 
-To try it, copy `addon/LevelingAddon` into the game's `Interface/AddOns` folder.
+To try it, copy `addon/LevelingAddon` into the game's `Interface/AddOns` folder and start a
+human character.
 
 | Command | Does |
 | --- | --- |
 | `/lvl` | Hide or show the window and arrow |
-| `/lvl next` | Stand-in for progress: adds one to the current step's count, or finishes it |
-| `/lvl restart` | Start the sample route again |
 | `/lvl rows N`, `/lvl scale N` | Steps in view (3 to 16), window scale (0.6 to 2) |
 | `/lvl arrow` | Turn our arrow on or off |
+| `/lvl unskip` | Bring every skipped step back |
 | `/lvl reset` | Put the window back where it starts |
 
 In the window: drag to move, mouse wheel to scroll through the route, the cross on a pending
 step skips it, the arrow on a skipped step brings it back.
 
 `lua5.1 addon/tests/smoke.lua addon/LevelingAddon` runs the addon against a stub of the game
-API and checks the list, skip and restore, combat folding, the arrow's direction and distance,
-and the TomTom hand-off. It cannot check how anything looks; that needs the game client.
+API with a fake quest log, and checks tracking, skip and restore, combat folding, the arrow's
+direction and distance, and the TomTom hand-off. It cannot check how anything looks; that
+needs the game client.
 
 ## Layout
 

@@ -338,7 +338,7 @@ h3{font:600 15px/1.3 var(--display);margin:0;display:flex;align-items:center;fle
   var ROWS=8;
   var SAY={
    rest:'Playing. The band marks the current step: kill Kobold Vermin. Above it, one finished step and one skipped. Below it, the next five.',
-   hover:'Pointer on the current step. A cross appears at the right end of that row; the tooltip names the quest and place. Any pending row offers the same cross.',
+   hover:'Pointer on the current step. A cross appears at the right end of that row and nothing else. Any pending row offers the same cross.',
    skip:'Kobold Vermin was skipped. It stays in the list, crossed out, and the list slid up one row so the next step sits in the band.',
    scroll:'Scrolled back to the start of the zone with the mouse wheel. The pointer is on the skipped wolf-meat step, which offers a restore arrow. The current step is still marked further down.',
    done:'The tenth kobold just died. The step ticked itself and the list slid up one row; handing the quest in is now in the band.',
@@ -383,7 +383,7 @@ h3{font:600 15px/1.3 var(--display);margin:0;display:flex;align-items:center;fle
     var ch=card(m,st.pos), ah=arrow(m);
     c.innerHTML=ch; c.hidden=!ch; c.classList.toggle('mini',m==='instance');
     a.innerHTML=ah; a.hidden=!ah;
-    tip.hidden=m!=='hover'; tip.innerHTML='<b>Kobold Camp Cleanup</b><span>Echo Ridge Mine</span>';
+    tip.hidden=true; tip.innerHTML='<b>Kobold Camp Cleanup</b><span>Echo Ridge Mine</span>';
     var hot=c.querySelector('.hot'); if(hot&&!tip.hidden){var S0=s.getBoundingClientRect(),r=hot.getBoundingClientRect();tip.style.top=(100*(r.bottom-S0.top+4)/S0.height)+'%';}
     document.getElementById('chat').innerHTML=m==='hidden'?'<b>Guide hidden. /lvl brings it back.</b>':m==='instance'?'<b>Guide paused in dungeons.</b>':'Chat';
     var R=s.getBoundingClientRect(), area=0,n=0;
