@@ -131,9 +131,14 @@ cmd("mine 42")
 assert(got == "42")
 T.chat = {}
 cmd("nonsense")
-local help = "arrow, debug, help, hide, mine, reset, rows, scale, show, unskip"
-assert(T.chat[1]:find(help), T.chat[1])
+-- Features add commands of their own, so look for names and not for the whole line.
+local function listsCommands(line)
+    for _, name in ipairs({ "arrow", "debug", "help", "hide", "mine", "reset", "rows", "scale", "show", "unskip" }) do
+        assert(line:find("[ ,]" .. name .. ",") or line:find(", " .. name .. "$"), name .. " missing: " .. line)
+    end
+end
+listsCommands(T.chat[1])
 T.chat = {}
 cmd("help")
-assert(T.chat[1]:find(help))
+listsCommands(T.chat[1])
 print("ALL OK")

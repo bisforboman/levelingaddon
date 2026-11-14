@@ -375,7 +375,16 @@ shared machinery in `Core.lua` (README, "Writing a feature").
 
 Checked only by lint and stubbed tests; not yet run in the game client.
 
-Not built yet: route computation from the data, map and minimap pins, the numbered route on
-the world map, a settings page (slash commands only for now), Edit Mode positioning (drag
-only), the arrow's "arrived" ring (the arrow hides instead), and the pause mark in dungeons
-(the arrow hides; the window stays).
+The settings page of section 7 is built in the game's own settings panel (`Settings.lua`):
+scale, backplate opacity, steps in view, arrow, map pin, combat dimming, lock and reset
+position, each applied at once. `/lvl set` reaches the same settings where the client has no
+such panel. In an instance the window shrinks to a pause mark and says so in chat once.
+
+Edit Mode positioning is not built. The game offers addons no way into Edit Mode; the library
+that does it, LibEditMode, is "All rights reserved" with its own terms (read 2026-11-14: it may
+be shipped unmodified inside an addon, not distributed otherwise), which do not fit this
+GPL-3.0 project. The window is moved by dragging, with a lock and a reset.
+
+Not built yet: route computation from the data, map and minimap pins (the settings page
+already has their switch, `ns.db.pin`), the numbered route on the world map, and the arrow's
+"arrived" ring (the arrow hides instead).

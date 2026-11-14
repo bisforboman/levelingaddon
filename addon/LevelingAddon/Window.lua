@@ -31,17 +31,29 @@ local function setColor(region, color, alpha)
     region:SetVertexColor(color[1], color[2], color[3], alpha or 1)
 end
 
+-- The window is dragged by itself (the pause mark) or by any row, unless it is locked.
+local function makeDraggable(region)
+    region:EnableMouse(true)
+    region:RegisterForDrag("LeftButton")
+    region:SetScript("OnDragStart", function()
+        if not ns.db.locked then
+            Window.moving = true
+            Window.frame:StartMoving()
+        end
+    end)
+    region:SetScript("OnDragStop", function()
+        if Window.moving then
+            Window.moving = false
+            Window:StopMoving()
+        end
+    end)
+end
+
 local function createRow(parent)
     local row = CreateFrame("Frame", nil, parent)
     row:SetWidth(WIDTH)
-    row:EnableMouse(true)
-    row:RegisterForDrag("LeftButton")
-    row:SetScript("OnDragStart", function()
-        parent:StartMoving()
-    end)
-    row:SetScript("OnDragStop", function()
-        Window:StopMoving()
-    end)
+    makeDraggable(row)
+    row.step = false -- nothing drawn yet: not the same as an empty row
 
     row.band = row:CreateTexture(nil, "BACKGROUND")
     row.band:SetAllPoints()
@@ -97,23 +109,38 @@ local function createRow(parent)
     return row
 end
 
--- Draw one row for the step at `index`, or leave it empty when there is no such step.
+-- Draw one row for the step at `index`, or leave it empty when there is no such step. A row
+-- that already shows exactly this is left alone.
 local function drawRow(row, index, currentIndex)
     local step = ns.Steps.list[index]
+    local status = step and ns.Steps:Status(index)
+    local have = step and ns.Steps:Progress(index)
+    local current = step ~= nil and index == currentIndex
     row.index = index
-    row.step = step
-    for _, region in ipairs({ row.band, row.bar, row.icon, row.glyph, row.name, row.count, row.strike }) do
-        region:SetShown(step ~= nil)
+    if row.step == step and row.status == status and row.have == have and row.current == current then
+        return
     end
+    row.step, row.status, row.have, row.current = step, status, have, current
+
+    -- The pointer's control may belong to what the row showed before; the pointer check
+    -- brings it back if it still applies.
+    row.hot = nil
+    row.skip:Hide()
+    row.restore:Hide()
+    row.hover:Hide()
     if not step then
-        row.status = nil
+        row.band:Hide()
+        row.bar:Hide()
+        row.icon:Hide()
+        row.glyph:Hide()
+        row.name:Hide()
+        row.count:Hide()
+        row.strike:Hide()
         row:SetHeight(ROW_HEIGHT)
         return
     end
-
-    local status = ns.Steps:Status(index)
-    local current = index == currentIndex
-    row.status = status
+    row.name:Show()
+    row.count:Show()
     row:SetHeight(current and CURRENT_HEIGHT or ROW_HEIGHT)
     row.band:SetShown(current)
     row.bar:SetShown(current)
@@ -126,7 +153,7 @@ local function drawRow(row, index, currentIndex)
     -- Progress is automatic: a count while the step is open, a tick once it is finished.
     local done = status == "done"
     if step.need and not done then
-        row.count:SetText(ns.Steps:Progress(index) .. "/" .. step.need)
+        row.count:SetText(have .. "/" .. step.need)
         row.count:SetTextColor(unpack(status == "pending" and YELLOW or DIM))
     else
         row.count:SetText("")
@@ -174,16 +201,24 @@ function Window:Create()
     self.frame = frame
     self.rows = {}
     self.scroll = 0
-    self.folded = InCombatLockdown()
-    frame:SetWidth(WIDTH)
+    self.combat = InCombatLockdown()
     frame:SetClampedToScreen(true)
     frame:SetMovable(true)
-    frame:EnableMouse(true)
+    makeDraggable(frame)
     frame:EnableMouseWheel(true)
 
-    local background = frame:CreateTexture(nil, "BACKGROUND", nil, -8)
-    background:SetAllPoints()
-    background:SetColorTexture(0.05, 0.055, 0.06, 0.66)
+    self.background = frame:CreateTexture(nil, "BACKGROUND", nil, -8)
+    self.background:SetAllPoints()
+
+    -- In a dungeon there is nothing to guide to: the window shrinks to this pause mark.
+    self.pause = CreateFrame("Frame", nil, frame)
+    self.pause:SetAllPoints()
+    for _, x in ipairs({ -3, 3 }) do
+        local bar = self.pause:CreateTexture(nil, "ARTWORK")
+        bar:SetSize(3, 10)
+        bar:SetPoint("CENTER", x, 0)
+        bar:SetColorTexture(DIM[1], DIM[2], DIM[3], 1)
+    end
 
     -- A thin bar on the right edge showing where the view is in the route.
     self.thumb = frame:CreateTexture(nil, "OVERLAY")
@@ -199,7 +234,7 @@ function Window:Create()
     frame:RegisterEvent("PLAYER_REGEN_DISABLED")
     frame:RegisterEvent("PLAYER_REGEN_ENABLED")
     frame:SetScript("OnEvent", function(_, event)
-        self.folded = event == "PLAYER_REGEN_DISABLED"
+        self.combat = event == "PLAYER_REGEN_DISABLED"
         self.scroll = 0
         self:Refresh()
     end)
@@ -245,26 +280,49 @@ function Window:RestorePosition()
     end
 end
 
+-- Instances have no map position to guide to. PLAYER_ENTERING_WORLD follows every loading
+-- screen, so it is the moment to look.
+ns.On("PLAYER_ENTERING_WORLD", function()
+    local paused = IsInInstance and IsInInstance() and true or false
+    if paused ~= (Window.paused or false) then
+        Window.paused = paused
+        if paused then
+            ns.say("paused in here. It comes back outside.")
+        end
+        Window:Refresh()
+    end
+end)
+
+function ns.commands.lock()
+    ns.Set("locked", not ns.db.locked)
+    ns.say("window " .. (ns.db.locked and "locked." or "unlocked: drag it to move it."))
+end
+
 function Window:Refresh()
     local frame = self.frame
     if not frame then
         return
     end
+    local paused = self.paused or false
     frame:SetShown(ns.db.shown)
-    ns.SetTask("window", ns.db.shown)
+    ns.SetTask("window", ns.db.shown and not paused)
     if not ns.db.shown then
         return
     end
+    local folded = self.combat and ns.db.combatDim
     frame:SetScale(ns.db.scale)
-    frame:SetAlpha(self.folded and COMBAT_ALPHA or 1)
+    frame:SetAlpha(folded and COMBAT_ALPHA or 1)
+    frame:SetWidth(paused and ROW_HEIGHT or WIDTH)
+    self.background:SetColorTexture(0.05, 0.055, 0.06, ns.db.opacity)
+    self.pause:SetShown(paused)
 
     local total = ns.Steps:Count()
     local current = ns.Steps:CurrentIndex() or total + 1
-    local visible = self.folded and 1 or ns.db.rows
+    local visible = paused and 0 or folded and 1 or ns.db.rows
 
     -- At rest the current step is in the third row. Scrolling moves the view, limited to the
     -- route's first and last steps.
-    local home = self.folded and current or current - HISTORY_ROWS
+    local home = folded and current or current - HISTORY_ROWS
     local first = math.min(1, home)
     local last = math.max(total - visible + 1, home)
     local top = math.max(first, math.min(last, home + self.scroll))
@@ -279,13 +337,12 @@ function Window:Refresh()
                 self.rows[slot] = row
             end
             drawRow(row, top + slot - 1, current)
-            row:ClearAllPoints()
-            row:SetPoint("TOPLEFT", frame, "TOPLEFT", 0, -y)
+            if row.y ~= y then
+                row.y = y
+                row:ClearAllPoints()
+                row:SetPoint("TOPLEFT", frame, "TOPLEFT", 0, -y)
+            end
             row:Show()
-            row.hot = nil -- the row may now hold another step; let the pointer check redo it
-            row.skip:Hide()
-            row.restore:Hide()
-            row.hover:Hide()
             y = y + row:GetHeight()
         elseif row then
             row:Hide()
@@ -294,7 +351,7 @@ function Window:Refresh()
     frame:SetHeight(math.max(y, ROW_HEIGHT))
 
     local span = math.max(last - first + visible, 1)
-    self.thumb:SetShown(not self.folded and span > visible)
+    self.thumb:SetShown(not folded and not paused and span > visible)
     self.thumb:ClearAllPoints()
     self.thumb:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -1, -y * (top - first) / span)
     self.thumb:SetHeight(math.max(y * visible / span, 8))
