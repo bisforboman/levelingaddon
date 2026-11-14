@@ -516,6 +516,50 @@ assert(current() ~= "turnin Madame Eva 101", current())
 ns, fire = boot(duskwood({ x = 22, y = 47, maxQuests = 3 }))
 assert(current() == "turnin Madame Eva 101" and accepts() == 1 and #notices() == 0, current())
 
+-- 5. Side tasks (issue #8) ----------------------------------------------------------------------
+-- A kill or collect the character already has in the log, where the current step is or on the
+-- way to it, is the row right under the current step.
+local function under()
+    return row(ns.Steps:CurrentIndex() + 1)
+end
+-- Level 2 beside Deputy Willem with the kobolds half done and the bandanas to collect: the
+-- kobolds are about 150 yards from him, the bandanas about 220.
+ns, fire = boot(human({
+    level = 2,
+    map = 1429,
+    x = 48.2,
+    y = 43.0,
+    setup = function()
+        T.completed[783] = true
+        T.log[7] = { monster(10, 3) }
+        T.log[18] = { item(12) }
+    end,
+}))
+show("level 2 beside Deputy Willem, kobolds and bandanas in the log")
+assert(current() == "accept Deputy Willem 5261" and under() == "kill Kobold Vermin 7", under())
+index = find("kill", 7)
+assert(ns.Steps:Progress(index) == 3, "its count is the log's, like any other row's")
+assert(find("loot", 18) > index + 1, "the bandanas are further off: ranked like any other step")
+assert(row(index + 1) == "turnin Marshal McBride 7", "one side task, then the plan goes on")
+-- Finished, it is no longer under the current step.
+progress(7, 1, 10)
+assert(current() == "accept Deputy Willem 5261" and under() ~= "kill Kobold Vermin 7", under())
+
+-- In Darkshire the skeletons of Raven Hill, across the zone, are not a side task of the hand-in.
+ns, fire = boot(duskwood())
+assert(current() == "turnin Madame Eva 101" and under() ~= "kill Skeletal Horror 57", under())
+-- At Raven Hill with a nearly full log the hand-in in Darkshire comes first, and the skeletons
+-- are where the way there starts.
+ns, fire = boot(duskwood({ x = 22, y = 47, maxQuests = 3 }))
+show("at Raven Hill, the hand-in in Darkshire first")
+assert(current() == "turnin Madame Eva 101" and under() == "kill Skeletal Horror 57", under())
+-- The hand-in made, in Darkshire: the skeletons are no longer on the way to the current step,
+-- and are ranked like any other step.
+T.x, T.y = 75.79, 45.32
+turnIn(101)
+show("after the hand-in")
+assert(current() ~= "turnin Madame Eva 101" and under() ~= "kill Skeletal Horror 57", under())
+
 -- Other clients, and no data -----------------------------------------------------------------
 -- The older calls for completed quests and the quest log.
 ns, fire = boot(duskwood({

@@ -69,6 +69,7 @@ machinery below. `test_planner.lua` checks the planner on quest data cut from a 
 (`planner_data.lua`): a fresh character, a mid-level character with a half-finished zone, a
 character who skipped ahead, a full quest log, skips, and the events that ask for a pass.
 `test_automation.lua` checks accepting and handing in.
+`test_rewards.lua` checks the reward marks.
 `test_support.lua` checks the report, the events for other addons and verbose output.
 `test_steps.lua` checks that steps complete themselves: each kind on its event, a quest with
 several objectives, the grace period, steps already done, and that only the steps in view are
@@ -103,6 +104,14 @@ the quest log and its objectives, level, class, race, faction, zone and position
   ready to hand in if there is one; it is said once, and again only when that hand-in changes
   or the log has had room in between. Where the client does not tell the limit, pick-ups are
   not held back. `/lvl plan` prints the count and the limit.
+- **Side tasks** (issue #8): a kill or collect objective the character already has in the log
+  comes right under the current step when any of its points in the data lies within 200 yards
+  (`SIDE_YARDS`) of the straight line from the character to the current step; standing at the
+  step, that is 200 yards around it. Several are listed nearest that line first, and the rest
+  of the plan goes on from the current step. Nothing is remembered: once the objective is
+  finished, or the current step has changed and the objective is no longer near the way to the
+  new one, the next pass ranks it like any other step. It is an ordinary row, found in the same
+  pass, and the arrow stays on the current step.
 - **Working set**: the current zone, the zones whose maps overlap its map, and the 5-level band
   the character is in. Where nothing there suits the character, the best-fitting other zones
   on the continent are tried one at a time (three at most), so a character standing somewhere
@@ -198,6 +207,45 @@ default, each with its own setting: "Accept quests automatically" (`/lvl set aut
 - **Any state**: if the steps change while an NPC's window is open, the window is looked at
   again.
 - Not built, because the data has nothing for them: gossip options, flights (#16), inns.
+
+### The target macro
+
+`/lvl macro` makes one general macro, `LvlTarget`, and puts it on the cursor to drop on an
+action bar (#12). Pressing it targets the current step's NPC or creatures and puts the skull on
+what it targeted:
+
+```
+/cleartarget
+/targetexact Kobold Vermin
+/tm 8
+```
+
+- **Names**: the quest giver or taker of an accept or turn-in step; for a kill step every
+  creature the quest data lists for that objective; for a loot step whatever drops or sells the
+  item. A step with nothing to target (a place to reach, an object to click) leaves the macro
+  empty.
+- **Length**: a macro holds 255 characters. When the names do not fit, those whose spawns are
+  nearest the step's point are kept; `/lvl verbose` says how many were left out.
+- **Combat**: the game allows no macro changes in combat, so a step change during a fight is
+  written when the fight ends.
+- **Yours**: the macro is made only on `/lvl macro`, never by itself. A macro of that name that
+  the addon did not make is left alone, and one the player deleted is not made again.
+
+### Reward marks
+
+`Rewards.lua` marks a choice of quest rewards (issue #10), with a setting, "Mark quest rewards"
+(`/lvl set rewardMarks`), on by default. It never picks: the player chooses.
+
+- **Sells for most**: the game's gold coin on the icon of the reward with the highest sell
+  price times count. No coin on a tie.
+- **Upgrade**: the game's green bag arrow on the reward with the biggest gain in item level
+  over what is worn in its slot, among the rewards the game says the character can use. Rings,
+  trinkets and one-hand weapons are held against the weaker of the two worn. This is a rough
+  rule: it knows no stats. Where nothing fair can be compared (a ranged weapon, a shield beside
+  a two-hander, item data not loaded) there is no arrow.
+- **Cost**: everything is read from the client on `QUEST_COMPLETE` and again when item data
+  arrives, only while a window with a choice is open. Two badge frames, made once.
+- Not built: stat weights per class, and an automatic pick.
 
 ### Quests not worth keeping
 

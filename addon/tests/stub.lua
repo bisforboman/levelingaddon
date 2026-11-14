@@ -32,6 +32,8 @@ local T = {
     ghost = false, -- UnitIsGhost
     instance = false, -- IsInInstance
     corpse = nil, -- { x, y }: the corpse's map position
+    bags = {}, -- [item id] = how many the character has, in the bags and equipped
+    itemSpells = {}, -- [item id] = the name of the item's use effect
 }
 local function widget()
     local w = { scripts = {}, shown = true, h = 20, alpha = 1 }
@@ -292,6 +294,17 @@ C_QuestLog = {
             return o and {} or nil
         end
         return { { finished = o.have >= o.need, numFulfilled = o.have, numRequired = o.need } }
+    end,
+}
+C_Item = {
+    GetItemSpell = function(id)
+        return T.itemSpells[id]
+    end,
+    GetItemCount = function(id)
+        return T.bags[id] or 0
+    end,
+    GetItemIconByID = function(id)
+        return "icon" .. id
     end,
 }
 C_Timer = {

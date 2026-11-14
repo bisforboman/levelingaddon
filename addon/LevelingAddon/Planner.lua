@@ -27,6 +27,7 @@ local BAND_WIDTH = 5 -- levels per band, as in the collector
 local ELSEWHERE = 3 -- zones tried, one by one, when nothing here or next door suits the character
 local LEVELS_BELOW = 7 -- a quest this many levels under the character is no longer offered
 local NEARLY_FULL = 2 -- free places in the quest log at which hand-ins come before everything else
+local SIDE_YARDS = 200 -- a kill or collect this close to the way to the current step is a side task
 
 -- Ranking weights. First guesses, to be tuned in the game: one point is worth YARDS_PER_POINT
 -- of travel.
@@ -510,7 +511,34 @@ local function plan(working, me, log, logListed, px, py, free)
         return here or best
     end
 
+    -- Side tasks (#8): a kill or collect objective the character already has in the log, with
+    -- a point within SIDE_YARDS of the straight line from where the character stands (ax, ay)
+    -- to the current step (px, py). The one nearest that line, shaped like a pick.
+    local function sideTask(ax, ay)
+        local dx, dy = px - ax, py - ay
+        local length = dx * dx + dy * dy
+        local side = { score = -SIDE_YARDS, action = "objective", first = 3 }
+        for _, id in ipairs(logged) do
+            for _, objective in ipairs(inLog[id] and open[id] or {}) do
+                local target = objective.target
+                -- An index means the game's log has the objective; a planned pick-up has none.
+                for _, point in ipairs(objective.index and target[1] ~= "event" and pointsOf(target, 3) or {}) do
+                    local along = length > 0 and ((point.wx - ax) * dx + (point.wy - ay) * dy) / length or 0
+                    along = math.max(0, math.min(1, along))
+                    local ox, oy = point.wx - ax - along * dx, point.wy - ay - along * dy
+                    local score = -math.sqrt(ox * ox + oy * oy)
+                    if score > side.score or (score == side.score and not side.id) then
+                        side.score, side.id, side.quest = score, id, quests[id]
+                        side.target, side.point, side.objective = target, point, objective
+                    end
+                end
+            end
+        end
+        return side.id and side
+    end
+
     local rows, blocked = {}, nil
+    local ax, ay = px, py -- where the character stands
     -- A full log: what would come first if it were not?
     local wish = free == 0 and pick(1)
     if wish and wish.action == "accept" then
@@ -518,7 +546,9 @@ local function plan(working, me, log, logListed, px, py, free)
     end
     for _ = 1, MAX_STEPS do
         -- With the log full or nearly full, hand-ins come first, nearest first.
-        local chosen = free <= NEARLY_FULL and pick(0, true) or pick(free)
+        -- Side tasks come right under the current step, which is the first row.
+        local side = rows[1] and sideTask(ax, ay)
+        local chosen = side or free <= NEARLY_FULL and pick(0, true) or pick(free)
         if not chosen then
             break
         end
@@ -551,7 +581,10 @@ local function plan(working, me, log, logListed, px, py, free)
             end
         end
         rows[#rows + 1] = row
-        px, py = point.wx, point.wy
+        -- A side task is done along the way: the plan goes on from the current step.
+        if not side then
+            px, py = point.wx, point.wy
+        end
     end
     return rows, blocked
 end
