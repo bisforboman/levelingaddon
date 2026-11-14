@@ -1,0 +1,33 @@
+{
+  // Primary source for quest givers, turn-ins, coordinates, objectives and relations.
+  // Data derived from it is GPLv3; see README.md.
+  "questieDb": {
+    "repository": "https://github.com/Questie/QuestieDB",
+    "commit": "4dbb82440a27856f8dccf57094a5d792cdc7cc9b"
+  },
+
+  // Secondary source, fetched only by you, on your own machine.
+  "wowhead": {
+    "userAgent": "quest-data-collector/0.1",
+    "delaySeconds": 5,
+    "jitterSeconds": 3,
+    "maxConsecutiveFailures": 3,
+    // "chrome" or "msedge": the browser installed on your machine.
+    "browserChannel": "chrome",
+
+    "kinds": {
+      // Site pages sit behind a browser check, so these open a visible browser window.
+      "quest": { "url": "https://www.wowhead.com/forever/quest={id}", "source": "browser" },
+      "list": { "source": "browser" },
+
+      // Tooltip JSON, served to plain HTTP clients.
+      "npc-tooltip": { "url": "https://nether.wowhead.com/forever/tooltip/npc/{id}", "source": "http" },
+      "quest-tooltip": { "url": "https://nether.wowhead.com/forever/tooltip/quest/{id}", "source": "http" }
+    },
+
+    // Evaluated on each browser page; a null result is not stored.
+    "browserCaptures": {
+      "listview": "JSON.stringify(window.g_listviews && window.g_listviews.quests ? window.g_listviews.quests.data : null)"
+    }
+  }
+}
