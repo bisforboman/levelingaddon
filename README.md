@@ -142,6 +142,9 @@ Nothing about the browser is disguised; if Wowhead still refuses, the run stops.
 | `collector` | `dotnet build`, `dotnet test` and `dotnet format --verify-no-changes` in `tools/collector` |
 | `lua` | `luacheck .` and `stylua --check .` from the repository root |
 
+`main` is protected: changes reach it only through a pull request, and both jobs must pass
+before it can merge.
+
 The same commands work locally. `dotnet format` without the flag fixes what it reports, and so
 does `stylua .`. Code style for the collector is in `.editorconfig`.
 
