@@ -1,8 +1,9 @@
 # In-game checks: party features (Party.lua)
 
 None of this has been run in the game client yet. Most of it needs two characters with the
-addon, in one party. `/lvl party` prints the three settings; `/lvl party version` and
-`/lvl party share` switch one, `/lvl party announce party`, `guild` or `off` sets the third.
+addon, in one party. `/lvl party` prints the four settings and each party member's step;
+`/lvl party version`, `/lvl party share` and `/lvl party step` switch one,
+`/lvl party announce party`, `guild` or `off` sets the fourth.
 
 Version check (on by default)
 
@@ -42,3 +43,33 @@ Quest sharing (off by default)
 - [ ] Sharing right at `QUEST_ACCEPTED` works; if the quest is not in the log yet at that
       moment, it needs a short delay.
 - [ ] Accepting a quest that the other member just shared does not start a loop of offers.
+
+Party members' steps (sharing one's own step is off by default)
+
+Both characters need the quest data loaded, and `/lvl party step` on for the one whose step
+is to be seen.
+
+- [ ] Point at the other character in the world, and at their party frame: the tooltip ends
+      with "Leveling: " and their current step, for example "Leveling: Kobold Vermin 6/10",
+      "Leveling: ! Marshal McBride" for a quest to pick up, "Leveling: ? Marshal McBride" for
+      one to hand in. `/lvl party` prints the same after its settings line.
+- [ ] Note which path adds the line: `TooltipDataProcessor` with `Enum.TooltipDataType.Unit`,
+      or the `OnTooltipSetUnit` script, and that `GameTooltip:GetUnit()` returns the unit in
+      both places. If neither exists there is no line and no error; `/lvl party` still works.
+- [ ] The line is there in combat and in a dungeon, or it is absent without an error. On a
+      client that keeps unit identity from addons there (`issecretvalue`), it must be absent.
+- [ ] After pointing at party members for a while, in and out of combat: no "action blocked"
+      message and no taint error from the tooltip or the party frames (`/console taintLog 1`).
+- [ ] The line follows the other character: it changes within about a second of their step
+      changing, the count moves as they kill, and it goes when they switch `/lvl party step`
+      off or leave the party.
+- [ ] With an addon-message viewer: one "S ..." message per change of step or count, never
+      two within 5 seconds, none while the step stays the same through a planner pass, none
+      with the setting off, none when alone.
+- [ ] A third character joining gets the step of both within a few seconds.
+- [ ] The sender's name in `CHAT_MSG_ADDON` ("Name" or "Name-Realm") matches `UnitName` of
+      the party unit once the realm is cut off; with two realms in the party, the line is on
+      the right character.
+- [ ] After `/reload`, the other members' lines are gone until their step next changes. Decide
+      whether that is good enough or a reload should ask the party again.
+- [ ] Two game languages, if available: each client shows the names from its own data.

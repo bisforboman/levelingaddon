@@ -110,6 +110,9 @@ end
 function GetNumGroupMembers()
     return 2
 end
+function UnitName(unit)
+    return unit == "party1" and "Friend" or nil
+end
 QuestLogPushQuest = call("shared")
 
 -- A flight map with one flight on it, and a character who is in the air once it is taken.
@@ -430,6 +433,20 @@ function effects.autoTurnIn(set)
     fire("QUEST_FINISHED")
 end
 
+-- The current step, kill Kobold Vermin with 4 of 10, goes to the party, and is taken back.
+function effects.partyStep(set)
+    ns.Data.plannerQuests = { [7] = { obj = { { "monster", "Kobold Vermin" } } } }
+    flush()
+    assert(done() == "", "off: nothing is sent")
+    set(true)
+    flush()
+    assert(done() == "sent S 7 k 1 4 10", "on: the party is told now, not at the next step")
+    set(false)
+    flush()
+    assert(done() == "sent S 0", "off: the party no longer has a step of ours")
+    ns.Data.plannerQuests = nil
+end
+
 -- A choice of two rewards: the badges are on the game's buttons, or hidden.
 function effects.rewardMarks(set)
     local made = #T.frames
@@ -482,7 +499,7 @@ for key in pairs(registered) do
     keys[#keys + 1] = key
 end
 table.sort(keys)
-assert(#keys >= 18, "the page was built")
+assert(#keys >= 19, "the page was built")
 assert(table.concat(dropdown, " ") == "off=Off party=Party guild=Guild")
 for _, key in ipairs(keys) do
     assert(effects[key] or PREFERENCES[key], "setting '" .. key .. "' has no check in test_settings_apply.lua")
@@ -514,6 +531,7 @@ for command, key in pairs({
     ["verbose"] = "verbose",
     ["party version"] = "partyVersion",
     ["party share"] = "partyShare",
+    ["party step"] = "partyStep",
     ["party announce guild"] = "partyAnnounce",
     ["set itemHint"] = "itemHint",
 }) do
