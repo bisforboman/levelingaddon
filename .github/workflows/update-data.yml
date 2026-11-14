@@ -1,0 +1,154 @@
+name: Update data
+
+# Every night: if QuestieDB has moved past the commit pinned in collector.json, re-run
+# `collector parse` on its newest commit and open a pull request that merges itself once the
+# checks pass.
+#
+# Repository settings this needs:
+#   Settings > Actions > General > Allow GitHub Actions to create and approve pull requests
+#   Settings > General > Pull Requests > Allow auto-merge
+
+on:
+  schedule:
+    - cron: "23 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: update-data
+  cancel-in-progress: false
+
+env:
+  BRANCH: auto/questiedb-update
+
+jobs:
+  # Runs QuestieDB's own Lua (sandboxed by the collector) on a commit nobody here has looked
+  # at, so this job gets a read-only token and hands its result over as an artifact.
+  parse:
+    name: parse
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.pin.outputs.changed }}
+      old: ${{ steps.pin.outputs.old }}
+      new: ${{ steps.pin.outputs.new }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Compare the pinned commit with QuestieDB's newest
+        id: pin
+        run: |
+          repository=$(sed -nE 's/.*"repository": *"([^"]+)".*/\1/p' collector.json)
+          old=$(sed -nE 's/.*"commit": *"([0-9a-f]{40})".*/\1/p' collector.json)
+          new=$(git ls-remote "$repository" HEAD | cut -f1)
+          if ! [[ "$old" =~ ^[0-9a-f]{40}$ && "$new" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::Could not read the pinned commit ('$old') or the newest one ('$new') of '$repository'."
+            exit 1
+          fi
+          if [ "$old" = "$new" ]; then changed=false; else changed=true; fi
+          {
+            echo "old=$old"
+            echo "new=$new"
+            echo "changed=$changed"
+          } | tee -a "$GITHUB_OUTPUT"
+          if $changed; then sed -i "s/$old/$new/" collector.json; fi
+
+      - uses: actions/setup-dotnet@v6
+        if: steps.pin.outputs.changed == 'true'
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Parse
+        if: steps.pin.outputs.changed == 'true'
+        run: dotnet run --project tools/collector/src/Collector -- parse
+
+      - name: Stop if any row failed to parse
+        if: steps.pin.outputs.changed == 'true'
+        run: |
+          failures=$(jq '.parseFailures | length' reports/validation.json)
+          if [ "$failures" != "0" ]; then
+            echo "::error::$failures row(s) could not be parsed; see reports/validation.md in the log below."
+            sed -n '/^## Parse failures/,$p' reports/validation.md
+            exit 1
+          fi
+
+      # Writes the Lua files and loads them back; exits non-zero if they differ from the JSON.
+      - name: Check that the data still exports to Lua
+        if: steps.pin.outputs.changed == 'true'
+        run: dotnet run --no-build --project tools/collector/src/Collector -- export
+
+      - uses: actions/upload-artifact@v7
+        if: steps.pin.outputs.changed == 'true'
+        with:
+          name: data
+          path: |
+            data/parsed
+            reports
+          if-no-files-found: error
+
+  propose:
+    name: propose
+    needs: parse
+    if: needs.parse.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      BASE: ${{ github.event.repository.default_branch }}
+      OLD: ${{ needs.parse.outputs.old }}
+      NEW: ${{ needs.parse.outputs.new }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Move the pin and clear the old data
+        run: |
+          [[ "$OLD" =~ ^[0-9a-f]{40}$ && "$NEW" =~ ^[0-9a-f]{40}$ ]]
+          sed -i "s/$OLD/$NEW/" collector.json
+          rm -rf data/parsed reports
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: data
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B "$BRANCH"
+          git add collector.json data/parsed reports
+          git commit -m "Update QuestieDB to ${NEW:0:10}"
+          git push --force origin "$BRANCH"
+
+      - name: Open the pull request, or reuse the open one
+        run: |
+          repository=$(sed -nE 's/.*"repository": *"([^"]+)".*/\1/p' collector.json)
+          {
+            echo "QuestieDB has moved from \`${OLD:0:10}\` to \`${NEW:0:10}\`: $repository/compare/$OLD...$NEW"
+            echo
+            echo "\`collector parse\` ran on the new commit with no parse failures, and the result still exports to Lua."
+            echo
+            echo '```'
+            git show --stat --format= HEAD
+            echo '```'
+            echo
+            echo "What the data lacks or contradicts is in \`reports/validation.md\`."
+          } > "$RUNNER_TEMP/body.md"
+
+          number=$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number')
+          if [ -z "$number" ]; then
+            gh pr create --base "$BASE" --head "$BRANCH" \
+              --title "Update QuestieDB to ${NEW:0:10}" --body-file "$RUNNER_TEMP/body.md"
+          else
+            gh pr edit "$number" --title "Update QuestieDB to ${NEW:0:10}" --body-file "$RUNNER_TEMP/body.md"
+          fi
+
+      # Before the checks start, so that the pull request still has something to wait for.
+      - name: Let it merge once the checks pass
+        run: gh pr merge "$BRANCH" --auto --merge
+
+      - name: Start the checks
+        run: gh workflow run ci.yml --ref "$BRANCH"
