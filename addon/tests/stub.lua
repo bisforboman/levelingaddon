@@ -19,6 +19,10 @@ local T = {
     timers = {}, -- functions waiting in C_Timer.After
     chat = {}, -- lines printed
     frames = {},
+    level = 1, -- UnitLevel
+    xp = 0, -- UnitXP
+    xpMax = 400, -- UnitXPMax
+    zone = "Elwynn Forest", -- GetRealZoneText
     ns = {},
     mapID = 1429, -- the map the world map shows
     canvasScale = 1,
@@ -161,6 +165,18 @@ function GetAddOnMemoryUsage()
 end
 function GetUnitSpeed()
     return T.speed
+end
+function UnitLevel()
+    return T.level
+end
+function UnitXP()
+    return T.xp
+end
+function UnitXPMax()
+    return T.xpMax
+end
+function GetRealZoneText()
+    return T.zone
 end
 function InCombatLockdown()
     return T.combat

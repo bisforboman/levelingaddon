@@ -38,8 +38,11 @@ chat that it has no quest data. Then copy `addon/LevelingAddon` into the game's
 | Command | Does |
 | --- | --- |
 | `/lvl` | Hide or show the window and arrow |
+| `/lvl settings` | Open the addon's page in the game's settings panel |
+| `/lvl set`, `/lvl set key value` | List the settings, or change one (`/lvl set opacity 0.4`, `/lvl set combatDim off`) |
 | `/lvl rows N`, `/lvl scale N` | Steps in view (3 to 16), window scale (0.6 to 2) |
 | `/lvl arrow` | Turn our arrow on or off |
+| `/lvl lock` | Lock the window in place, or unlock it |
 | `/lvl skipped` | List the quests skipped on this character |
 | `/lvl unskip NUMBER`, `/lvl unskip all` | Bring one skipped quest back (by the number in the list), or all of them |
 | `/lvl reset` | Put the window back where it starts |
@@ -49,15 +52,21 @@ chat that it has no quest data. Then copy `addon/LevelingAddon` into the game's
 In the window: drag to move, mouse wheel to scroll through the steps, the cross on a pending
 step skips its quest, the arrow on a skipped step brings the quest back. A skipped quest stays
 out of the suggestions, on that character only, until it is brought back.
+In a dungeon the window shrinks to a pause mark.
+
+The settings page holds scale, background opacity, steps in view, arrow, map pin, combat
+dimming, lock and reset position. Every change applies at once.
 
 The tests in `addon/tests/` run the addon outside the game, against a stub of the game API
 with a fake quest log (`stub.lua`). Run each from the repository root, for example
 `lua5.1 addon/tests/test_ui.lua`. `test_ui.lua` checks tracking, skip and restore, combat
 folding, the arrow's direction and distance, and the TomTom hand-off, on a fixed route
-(`northshire.lua`) with no quest data loaded; `test_core.lua` checks the shared machinery
-below. `test_planner.lua` checks the planner on quest data cut from a real export
+(`northshire.lua`) with no quest data loaded; `test_settings.lua` checks the settings page, the
+lock, the pause mark and that only changed rows are redrawn; `test_core.lua` checks the shared
+machinery below. `test_planner.lua` checks the planner on quest data cut from a real export
 (`planner_data.lua`): a fresh character, a mid-level character with a half-finished zone, a
-character who skipped ahead, a full quest log, skips, and the events that ask for a pass. They cannot check how
+character who skipped ahead, a full quest log, skips, and the events that ask for a pass.
+`test_support.lua` checks the report, the events for other addons and verbose output. They cannot check how
 anything looks, or what the game client really returns; that needs the game client.
 
 ### The planner
@@ -127,7 +136,7 @@ shares, so that no feature needs a frame for events or an `OnUpdate` of its own.
   cloud session can run the game, so whatever only the client can confirm goes there.
 - Do not edit another feature's file. `Core.lua`, the TOC header, `stub.lua` and `ci.yml` belong
   to the shared machinery (#2); `Steps.lua` and `Planner.lua` to the planner (#3); `Window.lua`
-  to #4; `Arrow.lua` to #5. Commands, defaults and events are added from your own file, with
+  and `Settings.lua` to #4; `Arrow.lua` to #5. Commands, defaults and events are added from your own file, with
   the names below.
 - Work happens on events. Nothing is recomputed per frame.
 - No `OnUpdate` of your own: register a task on the shared loop, and switch it off whenever it
@@ -148,7 +157,11 @@ shares, so that no feature needs a frame for events or an `OnUpdate` of its own.
 | `ns.commands.name = function(arg) end` | Adds `/lvl name arg`. The help line is built from the table. |
 | `ns.defaults.key = value` | A default for an account-wide setting, set at file scope and read as `ns.db.key` from `ADDON_LOADED` on. A table default is copied, and filled in key by key. |
 | `ns.charDefaults.key = value` | The same per character, read as `ns.char.key`. |
+| `ns.AddSetting({ key = "name", label = "Text" })` | Puts a control for `ns.db.name` on the addon's settings page, and under `/lvl set name`. Call it at file scope, after setting `ns.defaults.name`: a boolean default gives a checkbox, a number a slider, which also needs `min`, `max` and `step`. Optional: `tooltip`, and `onChange = function(value) end`, called after the value has changed; without it `ns.Refresh()` is called. Either way a change applies at once, with no reload. `ns.AddSetting({ label = "Text", func = function() end })` adds a button. |
+| `ns.Set(key, value)` | Changes a setting added with `ns.AddSetting` from code (a slash command, say) and applies it the same way. |
 | `ns.say(text)` | Prints a line to chat under the addon's name. |
+| `ns.Debug(text)` | The same, but only while verbose output is on (`/lvl verbose`). For anything worth seeing while chasing a bug and not otherwise. |
+| `ns.errors` | The last ten errors the shared loop and the jobs caught, oldest first, as text. `/lvl report` lists them. |
 | `ns.Refresh()` | Redraws the window and the arrow after a change. |
 
 An example, `addon/LevelingAddon/Example.lua`:
@@ -158,6 +171,7 @@ local _, ns = ...
 
 ns.charDefaults.visits = 0 -- per character
 ns.defaults.greet = true -- account-wide
+ns.AddSetting({ key = "greet", label = "Greet at login" }) -- a checkbox on the settings page
 
 -- Many events, one pass a moment later, spread over frames.
 local replan = ns.Debounce(0.2, function()
@@ -190,6 +204,50 @@ lists the commands, so the command table above does not need a row per feature. 
 memory, the last time of each reported piece of work, and the shared loop's time per frame
 while standing still and while moving, counted since the previous `/lvl debug`. The targets
 for these numbers are not set yet; they are measured in the game (issue #2).
+
+### Bug reports and verbose output
+
+`/lvl report` opens a box with text to copy into a bug report: client version, character level
+and class, zone and position, the steps around the current one, the settings, the data version
+(`ns.Data.manifest`, or "not loaded"), the timings of `/lvl debug`, and the last errors the
+addon caught. It never asks the game for the character's name, realm, guild or account. A
+feature that saves settings should keep names out of them for the same reason: the settings
+are printed as they are.
+
+`/lvl verbose` switches verbose output on or off (saved account-wide). While it is on, the
+addon prints what `ns.Debug` is given, including every event below as it is sent.
+
+### Events for other addons
+
+The addon announces three things for other addons to build on. The names and arguments are
+meant to stay as they are; arguments may be added at the end.
+
+| Event | When | Arguments |
+| --- | --- | --- |
+| `LevelingAddon.StepShown` | The current step has changed: at login, and whenever a step is finished or skipped, or the planner changes its mind, so that another one becomes current. Not on a redraw or a new plan with the same current step, and not when there is nothing to suggest. Also sent while the window is hidden. | `index`: the step's place in `ns.Steps.list` right now, from 1; it moves as the planner rebuilds the list, so do not keep it. `step`: the addon's own table for the step, to read and not to change: `kind` (`"accept"`, `"turnin"`, `"kill"`, `"loot"` or `"go"`), `name`, `questID`, `need`, `objective`, `map` (a `uiMapId`), `x` and `y` (map percent), as described under "The planner". |
+| `LevelingAddon.QuestAccepted` | The player accepted a quest, any quest, on the route or not. | `questID` |
+| `LevelingAddon.QuestTurnedIn` | The player handed a quest in, any quest. | `questID` |
+
+Listen through the global `LevelingAddonEvents`. Make your addon load after this one
+(`## OptionalDeps: LevelingAddon` in your TOC), and always pass an owner: any table or string
+of yours. It comes back as the first argument, and it is the handle to stop listening.
+
+```lua
+local owner = {}
+LevelingAddonEvents:RegisterCallback("LevelingAddon.StepShown", function(_, index, step)
+    print("now at step", index, step.kind, step.questID)
+end, owner)
+LevelingAddonEvents:RegisterCallback("LevelingAddon.QuestTurnedIn", function(_, questID)
+    print("handed in", questID)
+end, owner)
+-- later: LevelingAddonEvents:UnregisterCallback("LevelingAddon.StepShown", owner)
+```
+
+Where the client has the game's `EventRegistry`, `LevelingAddonEvents` is that same object,
+so `EventRegistry:RegisterCallback(...)` works as well and needs no load order. Where the
+client has none, `LevelingAddonEvents` is a small stand-in of the addon's own with the same
+three methods (`RegisterCallback`, `UnregisterCallback`, `TriggerEvent`), one callback per
+event and owner. An error in a listener does not stop the addon or the other listeners.
 
 ## Layout
 
