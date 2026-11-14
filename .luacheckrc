@@ -22,6 +22,7 @@ read_globals = {
     "C_QuestLog",
     "C_TaxiMap",
     "C_Timer",
+    "ChatFontNormal",
     "CreateFrame",
     "CreateVector2D",
     "debugprofilestop",
@@ -30,6 +31,7 @@ read_globals = {
     "GameTooltip",
     "GetAddOnMemoryUsage",
     "GetBindLocation",
+    "GetBuildInfo",
     "GetLocale",
     "GetMoney",
     "GetPlayerFacing",
@@ -69,4 +71,5 @@ globals = {
     "LevelingAddonCharDB",
     "SLASH_LEVELINGADDON1",
     "LevelingAddon_OnCompartmentClick",
+    "LevelingAddonEvents",
 }
