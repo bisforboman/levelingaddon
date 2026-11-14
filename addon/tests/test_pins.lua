@@ -4,6 +4,7 @@
 local T = dofile("addon/tests/stub.lua")
 local ns, fire, tick, cmd = T.ns, T.fire, T.tick, T.cmd
 T.load()
+ns.Steps.list = dofile("addon/tests/northshire.lua") -- a fixed route; no quest data, so no planning
 local before = #T.frames
 T.login()
 local function near(a, b)

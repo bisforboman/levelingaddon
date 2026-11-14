@@ -1,2 +1,4 @@
 # Not addon source: QuestieDB's checkout (data/raw) and the generated tables (data/lua).
 data/
+addon/LevelingAddon/Data/
+addon/tests/planner_data.lua

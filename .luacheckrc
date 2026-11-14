@@ -4,7 +4,7 @@ max_line_length = 120
 
 -- Not addon source: QuestieDB's checkout (data/raw), the generated tables (data/lua), and the
 -- tests that stub the game API (addon/tests).
-exclude_files = { "data/", "addon/tests/" }
+exclude_files = { "data/", "addon/tests/", "addon/LevelingAddon/Data/" }
 
 -- Methods and event handlers often leave `self` unused.
 ignore = { "212/self" }
@@ -21,6 +21,7 @@ read_globals = {
     "C_Item",
     "C_Map",
     "C_QuestLog",
+    "C_Reputation",
     "C_TaxiMap",
     "C_Timer",
     "CreateFrame",
@@ -32,15 +33,21 @@ read_globals = {
     "GetAddOnMemoryUsage",
     "GetBindLocation",
     "GetCVar",
+    "GetFactionInfoByID",
     "GetItemInfo",
     "GetLocale",
     "GetMinimapShape",
     "GetMirrorTimerProgress",
     "GetMoney",
     "GetNumGroupMembers",
+    "GetNumQuestLogEntries",
     "GetPlayerFacing",
+    "GetProfessionInfo",
+    "GetProfessions",
     "GetQuestLogPushable",
     "GetQuestLogSelection",
+    "GetQuestLogTitle",
+    "GetQuestsCompleted",
     "GetSubZoneText",
     "GetTime",
     "GetUnitSpeed",
