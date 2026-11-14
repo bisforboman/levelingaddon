@@ -38,8 +38,11 @@ chat that it has no quest data. Then copy `addon/LevelingAddon` into the game's
 | Command | Does |
 | --- | --- |
 | `/lvl` | Hide or show the window and arrow |
+| `/lvl settings` | Open the addon's page in the game's settings panel |
+| `/lvl set`, `/lvl set key value` | List the settings, or change one (`/lvl set opacity 0.4`, `/lvl set combatDim off`) |
 | `/lvl rows N`, `/lvl scale N` | Steps in view (3 to 16), window scale (0.6 to 2) |
 | `/lvl arrow` | Turn our arrow on or off |
+| `/lvl lock` | Lock the window in place, or unlock it |
 | `/lvl skipped` | List the quests skipped on this character |
 | `/lvl unskip NUMBER`, `/lvl unskip all` | Bring one skipped quest back (by the number in the list), or all of them |
 | `/lvl reset` | Put the window back where it starts |
@@ -49,13 +52,18 @@ chat that it has no quest data. Then copy `addon/LevelingAddon` into the game's
 In the window: drag to move, mouse wheel to scroll through the steps, the cross on a pending
 step skips its quest, the arrow on a skipped step brings the quest back. A skipped quest stays
 out of the suggestions, on that character only, until it is brought back.
+In a dungeon the window shrinks to a pause mark.
+
+The settings page holds scale, background opacity, steps in view, arrow, map pin, combat
+dimming, lock and reset position. Every change applies at once.
 
 The tests in `addon/tests/` run the addon outside the game, against a stub of the game API
 with a fake quest log (`stub.lua`). Run each from the repository root, for example
 `lua5.1 addon/tests/test_ui.lua`. `test_ui.lua` checks tracking, skip and restore, combat
 folding, the arrow's direction and distance, and the TomTom hand-off, on a fixed route
-(`northshire.lua`) with no quest data loaded; `test_core.lua` checks the shared machinery
-below. `test_planner.lua` checks the planner on quest data cut from a real export
+(`northshire.lua`) with no quest data loaded; `test_settings.lua` checks the settings page, the
+lock, the pause mark and that only changed rows are redrawn; `test_core.lua` checks the shared
+machinery below. `test_planner.lua` checks the planner on quest data cut from a real export
 (`planner_data.lua`): a fresh character, a mid-level character with a half-finished zone, a
 character who skipped ahead, skips, and the events that ask for a pass. `test_support.lua` checks the report, the events for other
 addons and verbose output. They cannot check how
@@ -121,7 +129,7 @@ shares, so that no feature needs a frame for events or an `OnUpdate` of its own.
   cloud session can run the game, so whatever only the client can confirm goes there.
 - Do not edit another feature's file. `Core.lua`, the TOC header, `stub.lua` and `ci.yml` belong
   to the shared machinery (#2); `Steps.lua` and `Planner.lua` to the planner (#3); `Window.lua`
-  to #4; `Arrow.lua` to #5. Commands, defaults and events are added from your own file, with
+  and `Settings.lua` to #4; `Arrow.lua` to #5. Commands, defaults and events are added from your own file, with
   the names below.
 - Work happens on events. Nothing is recomputed per frame.
 - No `OnUpdate` of your own: register a task on the shared loop, and switch it off whenever it
@@ -142,6 +150,8 @@ shares, so that no feature needs a frame for events or an `OnUpdate` of its own.
 | `ns.commands.name = function(arg) end` | Adds `/lvl name arg`. The help line is built from the table. |
 | `ns.defaults.key = value` | A default for an account-wide setting, set at file scope and read as `ns.db.key` from `ADDON_LOADED` on. A table default is copied, and filled in key by key. |
 | `ns.charDefaults.key = value` | The same per character, read as `ns.char.key`. |
+| `ns.AddSetting({ key = "name", label = "Text" })` | Puts a control for `ns.db.name` on the addon's settings page, and under `/lvl set name`. Call it at file scope, after setting `ns.defaults.name`: a boolean default gives a checkbox, a number a slider, which also needs `min`, `max` and `step`. Optional: `tooltip`, and `onChange = function(value) end`, called after the value has changed; without it `ns.Refresh()` is called. Either way a change applies at once, with no reload. `ns.AddSetting({ label = "Text", func = function() end })` adds a button. |
+| `ns.Set(key, value)` | Changes a setting added with `ns.AddSetting` from code (a slash command, say) and applies it the same way. |
 | `ns.say(text)` | Prints a line to chat under the addon's name. |
 | `ns.Debug(text)` | The same, but only while verbose output is on (`/lvl verbose`). For anything worth seeing while chasing a bug and not otherwise. |
 | `ns.errors` | The last ten errors the shared loop and the jobs caught, oldest first, as text. `/lvl report` lists them. |
@@ -154,6 +164,7 @@ local _, ns = ...
 
 ns.charDefaults.visits = 0 -- per character
 ns.defaults.greet = true -- account-wide
+ns.AddSetting({ key = "greet", label = "Greet at login" }) -- a checkbox on the settings page
 
 -- Many events, one pass a moment later, spread over frames.
 local replan = ns.Debounce(0.2, function()
