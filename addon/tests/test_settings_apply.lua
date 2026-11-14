@@ -320,6 +320,30 @@ function effects.drownAlarm(set)
     assert(dive() == "sound 8959")
 end
 
+-- A step that starts beside an elite the data lists. The step is only shown to the warning;
+-- the plan is not touched.
+function effects.eliteNotice(set)
+    ns.Data = ns.Data or {}
+    local data, current = ns.Data, ns.Steps.Current
+    local dangers = data.dangers
+    local function start(questID, name)
+        data.dangers = { [1] = { mobs = { { id = questID, name = name, at = { 50, 50 } } } } }
+        ns.Steps.Current = function(self)
+            local _, index = current(self)
+            return { kind = "go", name = "Somewhere", questID = questID, map = 1, x = 50, y = 50 }, index or 1
+        end
+        T.chat = {}
+        ns.Refresh()
+        return done() .. (T.chat[1] and T.chat[1]:match(" Elite.*") or "")
+    end
+    set(false)
+    assert(start(-1, "Brute") == "")
+    set(true)
+    assert(start(-2, "Ogre") == "sound 3175 Elite nearby: Ogre.")
+    data.dangers, ns.Steps.Current = dangers, current
+    ns.Refresh()
+end
+
 -- At an open vendor the change counts at once, both ways.
 function effects.junkSell(set)
     local function sell()

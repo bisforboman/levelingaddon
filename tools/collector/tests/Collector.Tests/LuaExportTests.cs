@@ -137,7 +137,7 @@ public sealed class LuaExportTests : IDisposable
 
         var memory = exporter.Verify(Parsed, Output, exporter.Run(Parsed, Output)).Memory;
 
-        Assert.Equal(["manifest", "quests", "questRelations", "npcs", "objects", "items", "zones", "taxiNodes", "plannerQuests", "plannerZones", "taxiPaths"], memory.Select(m => m.Table));
+        Assert.Equal(["manifest", "quests", "questRelations", "npcs", "objects", "items", "zones", "taxiNodes", "plannerQuests", "plannerZones", "dangers", "taxiPaths"], memory.Select(m => m.Table));
         Assert.All(memory, m => Assert.InRange(m.Megabytes, 0.00001, 1));
         Assert.Equal(0, memory.Single(m => m.Table == "objects").Megabytes, 3);
     }
@@ -150,7 +150,7 @@ public sealed class LuaExportTests : IDisposable
         var export = exporter.Run(Parsed, Output);
 
         Assert.Empty(exporter.Verify(Parsed, Output, export).Differences);
-        Assert.Equal(["manifest.lua", "quests-1.lua", "questRelations-1.lua", "npcs-1.lua", "objects-1.lua", "items-1.lua", "zones-1.lua", "taxiNodes-1.lua", "plannerQuests-1.lua", "plannerZones-1.lua", "taxiPaths-1.lua"], export.Files);
+        Assert.Equal(["manifest.lua", "quests-1.lua", "questRelations-1.lua", "npcs-1.lua", "objects-1.lua", "items-1.lua", "zones-1.lua", "taxiNodes-1.lua", "plannerQuests-1.lua", "plannerZones-1.lua", "dangers-1.lua", "taxiPaths-1.lua"], export.Files);
         var xml = File.ReadAllText(Path.Combine(Output, "data.xml"));
         Assert.All(export.Files, file => Assert.Contains($"<Script file=\"{file}\"/>", xml));
     }
