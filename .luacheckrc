@@ -62,6 +62,7 @@ read_globals = {
     "IsInGroup",
     "IsInGuild",
     "IsInInstance",
+    "MAX_QUESTS",
     "MinimalSliderWithSteppersMixin",
     "Minimap",
     "PlaySound",

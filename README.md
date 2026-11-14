@@ -65,8 +65,8 @@ folding, the arrow's direction and distance, and the TomTom hand-off, on a fixed
 lock, the pause mark and that only changed rows are redrawn; `test_core.lua` checks the shared
 machinery below. `test_planner.lua` checks the planner on quest data cut from a real export
 (`planner_data.lua`): a fresh character, a mid-level character with a half-finished zone, a
-character who skipped ahead, skips, and the events that ask for a pass. `test_support.lua` checks the report, the events for other
-addons and verbose output. They cannot check how
+character who skipped ahead, a full quest log, skips, and the events that ask for a pass.
+`test_support.lua` checks the report, the events for other addons and verbose output. They cannot check how
 anything looks, or what the game client really returns; that needs the game client.
 
 ### The planner
@@ -90,6 +90,13 @@ the quest log and its objectives, level, class, race, faction, zone and position
   the best-ranked one, and whatever can be done within 40 yards of where the character stands
   is done before moving on, so actions that share a place come together. Steps further down
   are a forecast and change as the character does things.
+- **Quest log limit** (issue #23): a pass asks the client how many quests the log holds and
+  counts the quests in it. The plan never holds more pick-ups than there are free places; with
+  two or fewer free, hand-ins come before everything else, nearest first. When the log is full
+  and a pick-up would otherwise have come first, one chat line says so, naming the nearest quest
+  ready to hand in if there is one; it is said once, and again only when that hand-in changes
+  or the log has had room in between. Where the client does not tell the limit, pick-ups are
+  not held back. `/lvl plan` prints the count and the limit.
 - **Working set**: the current zone, the zones whose maps overlap its map, and the 5-level band
   the character is in. Where nothing there suits the character, the best-fitting other zones
   on the continent are tried one at a time (three at most), so a character standing somewhere
