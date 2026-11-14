@@ -208,6 +208,29 @@ default, each with its own setting: "Accept quests automatically" (`/lvl set aut
   again.
 - Not built, because the data has nothing for them: gossip options, flights (#16), inns.
 
+### The target macro
+
+`/lvl macro` makes one general macro, `LvlTarget`, and puts it on the cursor to drop on an
+action bar (#12). Pressing it targets the current step's NPC or creatures and puts the skull on
+what it targeted:
+
+```
+/cleartarget
+/targetexact Kobold Vermin
+/tm 8
+```
+
+- **Names**: the quest giver or taker of an accept or turn-in step; for a kill step every
+  creature the quest data lists for that objective; for a loot step whatever drops or sells the
+  item. A step with nothing to target (a place to reach, an object to click) leaves the macro
+  empty.
+- **Length**: a macro holds 255 characters. When the names do not fit, those whose spawns are
+  nearest the step's point are kept; `/lvl verbose` says how many were left out.
+- **Combat**: the game allows no macro changes in combat, so a step change during a fight is
+  written when the fight ends.
+- **Yours**: the macro is made only on `/lvl macro`, never by itself. A macro of that name that
+  the addon did not make is left alone, and one the player deleted is not made again.
+
 ### Reward marks
 
 `Rewards.lua` marks a choice of quest rewards (issue #10), with a setting, "Mark quest rewards"
