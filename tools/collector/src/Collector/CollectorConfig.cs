@@ -17,8 +17,12 @@ public sealed record WowheadConfig(
     Dictionary<string, string>? BrowserCaptures,
     int? ReportedQuestCount = null);
 
-/// <summary>How the Lua export names its table and how large one file may grow.</summary>
-public sealed record ExportConfig(string Table = "Data", int MaxConstantsPerFile = 200_000);
+/// <summary>
+/// How the Lua export names its table, how large one file may grow, and how spawn lists are
+/// reduced: a zone's list with more than <paramref name="SpawnMergeAbove"/> points has points
+/// within <paramref name="SpawnMergeDistance"/> (map percent) of a kept point merged into it.
+/// </summary>
+public sealed record ExportConfig(string Table = "Data", int MaxConstantsPerFile = 200_000, int SpawnMergeAbove = 10, double SpawnMergeDistance = 2);
 
 public sealed record CollectorConfig(QuestieDbConfig QuestieDb, WowheadConfig Wowhead, ExportConfig? Export = null)
 {

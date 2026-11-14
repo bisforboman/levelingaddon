@@ -8,7 +8,12 @@ namespace Collector.Export;
 /// <param name="LargestLiteralCount">Distinct literals in the fullest file; Lua 5.1 refuses a file above 262,143.</param>
 public sealed record ExportedTable(string Name, int Rows, IReadOnlyList<string> Files, int LargestLiteralCount);
 
-public sealed record ExportResult(IReadOnlyList<ExportedTable> Tables, IReadOnlyList<string> Files, long Bytes);
+/// <param name="SpawnPoints">Spawn points in the JSON, and how many of them the reduction kept.</param>
+public sealed record ExportResult(IReadOnlyList<ExportedTable> Tables, IReadOnlyList<string> Files, long Bytes, int SpawnPoints, int SpawnPointsKept);
+
+/// <param name="Differences">Where the loaded Lua is not what the JSON and the spawn rule call for; empty when it is.</param>
+/// <param name="Memory">What each table holds once loaded, in the collector's interpreter, in load order.</param>
+public sealed record Verification(IReadOnlyList<string> Differences, IReadOnlyList<(string Table, double Megabytes)> Memory);
 
 /// <summary>
 /// Turns the normalized JSON into Lua files an addon can load. Every file fills one table under
@@ -19,6 +24,11 @@ public sealed record ExportResult(IReadOnlyList<ExportedTable> Tables, IReadOnly
 /// </code>
 /// Lua 5.1 allows a limited number of distinct literals per file, so a table is split across
 /// numbered files when it would come close. The files can load in any order.
+/// <para>
+/// Rows are a plain translation of the JSON except for the top-level <c>spawns</c> and
+/// <c>waypoints</c> of a row: every list of [x, y] pairs in them is written as one flat array
+/// <c>{x1,y1,x2,y2,...}</c>, and spawn lists are first reduced as <see cref="Spawns"/> describes.
+/// </para>
 /// </summary>
 public sealed class LuaExporter(ExportConfig config)
 {
@@ -37,6 +47,8 @@ public sealed class LuaExporter(ExportConfig config)
 
     private static readonly UTF8Encoding Utf8 = new(encoderShouldEmitUTF8Identifier: false);
 
+    private int _spawnPoints, _spawnPointsKept;
+
     public ExportResult Run(string parsedDirectory, string outputDirectory)
     {
         Directory.CreateDirectory(outputDirectory);
@@ -49,6 +61,7 @@ public sealed class LuaExporter(ExportConfig config)
 
         var files = new List<string>();
         var tables = new List<ExportedTable>();
+        (_spawnPoints, _spawnPointsKept) = (0, 0);
 
         var manifestLua = new StringBuilder(Header("manifest.json", provenance, null));
         manifestLua.Append($"ns.{config.Table}.manifest=");
@@ -80,20 +93,36 @@ public sealed class LuaExporter(ExportConfig config)
         xml.Append("</Ui>\n");
         File.WriteAllText(Path.Combine(outputDirectory, "data.xml"), xml.ToString(), Utf8);
 
-        return new ExportResult(tables, files, files.Sum(f => new FileInfo(Path.Combine(outputDirectory, f)).Length));
+        return new ExportResult(tables, files, files.Sum(f => new FileInfo(Path.Combine(outputDirectory, f)).Length), _spawnPoints, _spawnPointsKept);
     }
 
     /// <summary>
     /// Loads the exported files the way the game would (each called with the addon name and its
-    /// namespace table) in the sandboxed interpreter, and checks that every value read back
-    /// equals the JSON it came from. Returns the differences found; empty means identical.
+    /// namespace table) in the sandboxed interpreter, measuring what each table adds to the
+    /// interpreter's memory, and checks every value read back: spawn lists against the reduction
+    /// rule, everything else for equality with the JSON it came from.
     /// </summary>
-    public List<string> Verify(string parsedDirectory, string outputDirectory, ExportResult export)
+    public Verification Verify(string parsedDirectory, string outputDirectory, ExportResult export)
     {
-        var loads = string.Join("\n", export.Files.Select(f => $"assert(loadfile(\"{f}\"))(\"Addon\", ns)"));
+        var groups = export.Tables.Select(t => (t.Name, t.Files)).Prepend((Name: "manifest", Files: (IReadOnlyList<string>)["manifest.lua"])).ToList();
+        var loads = string.Join("\n", groups.Select(g =>
+            "before = settled()\n" +
+            string.Concat(g.Files.Select(f => $"assert(loadfile(\"{f}\"))(\"Addon\", ns)\n")) +
+            "memory[#memory + 1] = string.format('%.17g', settled() - before)"));
         var returns = string.Join(", ", Sources.Select(s => $"toJson(ns.{config.Table}.{s.Table})").Append($"toJson(ns.{config.Table}.manifest)"));
         using var sandbox = new LuaSandbox(outputDirectory);
-        var json = sandbox.Run($"{QuestieDbMerge.JsonEncoder}\nlocal ns = {{}}\n{loads}\nreturn {returns}", "=export-verify", Sources.Length + 1);
+        var json = sandbox.Run($$"""
+            {{QuestieDbMerge.JsonEncoder}}
+            local ns, memory, before = {}, {}, nil
+            local function settled()
+              collectgarbage() collectgarbage()
+              return collectgarbage("count")
+            end
+            {{loads}}
+            return table.concat(memory, " "), {{returns}}
+            """, "=export-verify", Sources.Length + 2);
+        var memory = json[0].Split(' ').Select((kilobytes, i) => (groups[i].Name, double.Parse(kilobytes, CultureInfo.InvariantCulture) / 1024)).ToList();
+        json = json[1..];
 
         var differences = new List<string>();
         for (var i = 0; i < Sources.Length; i++)
@@ -108,8 +137,8 @@ public sealed class LuaExporter(ExportConfig config)
                 var id = row.GetProperty(key).GetRawText();
                 var found = LuaEquivalence.Child(actual.RootElement, id);
                 if (found is null) differences.Add($"{table}[{id}] is missing");
-                else if (LuaEquivalence.Difference(row, found.Value, $"{table}[{id}]", key) is { } difference) differences.Add(difference);
-                if (differences.Count >= 20) return differences;
+                else if (LuaEquivalence.RowDifference(row, found.Value, $"{table}[{id}]", key, config) is { } difference) differences.Add(difference);
+                if (differences.Count >= 20) return new Verification(differences, memory);
             }
             var loaded = LuaEquivalence.Count(actual.RootElement);
             if (loaded != rows) differences.Add($"{table}: {rows} rows in JSON, {loaded} loaded from Lua");
@@ -117,9 +146,9 @@ public sealed class LuaExporter(ExportConfig config)
 
         using var manifest = JsonDocument.Parse(File.ReadAllBytes(Path.Combine(parsedDirectory, "manifest.json")));
         using var loadedManifest = JsonDocument.Parse(json[^1]);
-        if (LuaEquivalence.Difference(manifest.RootElement, loadedManifest.RootElement, "manifest", null) is { } manifestDifference)
+        if (LuaEquivalence.Difference(manifest.RootElement, loadedManifest.RootElement, "manifest") is { } manifestDifference)
             differences.Add(manifestDifference);
-        return differences;
+        return new Verification(differences, memory);
     }
 
     /// <summary>Splits rows into groups whose distinct literals stay under the per-file budget.</summary>
@@ -134,7 +163,7 @@ public sealed class LuaExporter(ExportConfig config)
             var line = new StringBuilder("t[");
             LuaWriter.WriteNumber(line, row.GetProperty(key), constants);
             line.Append("]=");
-            LuaWriter.Write(line, row, constants, skipProperty: key);
+            WriteRow(line, row, key, constants);
 
             if (chunks[^1].Count > 0 && used.Count + constants.CountNotIn(used) > config.MaxConstantsPerFile)
             {
@@ -146,6 +175,76 @@ public sealed class LuaExporter(ExportConfig config)
             chunks[^1].Add(line.ToString());
         }
         return (chunks, largest);
+    }
+
+    private void WriteRow(StringBuilder lua, JsonElement row, string key, LuaConstants constants)
+    {
+        lua.Append('{');
+        var first = true;
+        foreach (var property in row.EnumerateObject())
+        {
+            if (property.Name == key) continue;
+            if (!first) lua.Append(',');
+            first = false;
+            LuaWriter.WriteKey(lua, property.Name, constants);
+            lua.Append('=');
+            if (LuaEquivalence.HoldsPoints(property.Name)) WritePoints(lua, property.Value, constants, reduce: property.Name == "spawns");
+            else LuaWriter.Write(lua, property.Value, constants);
+        }
+        lua.Append('}');
+    }
+
+    /// <summary>Writes a value made of zone maps and lists around lists of [x, y] pairs, each such list flat.</summary>
+    private void WritePoints(StringBuilder lua, JsonElement value, LuaConstants constants, bool reduce)
+    {
+        lua.Append('{');
+        var first = true;
+        void Separate()
+        {
+            if (!first) lua.Append(',');
+            first = false;
+        }
+
+        if (Spawns.IsPointList(value))
+        {
+            var points = Spawns.Read(value);
+            if (reduce)
+            {
+                _spawnPoints += points.Count;
+                points = Spawns.Reduce(points, config);
+                _spawnPointsKept += points.Count;
+            }
+            foreach (var point in points)
+            {
+                Separate();
+                LuaWriter.WriteNumber(lua, point.X, constants);
+                lua.Append(',');
+                LuaWriter.WriteNumber(lua, point.Y, constants);
+            }
+        }
+        else if (value.ValueKind == JsonValueKind.Object)
+        {
+            foreach (var property in value.EnumerateObject())
+            {
+                Separate();
+                LuaWriter.WriteKey(lua, property.Name, constants);
+                lua.Append('=');
+                WritePoints(lua, property.Value, constants, reduce);
+            }
+        }
+        else if (value.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var element in value.EnumerateArray())
+            {
+                Separate();
+                WritePoints(lua, element, constants, reduce);
+            }
+        }
+        else
+        {
+            throw new InvalidDataException($"Expected lists of [x, y] points, found {value.GetRawText()}");
+        }
+        lua.Append('}');
     }
 
     private string Header(string sourceFile, string provenance, string? part) =>
@@ -182,22 +281,19 @@ public sealed class LuaExporter(ExportConfig config)
 /// </summary>
 internal static class LuaEquivalence
 {
-    public static string? Difference(JsonElement expected, JsonElement actual, string path, string? skipProperty)
+    /// <summary>The top-level row properties whose [x, y] lists are exported flat.</summary>
+    public static bool HoldsPoints(string property) => property is "spawns" or "waypoints";
+
+    /// <summary>Compares an entity with its exported row: the key is not in the row, and point lists are flat and, for spawns, reduced.</summary>
+    public static string? RowDifference(JsonElement expected, JsonElement actual, string path, string key, ExportConfig config) =>
+        TableDifference(expected, actual, path, key, (name, value, other, child) => HoldsPoints(name)
+            ? PointsDifference(value, other, child, name == "spawns" ? config : null)
+            : Difference(value, other, child));
+
+    public static string? Difference(JsonElement expected, JsonElement actual, string path)
     {
         if (IsTable(expected) || IsTable(actual))
-        {
-            if (!IsTable(expected) || !IsTable(actual)) return $"{path}: expected {expected.ValueKind}, loaded {actual.ValueKind}";
-            var expectedEntries = Entries(expected).Where(e => e.Key != skipProperty).ToList();
-            var actualEntries = Entries(actual).ToDictionary(e => e.Key, e => e.Value);
-            if (expectedEntries.Count != actualEntries.Count)
-                return $"{path}: {expectedEntries.Count} entries in JSON, {actualEntries.Count} loaded from Lua";
-            foreach (var (key, value) in expectedEntries)
-            {
-                if (!actualEntries.TryGetValue(key, out var other)) return $"{path}.{key} is missing";
-                if (Difference(value, other, $"{path}.{key}", null) is { } difference) return difference;
-            }
-            return null;
-        }
+            return TableDifference(expected, actual, path, null, (_, value, other, child) => Difference(value, other, child));
 
         var same = expected.ValueKind switch
         {
@@ -206,6 +302,36 @@ internal static class LuaEquivalence
             _ => expected.ValueKind == actual.ValueKind,
         };
         return same ? null : $"{path}: expected {expected.GetRawText()}, loaded {actual.GetRawText()}";
+    }
+
+    /// <summary>Compares zone maps and lists around point lists; a point list must have been loaded as flat numbers.</summary>
+    private static string? PointsDifference(JsonElement expected, JsonElement actual, string path, ExportConfig? reduction)
+    {
+        if (!Spawns.IsPointList(expected))
+            return TableDifference(expected, actual, path, null, (_, value, other, child) => PointsDifference(value, other, child, reduction));
+
+        if (actual.ValueKind != JsonValueKind.Array || actual.GetArrayLength() % 2 != 0 || actual.EnumerateArray().Any(n => n.ValueKind != JsonValueKind.Number))
+            return $"{path}: expected a flat x, y array, loaded {actual.GetRawText()}";
+        var loaded = actual.EnumerateArray().Select(n => n.GetDouble()).Chunk(2).Select(pair => new Point(pair[0], pair[1])).ToList();
+        // Without a reduction every point must be there: the rule for a list too short to merge.
+        var violation = Spawns.Violation(Spawns.Read(expected), loaded, reduction ?? new ExportConfig(SpawnMergeAbove: int.MaxValue));
+        return violation is null ? null : $"{path}: {violation}";
+    }
+
+    private static string? TableDifference(JsonElement expected, JsonElement actual, string path, string? skipProperty,
+        Func<string, JsonElement, JsonElement, string, string?> entryDifference)
+    {
+        if (!IsTable(expected) || !IsTable(actual)) return $"{path}: expected {expected.ValueKind}, loaded {actual.ValueKind}";
+        var expectedEntries = Entries(expected).Where(e => e.Key != skipProperty).ToList();
+        var actualEntries = Entries(actual).ToDictionary(e => e.Key, e => e.Value);
+        if (expectedEntries.Count != actualEntries.Count)
+            return $"{path}: {expectedEntries.Count} entries in JSON, {actualEntries.Count} loaded from Lua";
+        foreach (var (key, value) in expectedEntries)
+        {
+            if (!actualEntries.TryGetValue(key, out var other)) return $"{path}.{key} is missing";
+            if (entryDifference(key, value, other, $"{path}.{key}") is { } difference) return difference;
+        }
+        return null;
     }
 
     public static JsonElement? Child(JsonElement table, string key) =>

@@ -44,8 +44,7 @@ public static class LuaWriter
         "local", "nil", "not", "or", "repeat", "return", "then", "true", "until", "while",
     };
 
-    /// <param name="skipProperty">A top-level property to leave out, used for the id that becomes the table key.</param>
-    public static void Write(StringBuilder lua, JsonElement value, LuaConstants constants, string? skipProperty = null)
+    public static void Write(StringBuilder lua, JsonElement value, LuaConstants constants)
     {
         switch (value.ValueKind)
         {
@@ -54,7 +53,6 @@ public static class LuaWriter
                 var first = true;
                 foreach (var property in value.EnumerateObject())
                 {
-                    if (property.Name == skipProperty) continue;
                     if (!first) lua.Append(',');
                     first = false;
                     WriteKey(lua, property.Name, constants);
@@ -117,7 +115,11 @@ public static class LuaWriter
             constants.Add(integer);
             return;
         }
-        var number = value.GetDouble();
+        WriteNumber(lua, value.GetDouble(), constants);
+    }
+
+    public static void WriteNumber(StringBuilder lua, double number, LuaConstants constants)
+    {
         lua.Append(number.ToString("R", CultureInfo.InvariantCulture));
         constants.Add(number);
     }

@@ -22,7 +22,12 @@ public sealed class LuaExportTests : IDisposable
             ]
             """);
         File.WriteAllText(Path.Combine(Parsed, "quest-relations.json"), """[{"questId":2,"preQuestSingle":[6383],"nextQuestInChain":25}]""");
-        File.WriteAllText(Path.Combine(Parsed, "npcs.json"), """[{"id":12696,"name":"Senani Thunderheart","spawns":{"331":[[73.78,61.46]]}}]""");
+        File.WriteAllText(Path.Combine(Parsed, "npcs.json"), """
+            [
+            {"id":6,"name":"Kobold Vermin","spawns":{"12":[[48.89,36.44],[49.55,36.06],[-1,-1],[47.58,35.94],[60,20],[49.27,37.05]],"1":[[-1,-1]]},"waypoints":{"12":[[[48.89,36.44],[49,36.5]],[[60,20],[61,21],[60,20]]]}},
+            {"id":12696,"name":"Senani Thunderheart","spawns":{"331":[[73.78,61.46]]}}
+            ]
+            """);
         File.WriteAllText(Path.Combine(Parsed, "objects.json"), "[]");
         File.WriteAllText(Path.Combine(Parsed, "items.json"), """[{"id":16305,"name":"Sharptalon's Claw","npcDrops":[12676]}]""");
         File.WriteAllText(Path.Combine(Parsed, "zones.json"), """[{"id":331,"key":"ASHENVALE","name":"Ashenvale"}]""");
@@ -59,13 +64,67 @@ public sealed class LuaExportTests : IDisposable
     }
 
     [Fact]
+    public void Coordinate_lists_are_flat_and_few_spawns_are_kept_exactly()
+    {
+        new LuaExporter(new ExportConfig()).Run(Parsed, Output);
+
+        var lines = File.ReadAllLines(Path.Combine(Output, "npcs-1.lua"));
+        Assert.Contains("""t[6]={name="Kobold Vermin",spawns={[12]={48.89,36.44,49.55,36.06,-1,-1,47.58,35.94,60,20,49.27,37.05},[1]={-1,-1}},waypoints={[12]={{48.89,36.44,49,36.5},{60,20,61,21,60,20}}}}""", lines);
+        Assert.Contains("""t[12696]={name="Senani Thunderheart",spawns={[331]={73.78,61.46}}}""", lines);
+        // Other coordinates are a plain translation.
+        Assert.Contains("locations={[331]={{48.92,69.56}},[1]={{-1,-1}}}", File.ReadAllText(Path.Combine(Output, "quests-1.lua")));
+    }
+
+    [Fact]
+    public void Many_spawns_in_a_zone_are_merged_and_the_export_still_verifies()
+    {
+        var exporter = new LuaExporter(new ExportConfig(SpawnMergeAbove: 3, SpawnMergeDistance: 2));
+
+        var export = exporter.Run(Parsed, Output);
+
+        Assert.Contains("spawns={[12]={48.89,36.44,-1,-1,60,20},[1]={-1,-1}},waypoints={[12]={{48.89,36.44,49,36.5},{60,20,61,21,60,20}}}", File.ReadAllText(Path.Combine(Output, "npcs-1.lua")));
+        Assert.Equal((8, 5), (export.SpawnPoints, export.SpawnPointsKept));
+        Assert.Empty(exporter.Verify(Parsed, Output, export).Differences);
+    }
+
+    [Theory]
+    [InlineData("48.89,36.44,-1,-1,60,20}", "48.89,36.44,60,20}", "placeholder")]
+    [InlineData("48.89,36.44,-1,-1,60,20}", "48.89,36.44,-1,-1}", "(60, 20) was dropped")]
+    [InlineData("48.89,36.44,-1,-1,60,20}", "48.9,36.44,-1,-1,60,20}", "not the next point")]
+    [InlineData("{[331]={73.78,61.46}}", "{[331]={73.78,61.47}}", "kept exactly")]
+    [InlineData("{60,20,61,21,60,20}", "{60,20,61,21}", "npcs[6].waypoints.12.2")]
+    [InlineData("{[331]={73.78,61.46}}", "{[331]={{73.78,61.46}}}", "flat")]
+    public void Verification_reports_spawns_that_break_the_reduction_rule(string exported, string tampered, string expectedMessage)
+    {
+        var exporter = new LuaExporter(new ExportConfig(SpawnMergeAbove: 3, SpawnMergeDistance: 2));
+        var export = exporter.Run(Parsed, Output);
+        var path = Path.Combine(Output, "npcs-1.lua");
+        Assert.Contains(exported, File.ReadAllText(path));
+        File.WriteAllText(path, File.ReadAllText(path).Replace(exported, tampered));
+
+        Assert.Contains(expectedMessage, Assert.Single(exporter.Verify(Parsed, Output, export).Differences));
+    }
+
+    [Fact]
+    public void Verification_measures_what_each_table_holds_in_memory()
+    {
+        var exporter = new LuaExporter(new ExportConfig());
+
+        var memory = exporter.Verify(Parsed, Output, exporter.Run(Parsed, Output)).Memory;
+
+        Assert.Equal(["manifest", "quests", "questRelations", "npcs", "objects", "items", "zones"], memory.Select(m => m.Table));
+        Assert.All(memory, m => Assert.InRange(m.Megabytes, 0.00001, 1));
+        Assert.Equal(0, memory.Single(m => m.Table == "objects").Megabytes, 3);
+    }
+
+    [Fact]
     public void The_export_loads_and_reads_back_identical_to_the_json()
     {
         var exporter = new LuaExporter(new ExportConfig());
 
         var export = exporter.Run(Parsed, Output);
 
-        Assert.Empty(exporter.Verify(Parsed, Output, export));
+        Assert.Empty(exporter.Verify(Parsed, Output, export).Differences);
         Assert.Equal(["manifest.lua", "quests-1.lua", "questRelations-1.lua", "npcs-1.lua", "objects-1.lua", "items-1.lua", "zones-1.lua"], export.Files);
         var xml = File.ReadAllText(Path.Combine(Output, "data.xml"));
         Assert.All(export.Files, file => Assert.Contains($"<Script file=\"{file}\"/>", xml));
@@ -81,7 +140,7 @@ public sealed class LuaExportTests : IDisposable
         var quests = export.Tables.Single(t => t.Name == "quests");
         Assert.Equal(["quests-1.lua", "quests-2.lua", "quests-3.lua"], quests.Files);
         Assert.Contains("Part 2 of 3.", File.ReadAllText(Path.Combine(Output, "quests-2.lua")));
-        Assert.Empty(exporter.Verify(Parsed, Output, export));
+        Assert.Empty(exporter.Verify(Parsed, Output, export).Differences);
     }
 
     [Fact]
@@ -92,7 +151,7 @@ public sealed class LuaExportTests : IDisposable
         var export = exporter.Run(Parsed, Output);
 
         Assert.Contains("ns.QuestData.zones=ns.QuestData.zones or {}", File.ReadAllText(Path.Combine(Output, "zones-1.lua")));
-        Assert.Empty(exporter.Verify(Parsed, Output, export));
+        Assert.Empty(exporter.Verify(Parsed, Output, export).Differences);
     }
 
     [Fact]
@@ -116,7 +175,7 @@ public sealed class LuaExportTests : IDisposable
         var path = Path.Combine(Output, "quests-1.lua");
         File.WriteAllText(path, File.ReadAllText(path).Replace("level=30", "level=31"));
 
-        var differences = exporter.Verify(Parsed, Output, export);
+        var differences = exporter.Verify(Parsed, Output, export).Differences;
 
         Assert.Contains("quests[2].level", Assert.Single(differences));
     }

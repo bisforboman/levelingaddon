@@ -9,9 +9,15 @@
   // JSON -> Lua export. Files fill ns.<table>.quests, ns.<table>.npcs, ... in the addon's private
   // namespace. Lua 5.1 refuses a file with more than 262,143 distinct literals, so a table is split
   // across numbered files before it reaches maxConstantsPerFile.
+  //
+  // Spawn reduction, per NPC or object and zone. A zone's list with at most spawnMergeAbove points
+  // is exported exactly. In a longer list, a point within spawnMergeDistance (percent of the zone
+  // map) of a point already kept is merged into that one. First guesses, to be tuned in game.
   "export": {
     "table": "Data",
-    "maxConstantsPerFile": 200000
+    "maxConstantsPerFile": 200000,
+    "spawnMergeAbove": 10,
+    "spawnMergeDistance": 2
   },
 
   // Secondary source, fetched only by you, on your own machine.

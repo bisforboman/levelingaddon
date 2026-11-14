@@ -12,7 +12,7 @@ data; the addon itself (Lua) comes later.
 | Validation report | Done: [`reports/validation.md`](reports/validation.md) |
 | Polite, resumable Wowhead fetcher with raw cache | Built and tested against a local test server; not yet run against Wowhead |
 | Wowhead list / quest page parsers | Not built: need a few real sample pages first |
-| JSON → Lua export | Done: `collector export`, checked by loading the files back and in Lua 5.1 |
+| JSON → Lua export | Done: `collector export`, with reduced spawn lists and a per-table memory report; checked by loading the files back |
 
 ## Addon (UI shell)
 
@@ -80,15 +80,17 @@ QuestieDB applies at runtime for the logged-in character are also not included.
 ## Lua export
 
 `collector export` turns `data/parsed/` into Lua files for the addon, in `data/lua/` or the
-directory given with `--out`. It is a plain translation: same field names, nothing dropped, each
-entity on one line keyed by its id (the id is the key and is not repeated inside the row).
+directory given with `--out`. Rows keep the JSON's field names and nothing is dropped; each
+entity is on one line keyed by its id (the id is the key and is not repeated inside the row).
+Two things differ from the JSON, both in the `spawns` and `waypoints` of NPCs and objects:
+coordinate lists are flat, and long spawn lists are reduced. `data/parsed/` is never changed.
 
 ```lua
 local _, ns = ...
 ns.Data = ns.Data or {}
-ns.Data.quests = ns.Data.quests or {}
-local t = ns.Data.quests
-t[2]={name="Sharptalon's Claw",level=30,side="horde",start={items={16305}},["end"]={npcs={12696}},xp=2450}
+ns.Data.npcs = ns.Data.npcs or {}
+local t = ns.Data.npcs
+t[228]={name="Avette Fellwood",minLevel=24,zoneId=10,spawns={[10]={73.03,44.42}},waypoints={[10]={{73.27,44.76,73.03,44.47}}},questEnds={95161}}
 ```
 
 | Output | Contents |
@@ -97,20 +99,92 @@ t[2]={name="Sharptalon's Claw",level=30,side="horde",start={items={16305}},["end
 | `manifest.lua` | `ns.Data.manifest`: source commit and counts |
 | `data.xml` | Lists every file as a `<Script>`, so the addon's TOC needs one stable line |
 
-Things to know when designing the addon:
+### Spawns and waypoints
 
-- Zone-keyed maps use numeric keys: `npc.spawns[331][1]` is `{x, y}`.
+`npc.spawns[zoneId]` and `object.spawns[zoneId]` are one flat array of numbers,
+`{x1, y1, x2, y2, ...}`, in percent of the zone map. Zone ids are numeric keys.
+
+```lua
+local points = ns.Data.npcs[id].spawns[zoneId]
+for i = 1, #points, 2 do
+  local x, y = points[i], points[i + 1]
+  if x == -1 and y == -1 then
+    -- inside an instance: no map position
+  end
+end
+-- number of points: #points / 2
+```
+
+`npc.waypoints[zoneId]` is a list of patrol paths, each path one flat array of the same form:
+`waypoints[zoneId][pathIndex] = {x1, y1, x2, y2, ...}`. Waypoints are never reduced.
+
+Spawn lists are reduced per entity and zone, by two settings under `export` in `collector.json`:
+
+- A list with at most `spawnMergeAbove` points (10) is exported exactly as it is in the JSON, so
+  a quest giver or a named mob keeps its precise position.
+- In a longer list, going through the points in order, a point within `spawnMergeDistance` (2,
+  in percent of the zone map) of a point already kept is dropped; the kept point stands for it.
+
+So every exported point is a real spawn point, in its original order; in a reduced list the
+points are more than the merge distance apart, and every spawn that was dropped has an exported
+point within the merge distance. `-1, -1` placeholders are always kept, and they do not count
+towards `spawnMergeAbove`. Both values are first guesses to be tuned in game once the arrow
+exists. With them, 49,511 of 107,654 spawn points are exported.
+
+Not changed: a quest's `triggerEnd.locations[zoneId]` is still a list of `{x, y}` pairs (144
+quests; flattening it would save under 0.2 MB). One NPC (12126) has a third number on a spawn
+point in the JSON, a repeat of the zone's `uiMapId`; only x and y are exported.
+
+### Memory
+
+After writing, `collector export` loads the files table by table and prints what each adds to
+the interpreter's memory after a full garbage collection. The collector's interpreter is Lua
+5.4; the game runs Lua 5.1, whose tables are larger, so the same files were also measured once
+in stock Lua 5.1 on a 64-bit machine. QuestieDB commit `3f10ca0751`, in MB:
+
+| Table | Before, 5.4 | After, 5.4 | Before, 5.1 | After, 5.1 |
+| --- | ---: | ---: | ---: | ---: |
+| `quests` | 8.23 | 8.23 | 11.05 | 11.05 |
+| `questRelations` | 0.73 | 0.73 | 0.93 | 0.93 |
+| `npcs` | 13.35 | 5.49 | 15.78 | 7.19 |
+| `objects` | 3.23 | 1.02 | 3.63 | 1.20 |
+| `items` | 1.87 | 1.87 | 2.35 | 2.35 |
+| `zones` | 0.03 | 0.03 | 0.05 | 0.05 |
+| Total | 27.43 | 17.36 | 33.79 | 22.78 |
+
+The "about 47 MB" this section used to give matches Lua 5.1 right after loading, before a
+garbage collection (46.3 MB on this data); 33.79 MB is the same data once collected.
+
+Where the 11 MB went, in Lua 5.1: spawns took 12.9 MB as `{x, y}` pairs. Flat arrays alone
+bring that to 4.75 MB, and merging to 2.9 MB. Flat waypoints go from 1.5 to 0.5 MB. What is
+left in `spawns` is mostly the two small tables every entity and zone needs, not points, so
+stricter settings gain little: merging above 5 points within 3 percent ends at 22.4 MB.
+
+Measured and not done: writing rows as positional arrays (`{"Avette Fellwood",24,...}` with an
+index table per data table) would save a further 5.4 MB in Lua 5.1 (22.8 to 17.4 MB), because
+the named rows themselves cost about 10 MB. The owner decided to keep named rows for now;
+dropping unused fields later shrinks the same cost.
+
+Memory in the game client has not been measured yet.
+
+### Things to know when designing the addon
+
 - `end` is a Lua keyword, so a quest's turn-in is `quest["end"]`, not `quest.end`.
 - `requiredRaces` can exceed 32 bits (the Skyborne races); the game's `bit` library works on 32
   bits, so use `side` and `races` instead of masking it.
 - Lua 5.1 refuses a file with more than 262,143 distinct literals. A table is split into
   numbered files before it gets close; the files can load in any order.
-- Loaded in full, the tables take about 47 MB in stock Lua 5.1. The addon will probably want to
-  load less or load lazily; that is a design decision this step does not make.
+- Zone 1 (Dun Morogh) in `waypoints` is at index 1 like any other zone id; there is nothing
+  special to do in Lua.
 
-After writing, the command loads every file in the sandboxed interpreter, the way the game
-calls an addon file, and compares each value with the JSON. It exits non-zero on any difference.
-`data.xml` and loading inside the actual game client have not been tried.
+### Verification
+
+`collector export` loads every file in the sandboxed interpreter, the way the game calls an
+addon file, and checks every value read back. Spawn lists are checked against the reduction
+rule above (short lists identical; reduced lists made of original points in order, far enough
+apart, with every dropped point covered and every placeholder kept); waypoints must hold every
+point; everything else must equal the JSON. It exits non-zero on any difference. `data.xml` and
+loading inside the actual game client have not been tried.
 
 ## Sources
 
