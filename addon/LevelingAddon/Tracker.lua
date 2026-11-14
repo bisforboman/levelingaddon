@@ -1,14 +1,28 @@
 -- How the leveling is going: time, XP by source and deaths, per level and per zone, saved per
 -- character. A few counters move on XP, level-up, zone and death events; nothing runs per
 -- frame. A level the addon never saw has no row: it is unknown, not zero. A level it saw only
--- part of is marked partial. /lvl stats prints a summary.
+-- part of is marked partial. /lvl stats prints a summary, and a level-up prints one line.
 local _, ns = ...
 
 -- levels[level] and zones[zone name] are rows of { time, xp, quest, kill, deaths, partial }:
 -- seconds, XP gained, the part of it from quests and from kills (the rest is exploration and
 -- the like), and partial = true where the addon missed some of it. Beside them: level, xp and
 -- xpMax as last seen, and played, the game's total time played once it has told us.
+-- tracker.run is this character's key in ns.db.runs.
 ns.charDefaults.tracker = { levels = {}, zones = {} }
+
+-- The same rows for every character of the account, for comparing one with another later:
+-- runs[key][level], for levels finished with all of them recorded. The key is a random number
+-- made once per character, so that no name is stored. Nothing reads this yet.
+ns.defaults.runs = {}
+
+ns.defaults.levelLine = true
+ns.AddSetting({
+    key = "levelLine",
+    label = "Level time in chat",
+    tooltip = "At a level-up, say how long the level took and its XP an hour.",
+    onChange = function() end, -- read at the next level; nothing to redraw
+})
 
 local Tracker = {}
 ns.Tracker = Tracker
@@ -78,6 +92,40 @@ local function where()
     return name and name ~= "" and name or "?"
 end
 
+local function clock(seconds)
+    if seconds < 3600 then
+        return string.format("%dm %02ds", math.floor(seconds / 60), seconds % 60)
+    end
+    return string.format("%dh %02dm", math.floor(seconds / 3600), math.floor(seconds % 3600 / 60))
+end
+
+-- "7100 XP an hour", or nothing for a row without time.
+local function rate(r)
+    return r.time > 0 and math.floor(r.xp * 3600 / r.time + 0.5) .. " XP an hour"
+end
+
+-- A level is finished: keep the account's copy, and say how it went. Neither for a level the
+-- addon saw only part of. Party.lua's announcement carries the time too, and the player reads
+-- it in their own chat, so then the line is left out.
+local function finished(level)
+    local r = t.levels[level]
+    if r.partial then
+        return
+    end
+    if not t.run then
+        repeat
+            t.run = string.format("%04x%04x", math.random(0, 65535), math.random(0, 65535))
+        until not ns.db.runs[t.run]
+    end
+    ns.db.runs[t.run] = ns.db.runs[t.run] or {}
+    ns.db.runs[t.run][level] = { time = r.time, xp = r.xp, quest = r.quest, kill = r.kill, deaths = r.deaths }
+    local to = ns.db.partyAnnounce
+    if ns.db.levelLine and not (to == "party" and IsInGroup() or to == "guild" and IsInGuild()) then
+        local xp = r.xp > 0 and rate(r)
+        ns.say("level " .. level .. " took " .. clock(r.time) .. (xp and ", " .. xp or "") .. ".")
+    end
+end
+
 -- Seconds spent on `level`, and true if the addon saw only part of the level. Nothing if the
 -- level is unknown. In a PLAYER_LEVEL_UP handler, the level just finished is the new one - 1;
 -- the answer is right whether or not this file's handler has run yet.
@@ -122,7 +170,9 @@ ns.On("PLAYER_LOGIN", function()
         readXP()
         split()
         countTime()
+        local last = t.level
         t.level = newLevel
+        finished(last)
     end)
     ns.On("ZONE_CHANGED_NEW_AREA", function()
         split()
@@ -146,18 +196,11 @@ ns.On("PLAYER_LOGIN", function()
     end
 end)
 
-local function clock(seconds)
-    if seconds < 3600 then
-        return string.format("%dm %02ds", math.floor(seconds / 60), seconds % 60)
-    end
-    return string.format("%dh %02dm", math.floor(seconds / 3600), math.floor(seconds % 3600 / 60))
-end
-
 local function describe(r)
     local parts = { clock(r.time) }
     if r.xp > 0 then
         if r.time > 0 then
-            table.insert(parts, math.floor(r.xp * 3600 / r.time + 0.5) .. " XP an hour")
+            table.insert(parts, rate(r))
         end
         local quest, kill = math.floor(100 * r.quest / r.xp + 0.5), math.floor(100 * r.kill / r.xp + 0.5)
         table.insert(parts, quest .. "% from quests, " .. kill .. "% from kills")

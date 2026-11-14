@@ -358,7 +358,12 @@ choices; the owner does not recall deciding that, so it is not a decision.
 ## 8. Open questions
 
 - Should the card move when the game's objective tracker grows long enough to crowd it?
-- What does the arrow show when the target is in another zone?
+- What does the arrow show when the target is in another zone? Decided for another continent
+  (owner, 2026-11-14, from mockups, as relayed by the backlog coordinator): the arrow's frame
+  shows the destination's name in place of the arrow, the zone's name in the addon's yellow
+  and the continent's name under it, with no direction; once flight data is in, it points at
+  the flight point that leads there, when one does, captioned as the way to the destination.
+  The name state is built; the pointing state is not yet.
 - Does Blizzard's own waypoint marker (`C_Map.SetUserWaypoint`, super-tracking) work on Forever
   maps? If so the arrow could be the game's own. Needs an in-game test.
 - What does loading 47 MB at login cost, and does per-zone loading change what the expanded view
@@ -379,6 +384,13 @@ no quest name on the row and no tooltip.
 
 `Pins.lua` adds one pin on the world map and one on the minimap for the current step, with a
 tooltip naming it; none of ours when TomTom has the waypoint. `/lvl pin` switches them.
+
+Decided by the owner from mockups (2026-11-14, issue #6): on the world map only, the next three
+places after the current step get a numbered pin each, smaller and fainter, and steps close
+together share one pin whose tooltip lists what is there; no lines between them. This is built
+(three is one constant, to tune in the game). Also decided and not built yet: for a kill or
+collect step, a small dot for each place the arrow would go to, at most about twelve nearest,
+on the world map only. Not chosen: area outlines, and settings for pin count and size.
 
 Step state comes from the quest log (`C_QuestLog.IsOnQuest`, `IsQuestFlaggedCompleted`,
 `GetQuestObjectives`), refreshed shortly after the events of the steps in view (README, "Steps
@@ -408,8 +420,7 @@ GPL-3.0 project. The window is moved by dragging, with a lock and a reset.
 
 The arrow points at the nearest of a step's places, at the corpse while the player is a ghost,
 and becomes the "arrived" ring within reach of a single place (README, "The arrow"). With the
-target on another continent it is hidden for now; what it should show there is the open
-question in section 8.
+target on another continent the frame names the destination instead (section 8).
 
 `Automation.lua` accepts and hands in the quests that have a pending "accept" or "turnin" step,
 from the quest windows and from an NPC's list of quests, on the game's own events (#9). Two
@@ -444,4 +455,4 @@ yellow, the destination's name under it, on the same plate (#16; README, "Flight
 owner's decision there is no frame of its own for it, and nothing of ours is drawn while
 Ellesmere UI's flight timer is loaded.
 
-Not built yet: the numbered route on the world map.
+Not built yet: the dots for the places of a kill or collect step on the world map.

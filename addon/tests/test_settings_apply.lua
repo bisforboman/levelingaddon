@@ -359,6 +359,20 @@ function effects.partyVersion(set)
     assert(hear() == 1)
 end
 
+-- The tracker's line at a level-up.
+function effects.levelLine(set)
+    local function line()
+        T.chat = {}
+        fire("PLAYER_LEVEL_UP", ns.char.tracker.level + 1)
+        return table.concat(T.chat, "\n"):find("took") ~= nil
+    end
+    assert(line())
+    set(false)
+    assert(not line())
+    set(true)
+    assert(line())
+end
+
 function effects.partyAnnounce(set)
     local function levelUp()
         fire("PLAYER_LEVEL_UP", 2)
