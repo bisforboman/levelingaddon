@@ -20,6 +20,11 @@ local T = {
     chat = {}, -- lines printed
     frames = {},
     ns = {},
+    mapID = 1429, -- the map the world map shows
+    canvasScale = 1,
+    zoom = 0, -- minimap zoom level
+    indoors = false,
+    cvars = {}, -- GetCVar
 }
 local function widget()
     local w = { scripts = {}, shown = true, h = 20, alpha = 1 }
@@ -85,6 +90,16 @@ local function widget()
                     return 80
                 end
             end
+            if k == "SetPoint" then
+                return function(self, ...)
+                    self.point = { ... }
+                end
+            end
+            if k == "GetFrameLevel" or k == "GetScale" then
+                return function()
+                    return 1
+                end
+            end
             if k == "GetPoint" then
                 return function()
                     return "TOPRIGHT", nil, "TOPRIGHT", -10, -20
@@ -106,10 +121,11 @@ local function widget()
         end,
     })
 end
-function CreateFrame(kind, name)
+function CreateFrame(kind, name, parent)
     local f = widget()
     f.kind = kind
     f.name = name
+    f.parent = parent
     T.frames[#T.frames + 1] = f
     return f
 end
@@ -172,7 +188,61 @@ C_Map = {
     GetWorldPosFromMapPos = function(_, v)
         return 0, { x = -v.y * 1000, y = -v.x * 1000 }
     end,
+    -- Map 13 is the continent: twice as wide and high, with map 1429 in its middle. No other
+    -- map contains the spot.
+    GetMapPosFromWorldPos = function(_, p, mapID)
+        if mapID == 13 then
+            return mapID, CreateVector2D(0.25 - p.y / 2000, 0.25 - p.x / 2000)
+        end
+    end,
 }
+-- The player's world position, from the same map position as above; instance 0.
+function UnitPosition()
+    return -T.py * 1000, -T.px * 1000, 0, 0
+end
+function IsIndoors()
+    return T.indoors
+end
+function GetCVar(name)
+    return T.cvars[name]
+end
+function hooksecurefunc(t, name, hook)
+    local original = t[name]
+    rawset(t, name, function(...)
+        original(...)
+        hook(...)
+    end)
+end
+-- A 140 x 140 minimap, and a world map with a 1000 x 600 canvas.
+Minimap = widget()
+rawset(Minimap, "GetZoom", function()
+    return T.zoom
+end)
+rawset(Minimap, "GetWidth", function()
+    return 140
+end)
+rawset(Minimap, "GetHeight", function()
+    return 140
+end)
+T.canvas = widget()
+rawset(T.canvas, "GetWidth", function()
+    return 1000
+end)
+rawset(T.canvas, "GetHeight", function()
+    return 600
+end)
+rawset(T.canvas, "GetScale", function()
+    return T.canvasScale
+end)
+WorldMapFrame = widget()
+rawset(WorldMapFrame, "GetCanvas", function()
+    return T.canvas
+end)
+rawset(WorldMapFrame, "GetMapID", function()
+    return T.mapID
+end)
+function WorldMapFrame.OnMapChanged() end
+function WorldMapFrame.OnCanvasScaleChanged() end
 -- A fake quest log the test drives: quests in the log with their objective count, and quests
 -- already handed in.
 local log, completed = T.log, T.completed
