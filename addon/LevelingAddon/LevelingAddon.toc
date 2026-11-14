@@ -1,6 +1,6 @@
 ## Interface: 16001
 ## Title: Leveling Addon
-## Notes: A small guide window that shows the next step. UI shell with a sample route.
+## Notes: A small guide window that shows the next step, planned from what the character has done.
 ## Version: 0.1.0
 ## SavedVariables: LevelingAddonDB
 ## SavedVariablesPerCharacter: LevelingAddonCharDB
@@ -14,3 +14,10 @@ Steps.lua
 Window.lua
 Arrow.lua
 Survival.lua
+Junk.lua
+Party.lua
+Pins.lua
+Planner.lua
+
+# The quest data, built by the collector (README, "Building the quest data"). Not in the repository.
+Data\data.xml

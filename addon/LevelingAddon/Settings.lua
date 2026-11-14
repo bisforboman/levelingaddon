@@ -136,7 +136,6 @@ end
 ns.defaults.opacity = 0.65 -- of the window's dark backplate
 ns.defaults.combatDim = true -- fold to the current step and dim while in combat
 ns.defaults.locked = false -- the window cannot be dragged
-ns.defaults.pin = true -- the map and minimap pin for the current target
 
 ns.AddSetting({ key = "scale", label = "Scale", min = 0.6, max = 2, step = 0.05 })
 ns.AddSetting({ key = "opacity", label = "Background opacity", min = 0, max = 1, step = 0.05 })

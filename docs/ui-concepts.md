@@ -359,16 +359,26 @@ Not in v1: secure "use item" button, automation, an all-quests map layer, toolti
 
 ## 9. What is built
 
-`addon/LevelingAddon/` implements the guide window and arrow described in section 6 for a
-fixed sample route: fixed current row, history above, crossed-out skipped steps, skip on the
-right and restore on the left under the pointer, mouse-wheel scrolling with automatic return,
-combat folding, saved position, TomTom hand-off. Rows are icon, name and count only; by the
-owner's decision there is no quest name on the row and no tooltip.
+`addon/LevelingAddon/` implements the guide window and arrow described in section 6. The steps
+come from the planner (README, "The planner"), which suggests them from the character's state;
+the fixed Northshire route they were first drawn for is now a test fixture. Built: fixed
+current row, history above, crossed-out skipped steps, skip on the right and restore on the
+left under the pointer, mouse-wheel scrolling with automatic return, combat folding, saved
+position, TomTom hand-off. Rows are icon, name and count only; by the owner's decision there is
+no quest name on the row and no tooltip.
+
+`Pins.lua` adds one pin on the world map and one on the minimap for the current step, with a
+tooltip naming it; none of ours when TomTom has the waypoint. `/lvl pin` switches them.
 
 Step state comes from the quest log (`C_QuestLog.IsOnQuest`, `IsQuestFlaggedCompleted`,
 `GetQuestObjectives`), refreshed shortly after `QUEST_ACCEPTED`, `QUEST_REMOVED`,
 `QUEST_TURNED_IN` and `QUEST_LOG_UPDATE`. If the game reports a skipped step as finished, it
 shows as finished.
+
+A skip is for the step's quest and is kept per character: the step skipped on stays in the
+list, crossed out, and nothing else of that quest is suggested until it is restored, from the
+row or with `/lvl skipped` and `/lvl unskip`. Besides the four kinds drawn so far there is a
+fifth, `go` (be somewhere: an escort, an exploration), which has no icon yet.
 
 Events, the arrow's and the window's periodic updates, and the saved settings go through the
 shared machinery in `Core.lua` (README, "Writing a feature").
@@ -385,6 +395,5 @@ that does it, LibEditMode, is "All rights reserved" with its own terms (read 202
 be shipped unmodified inside an addon, not distributed otherwise), which do not fit this
 GPL-3.0 project. The window is moved by dragging, with a lock and a reset.
 
-Not built yet: route computation from the data, map and minimap pins (the settings page
-already has their switch, `ns.db.pin`), the numbered route on the world map, and the arrow's
-"arrived" ring (the arrow hides instead).
+Not built yet: the numbered route on the world map, and the arrow's "arrived" ring (the arrow
+hides instead).

@@ -45,6 +45,11 @@ None of this has been run in the game client yet. Tick each off in the game.
 - [ ] The square stays where the window's anchored corner was, and can be dragged.
 - [ ] Note what happens in a battleground or other instance kind: it pauses there too.
 
+## Icons
+
+- [ ] A "go" step (an escort or an exploration) shows the flight cursor's winged boot as its
+      icon (`Interface\\Cursor\\Taxi`), not an empty or green square.
+
 ## Cost
 
 - [ ] `/lvl debug` while questing: the loop's time per frame is no higher than before this

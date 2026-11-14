@@ -24,7 +24,11 @@ local DIM = { 0.72, 0.71, 0.67 }
 local ATLAS_DONE = "common-icon-checkmark"
 local ATLAS_SKIP = "common-icon-redx"
 local ATLAS_RESTORE = "common-icon-undo"
-local KIND_TEXTURE = { kill = "Interface\\Cursor\\Attack", loot = "Interface\\Cursor\\Pickup" }
+local KIND_TEXTURE = {
+    kill = "Interface\\Cursor\\Attack",
+    loot = "Interface\\Cursor\\Pickup",
+    go = "Interface\\Cursor\\Taxi", -- be somewhere: an escort, an exploration
+}
 local KIND_GLYPH = { accept = "!", turnin = "?" }
 
 local function setColor(region, color, alpha)
@@ -53,7 +57,7 @@ local function createRow(parent)
     local row = CreateFrame("Frame", nil, parent)
     row:SetWidth(WIDTH)
     makeDraggable(row)
-    row.step = false -- nothing drawn yet: not the same as an empty row
+    row.current = 0 -- nothing drawn yet: not the same as an empty row
 
     row.band = row:CreateTexture(nil, "BACKGROUND")
     row.band:SetAllPoints()
@@ -110,17 +114,27 @@ local function createRow(parent)
 end
 
 -- Draw one row for the step at `index`, or leave it empty when there is no such step. A row
--- that already shows exactly this is left alone.
+-- that already shows exactly this is left alone, also when the planner has handed over the
+-- same step in a new table.
 local function drawRow(row, index, currentIndex)
     local step = ns.Steps.list[index]
     local status = step and ns.Steps:Status(index)
     local have = step and ns.Steps:Progress(index)
     local current = step ~= nil and index == currentIndex
+    local kind, name, need = step and step.kind, step and step.name, step and step.need
     row.index = index
-    if row.step == step and row.status == status and row.have == have and row.current == current then
+    row.step = step
+    if
+        row.kind == kind
+        and row.text == name
+        and row.need == need
+        and row.status == status
+        and row.have == have
+        and row.current == current
+    then
         return
     end
-    row.step, row.status, row.have, row.current = step, status, have, current
+    row.kind, row.text, row.need, row.status, row.have, row.current = kind, name, need, status, have, current
 
     -- The pointer's control may belong to what the row showed before; the pointer check
     -- brings it back if it still applies.

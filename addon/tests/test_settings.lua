@@ -68,6 +68,7 @@ ns.AddSetting({
 })
 ns.AddSetting({ key = "volume", label = "Volume", min = 0, max = 10, step = 1 })
 
+ns.Steps.list = dofile("addon/tests/northshire.lua") -- a fixed route; no quest data, no planner
 T.login()
 local W = ns.Window
 local refreshes = 0

@@ -1,10 +1,12 @@
--- The guide window and the arrow on the sample route: quest-log tracking, skip, scroll back,
+-- The guide window and the arrow on a fixed route (northshire.lua, with no quest data loaded, so
+-- the planner leaves the list alone): quest-log tracking, skip, scroll back,
 -- restore, combat folding, arrow maths, TomTom hand-off.
 -- From the repository root: lua5.1 addon/tests/test_ui.lua
 local T = dofile("addon/tests/stub.lua")
 local ns, fire, tick, cmd = T.ns, T.fire, T.tick, T.cmd
 local log, completed = T.log, T.completed
 T.load()
+ns.Steps.list = dofile("addon/tests/northshire.lua")
 T.login()
 local W, S, A = ns.Window, ns.Steps, ns.Arrow
 local function view()
@@ -60,6 +62,7 @@ progress(33, 3)
 assert(S:Progress(5) == 3 and rowFor(5).count.text == "3/8")
 
 -- The player skips the wolves: the step stays, crossed out, and the kobolds become current.
+-- A skip is for the whole quest, so its turn-in (step 9) is crossed out as well.
 local wolf = rowFor(5)
 W.frame.over = true
 wolf.over = true
@@ -67,7 +70,8 @@ tick()
 assert(wolf.skip.shown and not wolf.restore.shown, "a pending row offers skip")
 wolf.skip.scripts.OnClick()
 print("skip wolves  ", view())
-assert(view() == "4v 5x 6* 7 8 9 10 11", view())
+assert(view() == "4v 5x 6* 7 8 9x 10 11", view())
+assert(ns.char.skipped[33] and ns.db.skipped == nil, "skips are kept per quest and per character")
 W.frame.over = false
 wolf.over = false
 
@@ -75,7 +79,7 @@ progress(7, 9)
 assert(S:CurrentIndex() == 6 and S:Progress(6) == 9)
 progress(7, 1)
 print("kobolds done ", view())
-assert(S:Status(6) == "done" and view() == "5x 6v 7* 8 9 10 11 12", view())
+assert(S:Status(6) == "done" and view() == "5x 6v 7* 8 9x 10 11 12", view())
 
 -- Finishing a skipped step in the game anyway marks it done: the game's word wins.
 progress(33, 5)
@@ -153,8 +157,13 @@ assert(not W.frame.shown and not A.frame.shown)
 cmd("")
 assert(W.frame.shown)
 S:Skip(5)
-cmd("unskip")
-assert(S:Status(5) == "pending")
+cmd("unskip 33")
+assert(S:Status(5) == "pending" and S:Status(9) == "pending")
+S:Skip(5)
+S:Skip(8)
+assert(S:Status(8) == "skipped" and S:Status(11) == "skipped")
+cmd("unskip all")
+assert(S:Status(5) == "pending" and S:Status(8) == "pending")
 
 -- TomTom takes the waypoint and follows the current step.
 local added, removed = 0, 0
