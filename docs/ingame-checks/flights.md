@@ -51,8 +51,8 @@ The timer
       not start one.
 - [ ] `/reload` or a disconnect in the air: no timer for the rest of that flight, no error, and
       the flight is not measured.
-- [ ] The setting "Flight timer" off: no timer; the arrow's plate is simply hidden in flight
-      (the arrow points nowhere useful from the air). On again in the air: the timer shows.
+- [ ] The setting "Flight timer" off: no timer, and the arrow is as it was before this feature
+      (it keeps pointing at the step from the air). On again in the air: the timer shows.
 - [ ] `/lvl hide` in the air hides it with the window; `/lvl` brings it back.
 - [ ] With "Arrow" switched off, or with TomTom installed, the timer still shows in flight and
       nothing of ours shows on the ground.
@@ -62,8 +62,8 @@ The timer
 
 Ellesmere UI
 
-- [ ] With Ellesmere UI's flight timer present, ours is not drawn and the arrow's plate is
-      hidden in flight. The addon looks for an addon named `EllesmereUIForeverEssentials`
+- [ ] With Ellesmere UI's flight timer present, ours is not drawn (the arrow keeps pointing at
+      the step, as before this feature). The addon looks for an addon named `EllesmereUIForeverEssentials`
       being loaded (`C_AddOns.IsAddOnLoaded`); if both timers show, give the folder name of
       the Ellesmere module that draws the timer.
 - [ ] With Ellesmere UI installed but its flight timer switched off in its own settings, there

@@ -7,7 +7,7 @@ local _, ns = ...
 local Arrow = {}
 ns.Arrow = Arrow
 
-local ARRIVE_YARDS = 8 -- one place: an NPC, an object, the corpse
+local ARRIVE_YARDS = ns.Steps.ARRIVE_YARDS -- one place: an NPC, an object, the corpse
 local AREA_YARDS = 30 -- one of the places of a kill or collect step
 local MIN_TURN = 0.02 -- radians (about one degree); smaller changes do not redraw the arrow
 local RESELECT = 5 -- updates between two looks for the nearest place

@@ -31,7 +31,6 @@ local POLL = 0.5 -- seconds between looks at the character's position, for the k
 Steps.ARRIVE_YARDS = 8 -- a point counts as reached inside this radius; the arrow's as well
 
 ns.charDefaults.skipped = {} -- [quest id] = true for quests the player chose to skip
-ns.defaults.skipped = nil -- skips used to be kept per step index, for the whole account
 
 Steps.list = {}
 Steps.state = {} -- [index] = { done = boolean, count = number }, for the steps read so far
@@ -47,11 +46,6 @@ end
 
 local function isNoted(kind, key)
     return (noted[kind][key] or 0) > GetTime()
-end
-
--- Core still reports a turn-in under this name.
-function Steps:NoteTurnedIn(questID)
-    note("turnin", questID)
 end
 
 local function handedIn(questID)
@@ -72,6 +66,12 @@ end
 
 local function goKey(step)
     return step.questID * 100 + (step.objective or 0)
+end
+
+-- Whether the character has stood at the point of this objective of a quest in the log. The
+-- planner asks, so that it does not suggest the point again.
+function Steps:Reached(questID, index)
+    return isNoted("go", questID * 100 + index)
 end
 
 -- Whether the character stands within ARRIVE_YARDS of the step's point. World x runs north
@@ -269,25 +269,18 @@ end)
 -- was made on; everything else of the old list is replaced.
 function Steps:SetPlan(rows)
     read(self, false, 1, #self.list)
-    local list, reached = {}, {}
+    local list = {}
     for index, step in ipairs(self.list) do
         local status = self:Status(index)
         if status == "done" or (status == "skipped" and step.kept) then
             list[#list + 1] = step
-            if status == "done" and step.kind == "go" then
-                reached[goKey(step)] = true
-            end
         end
     end
     while #list > HISTORY do
         table.remove(list, 1)
     end
-    -- The planner suggests a point again until the quest log calls its objective finished; a
-    -- point already reached is in the history and is not listed twice.
     for _, step in ipairs(rows) do
-        if not (step.kind == "go" and reached[goKey(step)]) then
-            list[#list + 1] = step
-        end
+        list[#list + 1] = step
     end
     self.list = list
     wipe(self.state)

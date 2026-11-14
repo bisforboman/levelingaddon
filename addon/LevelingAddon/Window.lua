@@ -166,7 +166,7 @@ local function drawRow(row, index, currentIndex)
 
     -- Progress is automatic: a count while the step is open, a tick once it is finished.
     local done = status == "done"
-    if step.need and not done then
+    if step.need and not done and step.kind ~= "go" then -- a place has no count
         row.count:SetText(have .. "/" .. step.need)
         row.count:SetTextColor(unpack(status == "pending" and YELLOW or DIM))
     else

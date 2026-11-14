@@ -80,7 +80,12 @@ objectives[1][2][1] = 3
 fire("QUEST_LOG_UPDATE")
 assert(S:Status(3) == "done" and S:CurrentIndex() == 4, "loot")
 
--- Go: reached inside the radius, and it stays reached after walking on.
+-- Go: reached inside the radius, and it stays reached after walking on. A place has no
+-- count, even where the quest log gives its objective one.
+S.list[4].need = 1
+ns.Window.rows[3].current = 0 -- drawn anew
+ns.Refresh()
+assert(ns.Window.rows[3].step == S.list[4] and ns.Window.rows[3].count.text == "", "no 0/1 on a go row")
 tick(1)
 assert(S:Status(4) == "pending", "far away")
 T.px, T.py = 0.6005, 0.6
@@ -152,12 +157,14 @@ T.px, T.py = 0.3, 0.3
 fire("QUEST_LOG_UPDATE")
 assert(S:CurrentIndex() == nil, "finished in the quest log")
 
--- The planner suggests a reached point again while its objective is open: not listed twice.
-S:SetPlan({ step("go", 7, 1, nil, 49.2, 46.3), step("accept", 9) })
+-- The planner asks which points were reached, and does not suggest those again.
+assert(S:Reached(7, 1) and not S:Reached(8, 1) and not S:Reached(7, 2))
+S:SetPlan({ step("accept", 9) })
 assert(S:Count() == n + 1 and S:Current().questID == 9)
 -- An abandoned quest takes its reached point with it.
 log[7] = nil
 S:SetPlan({ step("accept", 7) })
+assert(not S:Reached(7, 1))
 log[7] = {}
 S:SetPlan({ step("go", 7, 1, nil, 49.2, 46.3) })
 assert(S:Current().kind == "go")

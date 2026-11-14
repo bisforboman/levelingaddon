@@ -136,8 +136,7 @@ function ns.Refresh()
 end
 
 function ns.commands.pin()
-    ns.db.pin = not ns.db.pin
-    ns.Refresh()
+    ns.Set("pin", not ns.db.pin)
     ns.say("map pins " .. (ns.db.pin and "on" or "off") .. ".")
 end
 
