@@ -80,9 +80,13 @@ ns.On("PLAYER_LEVEL_UP", function(_, level)
     local to = ns.db.party.announce
     if to == "party" and IsInGroup() or to == "guild" and IsInGuild() then
         local text = "Level " .. tostring(level) .. "!"
-        -- The level tracker (#19) says how long the level took; without it, no time.
-        local seconds = ns.LevelTime and ns.LevelTime(level)
-        if type(seconds) == "number" then
+        -- The level tracker says how long the level took; without it, or for a level it saw
+        -- only part of, no time.
+        local seconds, partial
+        if ns.Tracker then
+            seconds, partial = ns.Tracker.LevelTime(level - 1)
+        end
+        if type(seconds) == "number" and not partial then
             text = text .. " It took " .. duration(seconds) .. "."
         end
         local sendChat = C_ChatInfo and C_ChatInfo.SendChatMessage or SendChatMessage
