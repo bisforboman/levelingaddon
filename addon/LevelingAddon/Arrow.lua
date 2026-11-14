@@ -70,16 +70,11 @@ function Arrow:Create()
     frame:SetScript("OnEvent", function(_, event)
         frame:SetAlpha(event == "PLAYER_REGEN_DISABLED" and 0.4 or 1)
     end)
-
-    local elapsed = 0
-    frame:SetScript("OnUpdate", function(_, seconds)
-        elapsed = elapsed + seconds
-        if elapsed >= 0.05 then
-            elapsed = 0
-            self:Update()
-        end
-    end)
 end
+
+ns.Task("arrow", 0.05, function()
+    Arrow:Update()
+end)
 
 -- Hand the waypoint to TomTom when it is there. Returns true if TomTom now has it.
 function Arrow:UpdateTomTom(step)
@@ -112,9 +107,11 @@ function Arrow:StepChanged()
     local step = ns.db.shown and ns.Steps:Current() or nil
     self.step = step
     self.tomtom = self:UpdateTomTom(step)
-    -- The frame stays shown while there is a step, so its OnUpdate keeps running; Update
-    -- hides the pieces instead when there is nothing to point at.
-    self.frame:SetShown(step ~= nil and ns.db.arrow and not self.tomtom)
+    -- The frame stays shown while there is a step, and its task keeps running; Update hides
+    -- the pieces instead when there is nothing to point at.
+    local shown = step ~= nil and ns.db.arrow and not self.tomtom
+    self.frame:SetShown(shown)
+    ns.SetTask("arrow", shown)
 end
 
 function Arrow:Update()

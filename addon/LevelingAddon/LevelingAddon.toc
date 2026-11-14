@@ -3,8 +3,10 @@
 ## Notes: A small guide window that shows the next step. UI shell with a sample route.
 ## Version: 0.1.0
 ## SavedVariables: LevelingAddonDB
+## SavedVariablesPerCharacter: LevelingAddonCharDB
 ## AddonCompartmentFunc: LevelingAddon_OnCompartmentClick
 
+# Core.lua first. A feature adds its file as one line at the end.
 Core.lua
 Steps.lua
 Window.lua

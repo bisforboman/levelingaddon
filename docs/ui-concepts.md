@@ -370,6 +370,9 @@ Step state comes from the quest log (`C_QuestLog.IsOnQuest`, `IsQuestFlaggedComp
 `QUEST_TURNED_IN` and `QUEST_LOG_UPDATE`. If the game reports a skipped step as finished, it
 shows as finished.
 
+Events, the arrow's and the window's periodic updates, and the saved settings go through the
+shared machinery in `Core.lua` (README, "Writing a feature").
+
 Checked only by lint and a stubbed smoke test; not yet run in the game client.
 
 Not built yet: route computation from the data, map and minimap pins, the numbered route on

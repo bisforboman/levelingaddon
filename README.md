@@ -33,14 +33,82 @@ human character.
 | `/lvl arrow` | Turn our arrow on or off |
 | `/lvl unskip` | Bring every skipped step back |
 | `/lvl reset` | Put the window back where it starts |
+| `/lvl debug` | Print the addon's memory use and timings (see "Writing a feature") |
 
 In the window: drag to move, mouse wheel to scroll through the route, the cross on a pending
 step skips it, the arrow on a skipped step brings it back.
 
 `lua5.1 addon/tests/smoke.lua addon/LevelingAddon` runs the addon against a stub of the game
 API with a fake quest log, and checks tracking, skip and restore, combat folding, the arrow's
-direction and distance, and the TomTom hand-off. It cannot check how anything looks; that
-needs the game client.
+direction and distance, the TomTom hand-off, and the shared machinery below. It cannot check
+how anything looks; that needs the game client.
+
+### Writing a feature
+
+The addon must stay cheap to run (issue #2). `Core.lua` holds the machinery every feature
+shares, so that no feature needs a frame for events or an `OnUpdate` of its own.
+
+- One file per feature under `addon/LevelingAddon/`, added as one line at the end of the TOC.
+  Each file starts with `local _, ns = ...`; `ns` is the table all files share.
+- Work happens on events. Nothing is recomputed per frame.
+- No `OnUpdate` of your own: register a task on the shared loop, and switch it off whenever it
+  has nothing to do.
+- Never create frames repeatedly. Create them once and reuse them from a pool.
+
+| Name | Does |
+| --- | --- |
+| `ns.On(event, handler)` | Calls `handler(event, ...)` on a game event. Any number of handlers per event, called in the order added. `ADDON_LOADED` arrives for this addon only, with the saved settings ready. Core builds the window at `PLAYER_LOGIN`, before any feature's handler for it. |
+| `ns.Debounce(seconds, fn)` | Returns a function. Calling it any number of times in a burst calls `fn()` once, `seconds` after the first call. |
+| `ns.Task(name, seconds, fn)` | Registers `fn()` on the shared update loop, to run every `seconds` (0: every frame) while the task is on. A task starts off. |
+| `ns.SetTask(name, on)` | Switches a task on or off. The loop runs only while some task is on. A task that fails three times in a row is switched off until `/reload`, and the player is told once. |
+| `ns.Job(name, fn)` | Runs `fn()` spread over frames, one job at a time, with a time limit per frame. When it finishes, its time is reported under `name`. |
+| `ns.Pause()` | Inside a job, between units of work: gives the frame back if its time is used up. Not from inside `pcall`. |
+| `ns.Clock()` | Milliseconds, for measuring: `local t = ns.Clock() ... ns.Clock() - t`. |
+| `ns.Report(name, ms)` | Records how long the named work took the last time. `/lvl debug` prints it. |
+| `ns.Stats(reset)` | The numbers `/lvl debug` prints, as a table: `memoryKB`, `timers[name]` in ms, and `loop.idle` and `loop.moving`, each `{ frames, ms, max }` for the frames the shared loop ran in. `true` starts the loop counters again. |
+| `ns.commands.name = function(arg) end` | Adds `/lvl name arg`. The help line is built from the table. |
+| `ns.defaults.key = value` | A default for an account-wide setting, set at file scope and read as `ns.db.key` from `ADDON_LOADED` on. A table default is copied, and filled in key by key. |
+| `ns.charDefaults.key = value` | The same per character, read as `ns.char.key`. |
+| `ns.say(text)` | Prints a line to chat under the addon's name. |
+| `ns.Refresh()` | Redraws the window and the arrow after a change. |
+
+An example, `addon/LevelingAddon/Example.lua`:
+
+```lua
+local _, ns = ...
+
+ns.charDefaults.visits = 0 -- per character
+ns.defaults.greet = true -- account-wide
+
+-- Many events, one pass a moment later, spread over frames.
+local replan = ns.Debounce(0.2, function()
+    ns.Job("planner", function()
+        for _ = 1, 1000 do
+            -- one unit of work
+            ns.Pause()
+        end
+    end)
+end)
+ns.On("PLAYER_LEVEL_UP", replan)
+ns.On("ZONE_CHANGED_NEW_AREA", replan)
+
+ns.On("PLAYER_LOGIN", function()
+    ns.char.visits = ns.char.visits + 1
+end)
+
+-- Something that needs frequent updates, only while it is needed.
+ns.Task("example", 0.1, function()
+    -- update what is on screen
+end)
+ns.commands.example = function(arg)
+    ns.SetTask("example", arg == "on")
+end
+```
+
+A new game API name goes into `read_globals` in `.luacheckrc`. `/lvl debug` prints the addon's
+memory, the last time of each reported piece of work, and the shared loop's time per frame
+while standing still and while moving, counted since the previous `/lvl debug`. The targets
+for these numbers are not set yet; they are measured in the game (issue #2).
 
 ## Layout
 
@@ -246,7 +314,7 @@ runs only when something it checks has changed, and is skipped otherwise:
 | Job | Runs | When these change |
 | --- | --- | --- |
 | `collector` | `dotnet build`, `dotnet test` and `dotnet format --verify-no-changes` in `tools/collector` | `tools/collector/`, `collector.json`, `.editorconfig` |
-| `lua` | `luacheck .` and `stylua --check .` from the repository root | any `.lua` file, `.luacheckrc`, `stylua.toml`, `.styluaignore` |
+| `lua` | `luacheck .` and `stylua --check .` from the repository root, then the addon's smoke test | any `.lua` file, `.luacheckrc`, `stylua.toml`, `.styluaignore` |
 
 A change to `ci.yml` itself runs both.
 
@@ -256,9 +324,8 @@ before it can merge.
 The same commands work locally. `dotnet format` without the flag fixes what it reports, and so
 does `stylua .`. Code style for the collector is in `.editorconfig`.
 
-The Lua settings are for the addon's source, which does not exist yet, so the `lua` job has no
-files to check for now. `data/` is excluded from all three tools: it holds QuestieDB's checkout
-and the generated tables.
+The Lua settings are for the addon's source. `data/` is excluded from all three tools: it holds
+QuestieDB's checkout and the generated tables.
 
 | File | Tool |
 | --- | --- |

@@ -1,6 +1,7 @@
 -- Smoke test for the addon outside the game: lua5.1 addon/tests/smoke.lua addon/LevelingAddon
 -- It loads the addon files against a stub of the game API and walks the sample route:
 -- quest-log tracking, skip, scroll back, restore, combat folding, arrow maths, TomTom hand-off.
+-- Then the shared machinery in Core: events, debouncing, the update loop, jobs, /lvl debug.
 -- Stub of the game API: every widget method exists and returns something harmless.
 local now = 0
 local function widget()
@@ -99,8 +100,10 @@ end
 UIParent = widget()
 GameTooltip = widget()
 SlashCmdList = {}
+local chat = {}
 function print(...)
-    io.write("  chat: ", table.concat({ ... }, " "), "\n")
+    chat[#chat + 1] = table.concat({ ... }, " ")
+    io.write("  chat: ", chat[#chat], "\n")
 end
 function wipe(t)
     for k in pairs(t) do
@@ -117,6 +120,19 @@ function strsplit(sep, s, n)
 end
 function GetTime()
     return now
+end
+-- A clock the test moves by hand, in milliseconds.
+local clockMs = 0
+function debugprofilestop()
+    return clockMs
+end
+function UpdateAddOnMemoryUsage() end
+function GetAddOnMemoryUsage()
+    return 123.4
+end
+local speed = 0
+function GetUnitSpeed()
+    return speed
 end
 local combat = false
 function InCombatLockdown()
@@ -174,6 +190,7 @@ C_Timer = {
 }
 
 local ns = {}
+LevelingAddonDB = { nested = { kept = 1 } } -- saved by an earlier session
 for _, f in ipairs({ "Core", "Steps", "Window", "Arrow" }) do
     assert(loadfile(arg[1] .. "/" .. f .. ".lua"))("LevelingAddon", ns)
 end
@@ -192,9 +209,30 @@ local function fire(event, a)
         f()
     end
 end
+local function tick(seconds)
+    events.scripts.OnUpdate(events, seconds or 0.1)
+end
+
+-- What a feature file does at file scope, after Core has run.
+local seen = {}
+ns.defaults.nested = { kept = 0, added = { 1, 2 } }
+ns.charDefaults.route = { at = 1 }
+ns.On("ADDON_LOADED", function(_, name)
+    seen[#seen + 1] = name .. (ns.db and ns.char and " ready" or "")
+end)
+ns.On("PLAYER_LOGIN", function()
+    seen[#seen + 1] = ns.Window.frame and "login after Core" or "login"
+end)
+ns.On("PLAYER_LOGIN", function()
+    seen[#seen + 1] = "second"
+end)
 fire("ADDON_LOADED", "Other")
 fire("ADDON_LOADED", "LevelingAddon")
+assert(ns.db == LevelingAddonDB and ns.char == LevelingAddonCharDB)
+assert(ns.db.nested.kept == 1 and ns.db.nested.added[2] == 2, "table defaults fill in what is missing")
+assert(ns.db.nested.added ~= ns.defaults.nested.added and ns.char.route.at == 1, "defaults are copied")
 fire("PLAYER_LOGIN")
+assert(table.concat(seen, ", ") == "LevelingAddon ready, login after Core, second", table.concat(seen, ", "))
 local W, S, A = ns.Window, ns.Steps, ns.Arrow
 local function view()
     local out = {}
@@ -252,7 +290,7 @@ assert(S:Progress(5) == 3 and rowFor(5).count.text == "3/8")
 local wolf = rowFor(5)
 W.frame.over = true
 wolf.over = true
-W.frame.scripts.OnUpdate(nil, 0.1)
+tick()
 assert(wolf.skip.shown and not wolf.restore.shown, "a pending row offers skip")
 wolf.skip.scripts.OnClick()
 print("skip wolves  ", view())
@@ -282,7 +320,7 @@ assert(view():match("^1v 2v"), view())
 wolf = rowFor(5)
 W.frame.over = true
 wolf.over = true
-W.frame.scripts.OnUpdate(nil, 0.1)
+tick()
 assert(wolf.restore.shown and not wolf.skip.shown, "a skipped row offers restore")
 wolf.restore.scripts.OnClick()
 print("restored     ", view())
@@ -296,7 +334,7 @@ W.frame.over = false
 W.frame.scripts.OnMouseWheel(nil, -1)
 assert(W.scroll == 1)
 now = now + 6
-W.frame.scripts.OnUpdate(nil, 0.1)
+tick()
 assert(W.scroll == 0)
 
 -- Combat folds the window to the current row.
@@ -364,4 +402,112 @@ end
 fire("QUEST_LOG_UPDATE")
 print("route done   ", view())
 assert(S:CurrentIndex() == nil)
+
+-- The shared machinery. Nothing is left to point at and the window is hidden: the loop is off.
+cmd("hide")
+assert(events.scripts.OnUpdate == nil, "no task is on: no OnUpdate")
+
+-- Debounce: a burst is one call, and the next burst is one more.
+local calls = 0
+local soon = ns.Debounce(0.2, function()
+    calls = calls + 1
+end)
+soon()
+soon()
+soon()
+assert(calls == 0 and #timers == 1)
+fire("QUEST_LOG_UPDATE")
+assert(calls == 1)
+soon()
+fire("QUEST_LOG_UPDATE")
+assert(calls == 2)
+
+-- A task runs at its interval while it is on.
+ns.Stats(true)
+local runs = 0
+ns.Task("test", 0.5, function()
+    runs = runs + 1
+    clockMs = clockMs + 2
+end)
+ns.SetTask("test", true)
+tick(0.1)
+assert(runs == 1, "a task runs on the first frame after it is switched on")
+tick(0.2)
+tick(0.2)
+assert(runs == 1)
+speed = 7
+tick(0.2)
+assert(runs == 2)
+speed = 0
+ns.SetTask("test", false)
+assert(events.scripts.OnUpdate == nil)
+local stats = ns.Stats(true)
+assert(stats.memoryKB == 123.4)
+assert(stats.loop.idle.frames == 3 and stats.loop.idle.ms == 2 and stats.loop.idle.max == 2)
+assert(stats.loop.moving.frames == 1 and stats.loop.moving.ms == 2)
+assert(ns.Stats().loop.idle.frames == 0, "Stats(true) starts the counters again")
+
+-- A task that keeps failing is stopped, the player is told once, and the rest goes on.
+local attempts = 0
+ns.Task("broken", 0, function()
+    attempts = attempts + 1
+    error("boom")
+end)
+ns.SetTask("broken", true)
+ns.SetTask("test", true)
+chat = {}
+for _ = 1, 10 do
+    tick(1)
+end
+assert(attempts == 3, "stopped after three failures in a row")
+assert(#chat == 2 and chat[1]:find("stopped 'broken'") and chat[1]:find("boom"), chat[1])
+assert(runs == 12, "the other task kept running")
+ns.SetTask("broken", true)
+tick(1)
+assert(attempts == 3, "a stopped task stays off")
+ns.SetTask("test", false)
+assert(events.scripts.OnUpdate == nil)
+
+-- A job is spread over frames: each unit of work takes 1 ms here, and a frame allows a few.
+local units, frames = 0, 0
+ns.Job("planner", function()
+    for _ = 1, 10 do
+        units = units + 1
+        clockMs = clockMs + 1
+        ns.Pause()
+    end
+end)
+ns.Job("bad", function()
+    error("oops")
+end)
+chat = {}
+while events.scripts.OnUpdate do
+    tick(0.01)
+    frames = frames + 1
+    assert(frames <= 10, "the jobs never finish")
+end
+assert(units == 10 and frames > 1 and frames <= 10)
+assert(ns.Stats().timers.planner == 10, "a finished job reports its time")
+assert(#chat == 1 and chat[1]:find("'bad' failed") and chat[1]:find("oops"))
+
+-- Timings a feature reports itself, and the debug command.
+local t = ns.Clock()
+clockMs = clockMs + 1.5
+ns.Report("sync", ns.Clock() - t)
+chat = {}
+cmd("debug")
+local out = table.concat(chat, "\n")
+assert(out:find("memory 123 KB") and out:find("planner: 10.00 ms") and out:find("sync: 1.50 ms"), out)
+assert(out:find("loop while idle: [%d.]+ ms a frame") and out:find("loop while moving: did not run"), out)
+
+-- A feature's own command, and the help line built from the table.
+local got
+ns.commands.mine = function(a)
+    got = a
+end
+cmd("mine 42")
+assert(got == "42")
+chat = {}
+cmd("nonsense")
+assert(chat[1]:find("arrow, debug, hide, mine, reset, rows, scale, show, unskip"), chat[1])
 print("ALL OK")
