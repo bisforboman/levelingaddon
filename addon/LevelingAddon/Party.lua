@@ -1,13 +1,35 @@
 -- For players who level together and both run the addon (issue #21): a version check over
 -- addon messages, a level-up announcement, and automatic quest sharing. Only the version
--- check is on by default. /lvl party switches them.
+-- check is on by default. The settings page and /lvl party switch them.
 local addonName, ns = ...
 
-ns.defaults.party = {
-    version = true, -- say once when a party member runs a newer version
-    announce = "off", -- level-ups go to "party", "guild" or "off"
-    share = false, -- share a quest with the party when it is accepted
-}
+ns.defaults.partyVersion = true -- say once when a party member runs a newer version
+ns.defaults.partyAnnounce = "off" -- level-ups go to "party", "guild" or "off"
+ns.defaults.partyShare = false -- share a quest with the party when it is accepted
+
+local sendSoon = function() end -- our version to the party, a moment from now
+
+ns.AddSetting({
+    key = "partyVersion",
+    label = "Party version check",
+    tooltip = "Say once when a party member runs a newer version of the addon.",
+    onChange = function()
+        sendSoon()
+    end,
+})
+ns.AddSetting({
+    key = "partyAnnounce",
+    label = "Announce level-ups",
+    tooltip = "Say each new level in party or guild chat.",
+    options = { "off", "party", "guild" },
+    onChange = function() end, -- read at the next level; nothing to redraw
+})
+ns.AddSetting({
+    key = "partyShare",
+    label = "Share quests",
+    tooltip = "Share a quest with the party when it is accepted.",
+    onChange = function() end, -- read at the next quest; nothing to redraw
+})
 
 -- Version check --------------------------------------------------------------------------
 
@@ -32,7 +54,7 @@ if own and C_ChatInfo and C_ChatInfo.SendAddonMessage then
 
     local told = false -- once per session
     ns.On("CHAT_MSG_ADDON", function(_, prefix, text, channel, sender)
-        if told or prefix ~= PREFIX or channel ~= "PARTY" or not ns.db.party.version then
+        if told or prefix ~= PREFIX or channel ~= "PARTY" or not ns.db.partyVersion then
             return
         end
         local theirs, theirText = version(type(text) == "string" and text:match("^V (.+)$"))
@@ -47,16 +69,21 @@ if own and C_ChatInfo and C_ChatInfo.SendAddonMessage then
     local members, lastSent, waiting = 0, -INTERVAL, false
     local function send()
         waiting = false
-        if ns.db.party.version and IsInGroup() then
+        if ns.db.partyVersion and IsInGroup() then
             lastSent = GetTime()
             C_ChatInfo.SendAddonMessage(PREFIX, "V " .. ownText, "PARTY")
         end
     end
-    local function groupChanged()
-        local count = GetNumGroupMembers()
-        if count > members and not waiting then
+    sendSoon = function()
+        if not waiting then
             waiting = true
             C_Timer.After(math.max(1, lastSent + INTERVAL - GetTime()), send)
+        end
+    end
+    local function groupChanged()
+        local count = GetNumGroupMembers()
+        if count > members then
+            sendSoon()
         end
         members = count
     end
@@ -77,7 +104,7 @@ local function duration(seconds)
 end
 
 ns.On("PLAYER_LEVEL_UP", function(_, level)
-    local to = ns.db.party.announce
+    local to = ns.db.partyAnnounce
     if to == "party" and IsInGroup() or to == "guild" and IsInGuild() then
         local text = "Level " .. tostring(level) .. "!"
         -- The level tracker says how long the level took; without it, or for a level it saw
@@ -100,7 +127,7 @@ end)
 -- before it in the classic one. Sharing works on the selected quest, so the selection is put
 -- back afterwards.
 ns.On("QUEST_ACCEPTED", function(_, index, questID)
-    if not ns.db.party.share or not IsInGroup() then
+    if not ns.db.partyShare or not IsInGroup() then
         return
     end
     if C_QuestLog.IsPushableQuest then
@@ -124,24 +151,25 @@ end)
 -- /lvl party, /lvl party version, /lvl party announce party, /lvl party share ---------------
 
 function ns.commands.party(arg)
-    local party = ns.db.party
     local what, value = strsplit(" ", string.lower(arg or ""), 2)
-    if what == "version" or what == "share" then
-        party[what] = not party[what]
+    if what == "version" then
+        ns.Set("partyVersion", not ns.db.partyVersion)
+    elseif what == "share" then
+        ns.Set("partyShare", not ns.db.partyShare)
     elseif what == "announce" and (value == "party" or value == "guild" or value == "off") then
-        party.announce = value
+        ns.Set("partyAnnounce", value)
     elseif what ~= "" then
         ns.say("/lvl party and one of: version, share, announce party, announce guild, announce off.")
         return
     end
-    local announce = party.announce == "off" and "off" or "to " .. party.announce
+    local announce = ns.db.partyAnnounce == "off" and "off" or "to " .. ns.db.partyAnnounce
     ns.say(
         "party: version check "
-            .. (party.version and "on" or "off")
+            .. (ns.db.partyVersion and "on" or "off")
             .. ", level-up announcement "
             .. announce
             .. ", quest sharing "
-            .. (party.share and "on" or "off")
+            .. (ns.db.partyShare and "on" or "off")
             .. "."
     )
 end

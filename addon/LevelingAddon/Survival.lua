@@ -5,6 +5,12 @@
 local _, ns = ...
 
 ns.defaults.drownAlarm = true -- a warning, not automation: on unless switched off
+ns.AddSetting({
+    key = "drownAlarm",
+    label = "Drowning alarm",
+    tooltip = "Sound a warning when the breath is about to run out.",
+    onChange = function() end, -- read when the alarm is due; nothing to redraw
+})
 
 local LOW = 15 -- seconds of breath left when the alarm sounds
 local rate -- the breath timer's seconds per second: negative under water, positive refilling
@@ -55,6 +61,6 @@ ns.On("MIRROR_TIMER_STOP", function(_, timer)
 end)
 
 function ns.commands.drown()
-    ns.db.drownAlarm = not ns.db.drownAlarm
+    ns.Set("drownAlarm", not ns.db.drownAlarm)
     ns.say("drowning alarm " .. (ns.db.drownAlarm and "on" or "off") .. ".")
 end

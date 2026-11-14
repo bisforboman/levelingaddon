@@ -13,10 +13,11 @@ local category -- the page, once the game has accepted it
 --     ns.defaults.greet = true
 --     ns.AddSetting({ key = "greet", label = "Greet at login" })
 -- key       the name in ns.db; its default in ns.defaults decides the control: a boolean is a
---           checkbox, a number a slider
+--           checkbox, a number a slider, a string a dropdown
 -- label     the text beside the control
 -- tooltip   optional, shown on hover
 -- min, max, step   for a slider
+-- options   for a dropdown: the values it offers, each a string
 -- onChange  optional function(value), called after ns.db[key] has changed. Without it,
 --           ns.Refresh() is called. Either way the change applies at once.
 -- func      instead of key: a button that calls func()
@@ -74,6 +75,18 @@ local function build()
                     options:SetLabelFormatter(MinimalSliderWithSteppersMixin.Label.Right, sliderLabel(spec))
                 end
                 Settings.CreateSlider(page, setting, options, spec.tooltip)
+            elseif spec.options then
+                -- Not on a client without dropdowns; /lvl set still has it.
+                local createDropdown = Settings.CreateDropdown or Settings.CreateDropDown
+                if createDropdown and Settings.CreateControlTextContainer then
+                    createDropdown(page, setting, function()
+                        local container = Settings.CreateControlTextContainer()
+                        for _, option in ipairs(spec.options) do
+                            container:Add(option, (option:gsub("^%l", string.upper)))
+                        end
+                        return container:GetData()
+                    end, spec.tooltip)
+                end
             else
                 local createCheckbox = Settings.CreateCheckbox or Settings.CreateCheckBox
                 createCheckbox(page, setting, spec.tooltip)
@@ -102,7 +115,7 @@ function ns.commands.settings()
 end
 
 -- /lvl set lists the settings; /lvl set key value changes one. A switch takes on or off, or
--- flips when no value is given.
+-- flips when no value is given; a choice takes one of its values.
 function ns.commands.set(arg)
     local key, value = strsplit(" ", arg or "", 2)
     local spec = byKey[key]
@@ -120,6 +133,15 @@ function ns.commands.set(arg)
         value = tonumber(value)
         if not value then
             ns.say(key .. " takes a number from " .. spec.min .. " to " .. spec.max .. ".")
+            return
+        end
+    elseif spec.options then
+        local known = false
+        for _, option in ipairs(spec.options) do
+            known = known or option == value
+        end
+        if not known then
+            ns.say(key .. " takes one of: " .. table.concat(spec.options, ", ") .. ".")
             return
         end
     elseif value == "on" or value == "off" then

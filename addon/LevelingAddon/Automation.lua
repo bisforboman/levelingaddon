@@ -7,18 +7,16 @@ local _, ns = ...
 
 ns.defaults.autoAccept = true
 ns.defaults.autoTurnIn = true
-local function nothing() end -- read when the next window opens; nothing to redraw
+-- No onChange: ns.Refresh, below, looks at an open window again.
 ns.AddSetting({
     key = "autoAccept",
     label = "Accept quests automatically",
     tooltip = "Accept the quests the addon suggests. Hold Shift for the opposite.",
-    onChange = nothing,
 })
 ns.AddSetting({
     key = "autoTurnIn",
     label = "Hand in quests automatically",
     tooltip = "Hand in the quests the addon suggests, unless there is a reward to choose. Hold Shift for the opposite.",
-    onChange = nothing,
 })
 
 local open -- the event of the NPC window that is open, nil when none is
