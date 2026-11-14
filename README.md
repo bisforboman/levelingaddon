@@ -69,7 +69,10 @@ machinery below. `test_planner.lua` checks the planner on quest data cut from a 
 (`planner_data.lua`): a fresh character, a mid-level character with a half-finished zone, a
 character who skipped ahead, a full quest log, skips, and the events that ask for a pass.
 `test_automation.lua` checks accepting and handing in.
-`test_support.lua` checks the report, the events for other addons and verbose output. They cannot check how
+`test_support.lua` checks the report, the events for other addons and verbose output.
+`test_steps.lua` checks that steps complete themselves: each kind on its event, a quest with
+several objectives, the grace period, steps already done, and that only the steps in view are
+read. They cannot check how
 anything looks, or what the game client really returns; that needs the game client.
 
 ### The planner
@@ -125,6 +128,36 @@ The steps are `ns.Steps.list`, rows of `{ kind, name, need, questID, objective, 
 `Status(index)` and `Progress(index)`, and redrawn by `ns.Refresh()`. Finished steps and the
 step a skip was made on stay above the plan as history.
 
+### Steps that complete themselves
+
+`Steps.lua` reads each step's state from the game (issue #7); the player never marks anything.
+One table, `KINDS`, has an entry per kind of step: the game events that can finish or undo it,
+and one function that reads the character's real state.
+
+| Kind | Done when | Events |
+| --- | --- | --- |
+| `accept` | the quest is in the log, or handed in | `QUEST_ACCEPTED`, `QUEST_REMOVED` |
+| `turnin` | the quest is flagged completed | `QUEST_TURNED_IN` |
+| `kill`, `loot` | the row's own objective (`row.objective`) is finished in the quest log, which also gives the count; or the quest is handed in | `QUEST_LOG_UPDATE` |
+| `go` | the row's objective is finished in the quest log, or the character has stood within `ns.Steps.ARRIVE_YARDS` (8) of the point with the quest in the log | `QUEST_LOG_UPDATE`, and the position twice a second |
+
+- **Only the steps in view are followed**: the two rows above the current step and as many
+  rows as the window has. `Steps.lua` acts only on the events of their kinds, and a check, 0.2
+  seconds later, reads those steps alone. A planner pass reads its whole list once. `Core.lua`
+  still asks for a check on every quest event as well; that check too reads only these steps.
+- **Already done**: when a step finishes, the steps that come into view are read at once, so
+  whatever the character has already done is ticked the moment it is shown.
+- **Grace period**: for 3 seconds after `QUEST_ACCEPTED` or `QUEST_TURNED_IN` the event is
+  taken at its word, because the quest log and the completed flag follow a moment later.
+  After that only the game's own state counts.
+- **A reached point stays reached** while its quest is in the log, and the planner's repeat of
+  that step is left out of the list.
+- The position is looked at on the shared loop, only while a `go` step in view is open.
+
+Not built, by the brief for #7: the kinds for reaching a level, training, buying, setting the
+hearthstone and taking a flight. The planner does not suggest them yet; each will be one entry
+in `KINDS`.
+
 ### The arrow
 
 `Arrow.lua` points at the current step (issue #5), or hands the waypoint to TomTom when that is
@@ -179,7 +212,7 @@ shares, so that no feature needs a frame for events or an `OnUpdate` of its own.
 - One list of what to check in the game per feature, `docs/ingame-checks/<feature>.md`: no
   cloud session can run the game, so whatever only the client can confirm goes there.
 - Do not edit another feature's file. `Core.lua`, the TOC header, `stub.lua` and `ci.yml` belong
-  to the shared machinery (#2); `Steps.lua` and `Planner.lua` to the planner (#3); `Window.lua`
+  to the shared machinery (#2); `Planner.lua` to the planner (#3); `Steps.lua` to #7; `Window.lua`
   and `Settings.lua` to #4; `Arrow.lua` to #5. Commands, defaults and events are added from your own file, with
   the names below.
 - Work happens on events. Nothing is recomputed per frame.

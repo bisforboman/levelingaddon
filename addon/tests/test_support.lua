@@ -65,6 +65,7 @@ assert(heard[2][1] == "QuestAccepted" and heard[2][2] == 783)
 assert(heard[3][1] == "StepShown" and heard[3][2] == 2 and heard[3][3].kind == "turnin")
 fire("QUEST_ACCEPTED", 4, 7)
 assert(heard[4][1] == "QuestAccepted" and heard[4][2] == 7)
+T.now = T.now + 5 -- quest 7 is not in the log: its step counts as accepted for a moment only (#7)
 
 -- Handing one in.
 T.log[783] = nil
