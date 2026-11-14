@@ -18,7 +18,9 @@ const string Usage = """
 
       parse
           Merge QuestieDB (its own code, run in a sandboxed Lua interpreter), write the normalized
-          JSON to data/parsed/ and the validation report to reports/.
+          JSON to data/parsed/ and the validation report to reports/. Then convert the flight
+          points and flight times of the taxi source pinned in collector.json, and link
+          QuestieDB's flight masters to them.
 
       export [--out DIRECTORY]
           Write data/parsed/ as Lua table files for the addon (default: data/lua/), with spawn
@@ -105,6 +107,15 @@ try
 
             Console.WriteLine($"Wrote {data.Quests.Count} quests, {data.Relations.Count} relation rows, {data.Npcs.Count} NPCs, {data.Objects.Count} objects, " +
                               $"{data.Items.Count} items, {data.Zones.Count} zones to data/parsed; {data.Failures.Count} parse failure(s). Report: reports/validation.md");
+
+            var taxiConfig = config.Taxi ?? throw new InvalidDataException("collector.json has no \"taxi\" source.");
+            var taxiCheckout = await QuestieDbSync.EnsureAsync(new QuestieDbConfig(taxiConfig.Source, taxiConfig.Revision), Path.Combine(rawRoot, "taxi"), Console.WriteLine, "shortest-path-forever");
+            var taxi = Taxi.Build(taxiCheckout, taxiConfig, merged);
+            Taxi.Write(taxi, Path.Combine(root, "data", "parsed"));
+            Console.WriteLine($"Wrote {taxi.Nodes.Count} flight points ({taxi.Nodes.Count(n => n.NpcId is null)} without a flight master) and {taxi.Paths.Count} flights " +
+                              $"({taxi.Paths.Count(p => p.Estimated == true)} with an estimated time) to data/parsed.");
+            Console.WriteLine($"Flight points without a flight master: {string.Join("; ", taxi.Nodes.Where(n => n.NpcId is null).Select(n => $"{n.Id} {n.Name}"))}");
+            Console.WriteLine($"Flight masters linked to no flight point ({taxi.UnlinkedMasters.Count}): {string.Join("; ", taxi.UnlinkedMasters.Select(m => $"{m.Id} {m.Name}"))}");
             return 0;
         }
 

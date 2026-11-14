@@ -5,6 +5,13 @@ namespace Collector;
 public sealed record QuestieDbConfig(string Repository, string Commit);
 
 /// <summary>
+/// The repository whose <c>Data/Taxi.lua</c> gives flight points and flight times, pinned by
+/// commit. The keys are not "repository" and "commit": the nightly update finds QuestieDB's pin
+/// in collector.json by those two names.
+/// </summary>
+public sealed record TaxiConfig(string Source, string Revision);
+
+/// <summary>
 /// A fetchable kind of page: where it lives, whether it needs a real browser, and the browser
 /// capture a page of this kind must yield to be worth keeping.
 /// </summary>
@@ -27,7 +34,7 @@ public sealed record WowheadConfig(
 /// </summary>
 public sealed record ExportConfig(string Table = "Data", int MaxConstantsPerFile = 200_000, int SpawnMergeAbove = 10, double SpawnMergeDistance = 2);
 
-public sealed record CollectorConfig(QuestieDbConfig QuestieDb, WowheadConfig Wowhead, ExportConfig? Export = null)
+public sealed record CollectorConfig(QuestieDbConfig QuestieDb, WowheadConfig Wowhead, ExportConfig? Export = null, TaxiConfig? Taxi = null)
 {
     public const string FileName = "collector.json";
 
