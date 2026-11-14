@@ -148,6 +148,22 @@ tick()
 assert(A.frame.alpha == 1)
 shows("39 yd", false)
 
+-- Combat dims the arrow if "Dim in combat" is on, and never brings back a hidden one.
+A.frame.scripts.OnEvent(nil, "PLAYER_REGEN_DISABLED")
+assert(A.frame.alpha == 0.4)
+ns.db.combatDim = false
+ns.Refresh()
+assert(A.frame.alpha == 1)
+ns.db.combatDim = true
+function UnitPosition() end
+tick()
+assert(A.frame.alpha == 0)
+A.frame.scripts.OnEvent(nil, "PLAYER_REGEN_ENABLED")
+assert(A.frame.alpha == 0)
+UnitPosition = position
+tick()
+assert(A.frame.alpha == 1)
+
 -- /lvl arrow still switches it off.
 T.cmd("arrow")
 assert(not A.frame.shown)

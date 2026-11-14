@@ -190,9 +190,16 @@ function Arrow:Create()
 
     frame:RegisterEvent("PLAYER_REGEN_DISABLED")
     frame:RegisterEvent("PLAYER_REGEN_ENABLED")
+    self.combat = InCombatLockdown()
     frame:SetScript("OnEvent", function(_, event)
-        frame:SetAlpha(event == "PLAYER_REGEN_DISABLED" and 0.4 or 1)
+        self.combat = event == "PLAYER_REGEN_DISABLED"
+        self:Fade()
     end)
+end
+
+-- Invisible where there is nothing to point at; dimmed in combat if the player wants that.
+function Arrow:Fade()
+    self.frame:SetAlpha(self.away and 0 or self.combat and ns.db.combatDim and 0.4 or 1)
 end
 
 ns.Task("arrow", 0.1, function()
@@ -259,6 +266,7 @@ function Arrow:StepChanged()
     local shown = self.target ~= nil and ns.db.arrow and not self.tomtom
     self.frame:SetShown(shown)
     ns.SetTask("arrow", shown)
+    self:Fade()
 end
 
 -- Dying, coming back, and arriving somewhere else: the target, or whether it can be pointed at
@@ -276,20 +284,24 @@ for _, event in ipairs({
 end
 
 function Arrow:Update()
-    local target, frame = self.target, self.frame
+    local target = self.target
     local px, py, _, continent = UnitPosition("player")
     if not px or continent ~= target.continent then
         -- No position here (an instance), or the target is on another continent: show nothing
         -- rather than an arrow in a meaningless direction. Neither changes without one of the
         -- events above, so the task rests until then.
-        frame:SetAlpha(0)
+        if not self.away then
+            self.away = true
+            self:Fade()
+        end
         if px or IsInInstance() then
             ns.SetTask("arrow", false)
         end
         return
     end
-    if frame:GetAlpha() == 0 then
-        frame:SetAlpha(InCombatLockdown() and 0.4 or 1)
+    if self.away then
+        self.away = false
+        self:Fade()
     end
 
     self.wait = self.wait - 1
