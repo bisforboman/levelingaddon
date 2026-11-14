@@ -2303,8 +2303,8 @@
       "title": "No quest level or required level",
       "meaning": "Neither level is set, so the quest cannot be placed in a level range.",
       "examples": [
-        "7790 ",
-        "8152 ",
+        "7790",
+        "8152",
         "60860 Your Reward has Arrived!",
         "60870 A Special Gift",
         "86747 Legashi Horns",
@@ -2338,10 +2338,10 @@
       "title": "No name",
       "meaning": "The quest row has no name.",
       "examples": [
-        "7790 ",
-        "8152 ",
-        "97176 ",
-        "99204 "
+        "7790",
+        "8152",
+        "97176",
+        "99204"
       ],
       "questIds": [
         7790,
