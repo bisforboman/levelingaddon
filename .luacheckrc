@@ -2,8 +2,9 @@
 std = "lua51"
 max_line_length = 120
 
--- Not addon source: QuestieDB's checkout (data/raw) and the generated tables (data/lua).
-exclude_files = { "data/" }
+-- Not addon source: QuestieDB's checkout (data/raw), the generated tables (data/lua), and the
+-- test that stubs the game API (addon/tests).
+exclude_files = { "data/", "addon/tests/" }
 
 -- Methods and event handlers often leave `self` unused.
 ignore = { "212/self" }
@@ -11,6 +12,7 @@ ignore = { "212/self" }
 -- Names the game client provides. Add each API the addon starts to use, so that a misspelt
 -- name is still reported as an undefined global.
 read_globals = {
+    "SlashCmdList",
     "CreateFrame",
     "UIParent",
     "C_Timer",
@@ -26,4 +28,20 @@ read_globals = {
     "tinsert",
     "wipe",
     "bit",
+    "strtrim",
+    "GetTime",
+    "InCombatLockdown",
+    "GetPlayerFacing",
+    "CreateVector2D",
+    "GameTooltip",
+    "TomTom",
+}
+
+-- Names the addon defines for the game to find: saved settings, the slash command, and the
+-- function the TOC names for the addon list by the minimap.
+globals = {
+    "SlashCmdList",
+    "LevelingAddonDB",
+    "SLASH_LEVELINGADDON1",
+    "LevelingAddon_OnCompartmentClick",
 }
