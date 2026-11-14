@@ -131,8 +131,11 @@ ns.Task("junk", SELL_EVERY, function()
     end
 end)
 
-ns.On("MERCHANT_SHOW", function()
-    if not ns.db.junkSell or not C_Container then
+local atVendor = false
+
+-- Queue the greys in the bags, if a vendor window is open and the player wants them sold.
+local function scan()
+    if not (atVendor and ns.db.junkSell and C_Container) then
         return
     end
     wipe(queue) -- the event can come twice for one visit
@@ -151,11 +154,30 @@ ns.On("MERCHANT_SHOW", function()
     if queue[1] then
         ns.SetTask("junk", true)
     end
+end
+
+ns.On("MERCHANT_SHOW", function()
+    atVendor = true
+    scan()
 end)
 
-ns.On("MERCHANT_CLOSED", finish)
+ns.On("MERCHANT_CLOSED", function()
+    atVendor = false
+    finish()
+end)
+
+-- At an open vendor a change counts at once: on sells now, off stops what is left.
+ns.AddSetting({
+    key = "junkSell",
+    label = "Sell junk",
+    tooltip = "Sell the grey items in the bags at a vendor. An item a quest needs is kept.",
+    onChange = function()
+        finish()
+        scan()
+    end,
+})
 
 ns.commands.junk = function()
-    ns.db.junkSell = not ns.db.junkSell
+    ns.Set("junkSell", not ns.db.junkSell)
     ns.say("selling grey items at a vendor is " .. (ns.db.junkSell and "on" or "off") .. ".")
 end

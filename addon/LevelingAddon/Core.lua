@@ -12,7 +12,6 @@ ns.defaults = { -- account-wide, saved as ns.db
     arrow = true, -- draw our own arrow (ignored when TomTom takes the waypoint)
     rows = 8, -- steps in view
     scale = 1,
-    skipped = {}, -- [step index] = true for steps the player chose to skip
 }
 
 local function say(text)
@@ -239,8 +238,7 @@ function commands.hide()
 end
 
 function commands.arrow()
-    ns.db.arrow = not ns.db.arrow
-    ns.Refresh()
+    ns.Set("arrow", not ns.db.arrow)
     say("arrow " .. (ns.db.arrow and "on" or "off") .. ".")
 end
 
@@ -250,8 +248,7 @@ function commands.rows(arg)
         say("rows takes a number from 3 to 16.")
         return
     end
-    ns.db.rows = math.floor(n)
-    ns.Refresh()
+    ns.Set("rows", n)
 end
 
 function commands.scale(arg)
@@ -260,21 +257,13 @@ function commands.scale(arg)
         say("scale takes a number from 0.6 to 2.")
         return
     end
-    ns.db.scale = n
-    ns.Refresh()
+    ns.Set("scale", n)
 end
 
 -- Put the window back where it starts.
 function commands.reset()
     ns.db.point = nil
     ns.Window:RestorePosition()
-end
-
--- Bring every skipped step back.
-function commands.unskip()
-    wipe(ns.db.skipped)
-    ns.Steps:Sync()
-    ns.Refresh()
 end
 
 -- The list of commands, built from the table.
@@ -364,22 +353,8 @@ frame:SetScript("OnEvent", function(_, event, ...)
     end
 end)
 
--- Quest events arrive in bursts (QUEST_LOG_UPDATE especially), so they only mark the state as
--- stale; one read of the quest log follows a moment later.
-local syncSoon = ns.Debounce(0.2, function()
-    if ns.Steps:Sync() then
-        ns.Refresh()
-    end
-end)
-
+-- Steps.lua follows the quest events of the steps in view from its first check on.
 ns.On("PLAYER_LOGIN", function()
-    for _, name in ipairs({ "QUEST_ACCEPTED", "QUEST_REMOVED", "QUEST_LOG_UPDATE" }) do
-        ns.On(name, syncSoon)
-    end
-    ns.On("QUEST_TURNED_IN", function(_, questID)
-        ns.Steps:NoteTurnedIn(questID)
-        syncSoon()
-    end)
     ns.Steps:Sync()
     ns.Window:Create()
     ns.Arrow:Create()

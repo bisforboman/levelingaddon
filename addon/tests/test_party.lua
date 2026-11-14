@@ -71,8 +71,10 @@ end
 
 T.load()
 T.login()
-local party = ns.db.party
-assert(party.version == true and party.announce == "off" and party.share == false, "only the version check is on")
+assert(
+    ns.db.partyVersion == true and ns.db.partyAnnounce == "off" and ns.db.partyShare == false,
+    "only the version check is on"
+)
 assert(T.prefix == "LevelingAddon" and #T.prefix <= 16)
 
 -- Messages: nothing alone, one a moment after somebody joins, none when somebody leaves.
@@ -96,10 +98,10 @@ wait(60)
 assert(#sent == 2, "somebody left: nothing to say")
 setGroup(0)
 setGroup(2)
-party.version = false
+ns.db.partyVersion = false
 wait(60)
 assert(#sent == 2, "the check is off: nothing sent")
-party.version = true
+ns.db.partyVersion = true
 
 -- What arrives: older, equal and malformed versions are ignored, and so is another channel.
 local lines = #T.chat
@@ -126,10 +128,10 @@ fire("CHAT_MSG_ADDON", "LevelingAddon", nil, "PARTY", "Friend-Realm")
 fire("CHAT_MSG_ADDON", "Other", "V 9.9.9", "PARTY", "Friend-Realm")
 hear("V 9.9.9", "WHISPER", "Stranger-Realm")
 assert(#T.chat == lines, "nothing reported")
-party.version = false
+ns.db.partyVersion = false
 hear("V 9.9.9")
 assert(#T.chat == lines, "the check is off: nothing reported")
-party.version = true
+ns.db.partyVersion = true
 
 -- A newer version is reported once in a session.
 hear("V 1.10.0")
@@ -207,10 +209,10 @@ assert(#pushed == 3 and pushed[3] == 5 and selected == 3)
 -- /lvl party
 cmd("party share")
 cmd("party version")
-assert(party.share == false and party.version == false)
+assert(ns.db.partyShare == false and ns.db.partyVersion == false)
 cmd("party version")
 cmd("party announce loudly")
-assert(party.version == true and party.announce == "off")
+assert(ns.db.partyVersion == true and ns.db.partyAnnounce == "off")
 cmd("party")
 assert(T.chat[#T.chat]:find("version check on, level-up announcement off, quest sharing off", 1, true))
 cmd("help")
