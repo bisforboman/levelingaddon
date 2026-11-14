@@ -44,10 +44,10 @@ local function hopSeconds(from, to)
 end
 
 -- The quickest way over the table from one point to another. As in the game, a flight passes
--- only through points the character knows.
-local function shortest(from, to)
+-- only through points the character knows (or through the points in `through`).
+local function shortest(from, to, through)
     local paths = ns.Data and ns.Data.taxiPaths
-    local known = ns.char.flights.known
+    local known = through or ns.char.flights.known
     local best, done = { [from] = 0 }, {}
     while paths do
         local at, least
@@ -71,8 +71,9 @@ end
 
 -- Seconds from one flight point to another, and whether this character has flown and timed
 -- that very route. `hops` are the points the game will pass, in order from `from`, where the
--- client says; without them the quickest way over the table is taken.
-function Flights.Seconds(from, to, hops)
+-- client says; without them the quickest way over the table is taken, through the points the
+-- character knows or, where given, those in `through` ([node id] = true).
+function Flights.Seconds(from, to, hops, through)
     local times = ns.char.flights.times
     if times[from] and times[from][to] then
         return times[from][to], true
@@ -82,7 +83,50 @@ function Flights.Seconds(from, to, hops)
         local seconds = hopSeconds(hops[i - 1], hops[i])
         total = seconds and total and total + seconds
     end
-    return total or shortest(from, to), false
+    return total or shortest(from, to, through), false
+end
+
+-- For the arrow (#5): the flight point to walk to for a step on the map `uiMapId`, as
+-- { map, x, y, name } with the flight master's place in map percent, or nil. It is the flight
+-- point nearest the character from which a route leads to the flight point nearest the middle
+-- of that map; nil when the character is already nearest that one, or no route leads there.
+-- Only the points the character knows are used; before any is known, all of the character's
+-- side. No flight crosses the sea, so for a map on another continent this is always nil.
+function Flights.PointTowards(uiMapId)
+    local nodes = ns.Data and ns.Data.taxiNodes
+    local ok, continent, centre = pcall(C_Map.GetWorldPosFromMapPos, uiMapId, CreateVector2D(0.5, 0.5))
+    local px, py, _, mine = UnitPosition("player")
+    if not (nodes and ok and centre and px) then
+        return nil
+    end
+    local usable = ns.char.flights.known
+    if not next(usable) then
+        usable = {}
+        local side = UnitFactionGroup("player")
+        for id, node in pairs(nodes) do
+            usable[id] = not node.faction or node.faction == side or nil
+        end
+    end
+    -- The usable point on a continent nearest a place, of those with a route to `reaches`.
+    local function nearest(map, x, y, reaches)
+        local best, least
+        for id in pairs(usable) do
+            local node = nodes[id]
+            if node and node.map == map and (not reaches or Flights.Seconds(id, reaches, nil, usable)) then
+                local square = (node.x - x) ^ 2 + (node.y - y) ^ 2
+                if not least or square < least then
+                    best, least = id, square
+                end
+            end
+        end
+        return best
+    end
+    local to = nearest(continent, centre.x, centre.y)
+    local from = to and nearest(mine, px, py, to)
+    local node = from ~= to and nodes[from]
+    if node and node.uiMapId then
+        return { map = node.uiMapId, x = node.mapX, y = node.mapY, name = node.name }
+    end
 end
 
 -- A flight in words, for a line of chat: "fly from Ironforge to Darkshire (about 4:10)".

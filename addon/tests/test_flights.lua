@@ -274,6 +274,47 @@ assert(hover(3) == "Flight time: 1:05", hover(3))
 -- Another character starts with nothing known and nothing timed: both are saved per character.
 assert(LevelingAddonCharDB.flights == saved and LevelingAddonDB.flights == nil)
 
+-- For the arrow: the flight point to walk to for a step on another map. The stub's world is
+-- one 1000 x 1000 yard map whose middle is at (-500, -500); the character stands at
+-- (-100, -100).
+local function world(id, x, y, uiMapId)
+    local node = ns.Data.taxiNodes[id]
+    node.map, node.x, node.y, node.uiMapId, node.mapX, node.mapY = 0, x, y, uiMapId, 40 + id, 50 + id
+end
+world(2, -110, -110, 1453) -- Stormwind: beside the character
+world(4, -150, -150, 1436) -- Sentinel Hill: a little further
+world(5, -510, -510, 1433) -- Lakeshire: nearest the middle of the map asked about
+world(12, 9000, 9000, 1431)
+world(19, 9000, 9000)
+world(18, -505, -505) -- the other side's
+ns.Data.taxiPaths[2].to[5] = 113
+T.px, T.py = 0.1, 0.1
+saved.known = { [2] = true, [4] = true, [5] = true }
+local point = ns.Flights.PointTowards(1433)
+assert(point and point.name == "Stormwind, Elwynn" and point.map == 1453, "walk to the nearest point with a route")
+assert(point.x == 42 and point.y == 52, "the flight master's place, in map percent")
+-- Without Stormwind the next nearest is Sentinel Hill, which has no direct flight to Lakeshire:
+-- it counts only once Darkshire, the point on the way, is known.
+saved.known[2] = nil
+assert(ns.Flights.PointTowards(1433) == nil, "no known route, no point")
+saved.known[12] = true
+assert(ns.Flights.PointTowards(1433).name == "Sentinel Hill, Westfall")
+-- Standing at the point nearest the destination: nothing to walk to.
+saved.known = { [5] = true, [2] = true }
+T.px, T.py = 0.51, 0.51
+assert(ns.Flights.PointTowards(1433) == nil)
+T.px, T.py = 0.1, 0.1
+-- With no point known yet, all points of the character's side count, and none of the other's.
+saved.known = {}
+assert(ns.Flights.PointTowards(1433).name == "Stormwind, Elwynn")
+-- A map the client has no world position for (an instance, another world) gives nothing.
+local position = C_Map.GetWorldPosFromMapPos
+C_Map.GetWorldPosFromMapPos = function() end
+assert(ns.Flights.PointTowards(1433) == nil)
+C_Map.GetWorldPosFromMapPos = position
+saved.known = { [2] = true, [5] = true }
+T.px, T.py = 0.492, 0.463
+
 -- A client without the flight map's functions, or without flight data, raises no error.
 ns.Data.taxiNodes = nil
 fire("TAXIMAP_OPENED")
