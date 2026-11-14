@@ -309,6 +309,29 @@ what it targeted:
   arrives, only while a window with a choice is open. Two badge frames, made once.
 - Not built: stat weights per class, and an automatic pick.
 
+### Quests not worth keeping
+
+`Abandon.lua` lists the quests in the log that are not worth keeping (issue #13) and abandons
+the ones the player leaves ticked. `/lvl abandon` or the button on the settings page opens the
+list; with nothing to list it says so in chat.
+
+| Reason shown | When | Starts |
+| --- | --- | --- |
+| too low level | The quest is more than 7 levels under the character, and is not a prerequisite, directly or up a chain, of a quest still worth doing | ticked |
+| skipped by you | The player skipped it and has not brought it back | unticked |
+| dungeon quest, raid quest, group quest, PvP quest | The quest carries that mark and `ns.Planner.allow` does not allow it | unticked |
+
+- **Never listed**: a quest ready to hand in, a quest the data does not know, and a quest for
+  where it is: distance is not a reason.
+- **Nothing without the click**: "Abandon N quests" abandons the ticked rows that are still in
+  the log and still unfinished. A second later chat says how many left, and how many the game
+  kept.
+- **Worked out when opened**, not kept current. `ns.QuestsToAbandon()` returns the rows,
+  `{ questID, name, reason, ticked }`, for other features (#23).
+
+`test_abandon.lua` checks the list and the button. Whether the Forever client lets an addon
+abandon a quest is not known: see [`docs/ingame-checks/abandon.md`](docs/ingame-checks/abandon.md).
+
 ### Writing a feature
 
 The addon must stay cheap to run (issue #2). `Core.lua` holds the machinery every feature
