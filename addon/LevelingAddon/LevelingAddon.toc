@@ -11,6 +11,9 @@ Core.lua
 Steps.lua
 Window.lua
 Arrow.lua
+Survival.lua
+Junk.lua
+Party.lua
 Planner.lua
 
 # The quest data, built by the collector (README, "Building the quest data"). Not in the repository.

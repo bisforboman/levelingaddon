@@ -2,8 +2,10 @@
 -- zone, a character who skipped ahead, skips, and the events that ask for a pass.
 -- From the repository root: lua5.1 addon/tests/test_planner.lua
 --
--- It loads Core, Steps and Planner against a small stub of the game API and the quest data in
--- planner_data.lua, which is cut from a real export. Every scenario starts a new session.
+-- It loads Core, Steps and Planner against the quest data in planner_data.lua, which is cut from
+-- a real export. Every scenario starts a new session with another character, another place and
+-- sometimes another client API, which stub.lua's single session does not do; so this file
+-- carries its own small stub of what those three files call.
 
 -- The world: each zone map as { north edge, west edge, width, height } in world yards, laid out
 -- as the zones lie. World x runs north and world y runs west, as in the game.

@@ -380,7 +380,7 @@ fifth, `go` (be somewhere: an escort, an exploration), which has no icon yet.
 Events, the arrow's and the window's periodic updates, and the saved settings go through the
 shared machinery in `Core.lua` (README, "Writing a feature").
 
-Checked only by lint and a stubbed smoke test; not yet run in the game client.
+Checked only by lint and stubbed tests; not yet run in the game client.
 
 Not built yet: map and minimap pins, the numbered route on
 the world map, a settings page (slash commands only for now), Edit Mode positioning (drag
