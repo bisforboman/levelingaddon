@@ -34,22 +34,33 @@ human character.
 | `/lvl unskip` | Bring every skipped step back |
 | `/lvl reset` | Put the window back where it starts |
 | `/lvl debug` | Print the addon's memory use and timings (see "Writing a feature") |
+| `/lvl help` | List every command, including those that features add |
 
 In the window: drag to move, mouse wheel to scroll through the route, the cross on a pending
 step skips it, the arrow on a skipped step brings it back.
 
-`lua5.1 addon/tests/smoke.lua addon/LevelingAddon` runs the addon against a stub of the game
-API with a fake quest log, and checks tracking, skip and restore, combat folding, the arrow's
-direction and distance, the TomTom hand-off, and the shared machinery below. It cannot check
-how anything looks; that needs the game client.
+The tests in `addon/tests/` run the addon outside the game, against a stub of the game API
+with a fake quest log (`stub.lua`). Run each from the repository root, for example
+`lua5.1 addon/tests/test_ui.lua`. `test_ui.lua` checks tracking, skip and restore, combat
+folding, the arrow's direction and distance, and the TomTom hand-off; `test_core.lua` checks
+the shared machinery below. They cannot check how anything looks; that needs the game client.
 
 ### Writing a feature
 
 The addon must stay cheap to run (issue #2). `Core.lua` holds the machinery every feature
 shares, so that no feature needs a frame for events or an `OnUpdate` of its own.
 
-- One file per feature under `addon/LevelingAddon/`, added as one line at the end of the TOC.
-  Each file starts with `local _, ns = ...`; `ns` is the table all files share.
+- One new file per feature under `addon/LevelingAddon/`, added as one line at the end of the
+  TOC. Each file starts with `local _, ns = ...`; `ns` is the table all files share.
+- One test file per feature, `addon/tests/test_<feature>.lua`, starting from `stub.lua` (its
+  header says how). CI runs every `test_*.lua`. Add to `stub.lua` only the game API your
+  feature calls.
+- One list of what to check in the game per feature, `docs/ingame-checks/<feature>.md`: no
+  cloud session can run the game, so whatever only the client can confirm goes there.
+- Do not edit another feature's file. `Core.lua`, the TOC header, `stub.lua` and `ci.yml` belong
+  to the shared machinery (#2); `Steps.lua` and `Planner.lua` to the planner (#3); `Window.lua`
+  to #4; `Arrow.lua` to #5. Commands, defaults and events are added from your own file, with
+  the names below.
 - Work happens on events. Nothing is recomputed per frame.
 - No `OnUpdate` of your own: register a task on the shared loop, and switch it off whenever it
   has nothing to do.
@@ -105,7 +116,9 @@ ns.commands.example = function(arg)
 end
 ```
 
-A new game API name goes into `read_globals` in `.luacheckrc`. `/lvl debug` prints the addon's
+A new game API name goes into `read_globals` in `.luacheckrc`, one per line in its sorted
+place; the list is seeded with names the planned features are expected to need. `/lvl help`
+lists the commands, so the command table above does not need a row per feature. `/lvl debug` prints the addon's
 memory, the last time of each reported piece of work, and the shared loop's time per frame
 while standing still and while moving, counted since the previous `/lvl debug`. The targets
 for these numbers are not set yet; they are measured in the game (issue #2).
@@ -116,7 +129,7 @@ for these numbers are not set yet; they are measured in the game (issue #2).
 collector.json          pinned sources and fetch settings
 tools/collector/        the C# / .NET 10 collector (runs outside the game)
 addon/LevelingAddon/    the addon's Lua: UI shell with a sample route
-addon/tests/            smoke test that runs outside the game
+addon/tests/            tests that run outside the game, against a stub of the game API
 docs/                   UI research, decisions and mockups
 data/raw/               raw inputs: QuestieDB checkout, cached Wowhead responses (gitignored)
 data/parsed/            normalized JSON, the source of truth (committed)
@@ -314,7 +327,7 @@ runs only when something it checks has changed, and is skipped otherwise:
 | Job | Runs | When these change |
 | --- | --- | --- |
 | `collector` | `dotnet build`, `dotnet test` and `dotnet format --verify-no-changes` in `tools/collector` | `tools/collector/`, `collector.json`, `.editorconfig` |
-| `lua` | `luacheck .` and `stylua --check .` from the repository root, then the addon's smoke test | any `.lua` file, `.luacheckrc`, `stylua.toml`, `.styluaignore` |
+| `lua` | `luacheck .` and `stylua --check .` from the repository root, then every `addon/tests/test_*.lua` | any `.lua` file, `.luacheckrc`, `stylua.toml`, `.styluaignore` |
 
 A change to `ci.yml` itself runs both.
 

@@ -1,0 +1,245 @@
+-- A stub of the game API for tests that run outside the game, shared by every test file.
+-- Every widget method exists and returns something harmless. A test starts with
+--     local T = dofile("addon/tests/stub.lua")
+--     T.load()   -- runs the addon's files in TOC order; T.ns is their shared table
+--     T.login()  -- ADDON_LOADED and PLAYER_LOGIN
+-- and then drives the game through T: T.fire(event, ...), T.tick(seconds), T.cmd("rows 5"),
+-- the fake quest log (T.log, T.completed), the fields below, and T.chat for what was printed.
+-- Run tests from the repository root: lua5.1 addon/tests/test_core.lua
+local T = {
+    now = 0, -- GetTime, seconds
+    clockMs = 0, -- debugprofilestop, milliseconds
+    speed = 0, -- GetUnitSpeed
+    combat = false,
+    facing = 0,
+    px = 0.492, -- the player's map position
+    py = 0.463,
+    log = {}, -- [quest id] = { need = n, have = n } for quests in the log
+    completed = {}, -- [quest id] = true for quests handed in
+    timers = {}, -- functions waiting in C_Timer.After
+    chat = {}, -- lines printed
+    frames = {},
+    ns = {},
+}
+local function widget()
+    local w = { scripts = {}, shown = true, h = 20, alpha = 1 }
+    return setmetatable(w, {
+        __index = function(t, k)
+            if k == "SetScript" then
+                return function(self, n, f)
+                    self.scripts[n] = f
+                end
+            end
+            if k == "SetHeight" then
+                return function(self, v)
+                    self.h = v
+                end
+            end
+            if k == "GetHeight" then
+                return function(self)
+                    return self.h
+                end
+            end
+            if k == "SetShown" then
+                return function(self, v)
+                    self.shown = v and true or false
+                end
+            end
+            if k == "Show" then
+                return function(self)
+                    self.shown = true
+                end
+            end
+            if k == "Hide" then
+                return function(self)
+                    self.shown = false
+                end
+            end
+            if k == "IsShown" then
+                return function(self)
+                    return self.shown
+                end
+            end
+            if k == "SetAlpha" then
+                return function(self, v)
+                    self.alpha = v
+                end
+            end
+            if k == "GetAlpha" then
+                return function(self)
+                    return self.alpha
+                end
+            end
+            if k == "SetText" then
+                return function(self, v)
+                    self.text = v
+                end
+            end
+            if k == "IsMouseOver" then
+                return function(self)
+                    return self.over or false
+                end
+            end
+            if k == "GetStringWidth" then
+                return function()
+                    return 80
+                end
+            end
+            if k == "GetPoint" then
+                return function()
+                    return "TOPRIGHT", nil, "TOPRIGHT", -10, -20
+                end
+            end
+            if k == "CreateTexture" or k == "CreateFontString" then
+                return function()
+                    return widget()
+                end
+            end
+            if k == "IsOwned" then
+                return function()
+                    return false
+                end
+            end
+            if type(k) == "string" and k:match("^%u") then
+                return function() end
+            end
+        end,
+    })
+end
+function CreateFrame(kind, name)
+    local f = widget()
+    f.kind = kind
+    f.name = name
+    T.frames[#T.frames + 1] = f
+    return f
+end
+UIParent = widget()
+GameTooltip = widget()
+SlashCmdList = {}
+function print(...)
+    T.chat[#T.chat + 1] = table.concat({ ... }, " ")
+    io.write("  chat: ", T.chat[#T.chat], "\n")
+end
+function wipe(t)
+    for k in pairs(t) do
+        t[k] = nil
+    end
+    return t
+end
+function strtrim(s)
+    return (s:gsub("^%s+", ""):gsub("%s+$", ""))
+end
+function strsplit(sep, s, n)
+    local a, b = s:match("^([^" .. sep .. "]*)" .. sep .. "?(.*)$")
+    return a, b ~= "" and b or nil
+end
+function GetTime()
+    return T.now
+end
+function debugprofilestop()
+    return T.clockMs
+end
+function UpdateAddOnMemoryUsage() end
+function GetAddOnMemoryUsage()
+    return 123.4
+end
+function GetUnitSpeed()
+    return T.speed
+end
+function InCombatLockdown()
+    return T.combat
+end
+function GetPlayerFacing()
+    return T.facing
+end
+function CreateVector2D(x, y)
+    return {
+        x = x,
+        y = y,
+        GetXY = function(s)
+            return s.x, s.y
+        end,
+    }
+end
+-- A 1000 x 1000 yard map; world x runs north, world y runs west, as in the game.
+C_Map = {
+    GetBestMapForUnit = function()
+        return 1429
+    end,
+    GetPlayerMapPosition = function()
+        return CreateVector2D(T.px, T.py)
+    end,
+    GetWorldPosFromMapPos = function(_, v)
+        return 0, { x = -v.y * 1000, y = -v.x * 1000 }
+    end,
+}
+-- A fake quest log the test drives: quests in the log with their objective count, and quests
+-- already handed in.
+local log, completed = T.log, T.completed
+C_QuestLog = {
+    IsOnQuest = function(q)
+        return log[q] ~= nil
+    end,
+    IsQuestFlaggedCompleted = function(q)
+        return completed[q] == true
+    end,
+    GetQuestObjectives = function(q)
+        local o = log[q]
+        if not o or not o.need then
+            return o and {} or nil
+        end
+        return { { finished = o.have >= o.need, numFulfilled = o.have, numRequired = o.need } }
+    end,
+}
+C_Timer = {
+    After = function(_, f)
+        T.timers[#T.timers + 1] = f
+    end,
+}
+
+-- Run the addon's files in the order the TOC lists them.
+function T.load()
+    local dir = "addon/LevelingAddon/"
+    for line in io.lines(dir .. "LevelingAddon.toc") do
+        if line:match("%.lua$") then
+            assert(loadfile(dir .. line))("LevelingAddon", T.ns)
+        end
+    end
+end
+
+-- The frame Core listens and updates on: the first one the addon creates.
+local function core()
+    return T.frames[1]
+end
+
+-- Send a game event, then run the timers it started.
+function T.fire(event, ...)
+    core().scripts.OnEvent(core(), event, ...)
+    local run = T.timers
+    T.timers = {}
+    for _, f in ipairs(run) do
+        f()
+    end
+end
+
+function T.login()
+    T.fire("ADDON_LOADED", "Other")
+    T.fire("ADDON_LOADED", "LevelingAddon")
+    T.fire("PLAYER_LOGIN")
+end
+
+-- True while the shared update loop is running.
+function T.looping()
+    return core().scripts.OnUpdate ~= nil
+end
+
+-- One frame of the shared update loop.
+function T.tick(seconds)
+    core().scripts.OnUpdate(core(), seconds or 0.1)
+end
+
+function T.cmd(text)
+    SlashCmdList.LEVELINGADDON(text)
+end
+
+return T
