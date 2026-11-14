@@ -271,7 +271,7 @@ box and shown on hover. A second set that turned the step's own box into the ski
 automatic and skipping is the player's act, so the two must not share a control, the box must
 not change, and hover should reveal one mark at most.
 
-The current set, shown side by side in [`mockups/skip-designs.png`](mockups/skip-designs.png),
+The current set, shown side by side in the mockup page's history,
 follows one rule: whatever shows progress sits on the left and never reacts to the pointer; the
 only clickable thing is a single cross at the end of the hovered row. Unrolling is a click on
 the card; settings live in the addon compartment.
@@ -283,7 +283,18 @@ the card; settings live in the addon compartment.
 | After a skip | Step leaves; a slim bar offers undo for a few seconds | Same as A | Step stays crossed out; its cross becomes a restore arrow |
 | Risk | Steps without a count show no progress until done | One more mark per row | Skipped rows take space until the next step completes |
 
-Recommendation: A. Awaiting the owner's choice.
+The owner picked A and asked for one change, which is now the design: **the card is a
+continuous, scrollable list of steps.** A skipped step is not removed or moved. It stays in
+place, shown almost like a finished step but distinguishable, and the next step becomes
+current. The mouse wheel scrolls back through finished and skipped steps, and a skipped step
+can be brought back at any time, after which it is the current step again. The few-second undo
+bar is gone. Scrollable step history is a familiar concept from other guide addons; nothing of
+their layout or code is used. The flow is drawn in
+[`mockups/step-list-flow.png`](mockups/step-list-flow.png).
+
+Still to choose: how a skipped step differs from a finished one (tick). Three candidates in
+[`mockups/skipped-looks.png`](mockups/skipped-looks.png): name crossed out, a dash in place of
+the tick, or a double chevron in place of the tick.
 
 **Planning ahead** (owner's question: is there a timeline of following steps?). At rest the
 card shows the current step and the next two. Two on-demand views extend that without adding
