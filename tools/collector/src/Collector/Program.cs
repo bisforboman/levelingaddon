@@ -31,6 +31,7 @@ const string Usage = """
           again, so re-running the same command resumes an interrupted run.
           --limit counts network requests, so `--limit 5` is a five-page trial.
           Browser kinds open a visible browser window; --browser-path overrides the channel.
+          A kind with a requiredCapture stops at the first page that capture finds nothing on.
     """;
 
 if (args.Length == 0 || args[0] is "-h" or "--help")
@@ -175,7 +176,7 @@ async Task<int> FetchAsync(string kindName, string[] options)
     FetchSummary summary;
     try
     {
-        summary = await runner.RunAsync(plan, new FetchOptions(limit, config.Wowhead.MaxConsecutiveFailures), cancel.Token);
+        summary = await runner.RunAsync(plan, new FetchOptions(limit, config.Wowhead.MaxConsecutiveFailures, RequiredCapture: kind.RequiredCapture), cancel.Token);
     }
     catch (OperationCanceledException)
     {

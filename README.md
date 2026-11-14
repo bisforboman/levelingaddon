@@ -11,6 +11,7 @@ A leveling addon for World of Warcraft: Forever, and the collector that gathers 
 | Validation report | Done: [`reports/validation.md`](reports/validation.md) |
 | Polite, resumable Wowhead fetcher with raw cache | Built and tested against a local test server; not yet run against Wowhead |
 | Wowhead list / quest page parsers | Not built: need a few real sample pages first |
+| Class spells per level, with training cost (#17) | Fetch prepared, not yet run: see "Fetching class spells". No parser yet |
 | JSON → Lua export | Done: `collector export`, with reduced spawn lists and a per-table memory report; checked by loading the files back |
 
 ## Addon
@@ -537,8 +538,55 @@ without a network request, so re-running a command resumes it. A page that does 
 recorded once and not asked for again. A refusal or bot challenge is never cached: the run backs
 off, retries, and stops after `maxConsecutiveFailures` in a row.
 
-Browser kinds (`quest`, `list`) open a visible window of the browser named by `browserChannel`.
-Nothing about the browser is disguised; if Wowhead still refuses, the run stops.
+Browser kinds (`quest`, `list`, `class-spells`) open a visible window of the browser named by
+`browserChannel`. Nothing about the browser is disguised; if Wowhead still refuses, the run stops.
+
+On every browser page the expressions under `browserCaptures` in `collector.json` are evaluated,
+and each one that finds something is stored beside the page as `<key>.<capture>.json`. A kind
+may name one of them as its `requiredCapture`: a page on which that capture finds nothing stops
+the run at once, with no retry, and is not cached. The page is kept as `<key>.rejected.html` to
+look at, and is asked for again on the next run.
+
+### Fetching class spells
+
+The trainer suggestions (#17) need the spells each class learns at each level and what they
+cost to train. QuestieDB has neither, so they come from Wowhead's ability listing of each
+class. This is prepared and has not been run: like every Wowhead fetch, you run it on your own
+machine, never from a cloud agent session. **Read Wowhead's terms of use first**; nobody has
+yet (see "Sources").
+
+```sh
+cd tools/collector
+dotnet build
+dotnet run --project src/Collector -- fetch class-spells --urls-file class-spells.txt --limit 1   # a one-page trial
+dotnet run --project src/Collector -- fetch class-spells --urls-file class-spells.txt             # the rest
+```
+
+- **Requests**: ten in all. One page per class, nine classes, listed in
+  `tools/collector/class-spells.txt`, plus `robots.txt` once, each `delaySeconds` plus jitter
+  apart: about a minute. The second command skips what the trial already fetched.
+- **Where it lands**: `data/raw/wowhead/class-spells/` (gitignored). Per class, the page
+  (`forever_spells_abilities_<class>-<hash>.html`), its `.meta.json`, and the rows of the spell
+  list as `forever_spells_abilities_<class>-<hash>.spells.json`.
+- **What to send back**: two or three classes' `.spells.json` and `.html` files, so that the
+  parser can be written against real pages. Either attach them to #17, or commit them to a
+  branch that is not meant to be merged (`git add -f`, since `data/raw/` is ignored).
+
+Three things here are assumptions, because the site cannot be opened from where this was
+written:
+
+| Assumption | Where to correct it |
+| --- | --- |
+| The pages are at `https://www.wowhead.com/forever/spells/abilities/<class>` | `tools/collector/class-spells.txt` |
+| The page keeps the rows of its spell list in `g_listviews.spells.data`, as the quest listing does in `g_listviews.quests.data` | `browserCaptures.spells` in `collector.json` |
+| One page holds all of a class's abilities, with level and training cost in the rows | Not checked by the collector: look at the row count in a `.spells.json` |
+
+That is what the one-page trial is for. With a wrong address it reports the page as
+"recorded as missing", or the site sends the browser somewhere else and the run ends as below.
+With a wrong list name the run ends with "the browser capture 'spells' found nothing", stops at
+that page and leaves a `.rejected.html`. Then open the address in your browser, type
+`Object.keys(g_listviews)` in the developer console to see what the list is called, and correct
+the expression; or send the `.rejected.html` back instead of the samples.
 
 ## Checks
 
