@@ -96,8 +96,12 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           version: 2.6.0
           args: --check .
-      - name: Smoke test
+      # Every addon/tests/test_*.lua, each against the stub of the game API in stub.lua.
+      - name: Tests
         run: |
           sudo apt-get update -q
           sudo apt-get install -y -q lua5.1
-          lua5.1 addon/tests/smoke.lua addon/LevelingAddon
+          for test in addon/tests/test_*.lua; do
+            echo "== $test"
+            lua5.1 "$test"
+          done

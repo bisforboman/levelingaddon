@@ -6,6 +6,7 @@ local Arrow = {}
 ns.Arrow = Arrow
 
 local ARRIVE_YARDS = 8
+local MIN_TURN = 0.02 -- radians (about one degree); smaller changes do not redraw the arrow
 local ARROW_TEXTURE = "Interface\\Minimap\\MinimapArrow" -- points up when not rotated
 
 -- World position of a map point, or nil where the game has none (for example in instances).
@@ -128,7 +129,8 @@ function Arrow:Update()
     end
     local arrived = yards < ARRIVE_YARDS
     self.texture:SetShown(turn ~= nil and not arrived)
-    if turn and not arrived then
+    if turn and not arrived and math.abs(turn - (self.turn or math.huge)) >= MIN_TURN then
+        self.turn = turn
         self.texture:SetRotation(turn)
     end
     self.distance:SetText(arrived and "" or string.format("%d yd", yards))
