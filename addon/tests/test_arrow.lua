@@ -131,6 +131,47 @@ fire("PLAYER_ENTERING_WORLD")
 tick()
 assert(A.frame.alpha == 1 and updates > 0)
 
+-- Where the client names its maps, the step's zone and its continent take the arrow's place,
+-- the frame grows to fit them, and the task still rests.
+C_Map.GetMapInfo = function(map)
+    local maps = {
+        [1429] = { name = "Elwynn Forest", mapType = 3, parentMapID = 13 },
+        [13] = { name = "Eastern Kingdoms", mapType = 2, parentMapID = 947 },
+    }
+    return maps[map]
+end
+local width
+A.frame.SetWidth = function(_, v)
+    width = v
+end
+function UnitPosition()
+    return 500, 500, 0, 1
+end
+tick()
+assert(A.frame.alpha == 1 and A.zone.text == "Elwynn Forest" and A.continent.text == "Eastern Kingdoms")
+assert(width == 92 and not A.texture.shown and not A.ring.shown and A.distance.text == "")
+A.frame.scripts.OnEvent(nil, "PLAYER_REGEN_DISABLED")
+assert(A.frame.alpha == 0.4)
+A.frame.scripts.OnEvent(nil, "PLAYER_REGEN_ENABLED")
+updates = 0
+tick()
+assert(updates == 0, "the name needs no updates")
+-- A flight borrows the frame; the name is back after landing.
+A:SetFlight("1:00", "Ironforge")
+assert(A.zone.text == "" and A.flightTime.text == "1:00")
+A:SetFlight(nil)
+tick()
+assert(A.zone.text == "Elwynn Forest")
+UnitPosition = position
+fire("PLAYER_ENTERING_WORLD")
+tick()
+assert(A.zone.text == "" and A.continent.text == "" and width == 56)
+shows("39 yd", false)
+
+-- Other features can ask for a step's places: positions on its map, from 0 to 1.
+local places = A.Places(S:Current())
+assert(#places == 6 and places[1] == 0.46 and places[2] == 0.44)
+
 -- An instance: no position. The same, and one frame without a position elsewhere only hides.
 function UnitPosition() end
 tick()

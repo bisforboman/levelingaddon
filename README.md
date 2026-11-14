@@ -203,12 +203,13 @@ installed.
   8 yards (30 for a kill or collect step with one place): the arrow becomes a ring until the
   step completes.
 - **Dead**: a ghost is pointed to the corpse.
-- **Nowhere to point**: with the target on another continent, or in an instance, nothing is
-  drawn. What to show for another continent instead is an open question
-  (`docs/ui-concepts.md`, section 8).
-- **In flight**: the frame shows the flight timer instead (see "Flights"); `Flights.lua` hands
-  it a time and a name through `ns.Arrow:SetFlight(time, name)`, and `SetFlight(nil)` gives the
-  frame back.
+- **Another continent**: the step has no direction from here, so the frame shows the name of
+  its zone and of the continent under it instead, both from the client (`C_Map.GetMapInfo`),
+  and grows to fit them. Decided by the owner on 2026-11-14; pointing at the flight point that
+  leads there is to follow, once the flight data offers one. In an instance nothing is drawn.
+- **For other features**: `ns.Arrow.Places(step)` returns the places the arrow walks for a
+  step, as one flat list `{ x1, y1, x2, y2, ... }` of positions on `step.map`, each from 0 to
+  1; never empty.
 - **Cost**: ten updates a second on the shared loop: one `UnitPosition`, one `GetPlayerFacing`
   and arithmetic. The nearest place is looked for twice a second, the texture turns only for a
   change of about a degree, the distance text changes only with the number, and the task is
