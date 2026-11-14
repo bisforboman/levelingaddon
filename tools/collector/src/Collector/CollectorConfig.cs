@@ -4,8 +4,11 @@ namespace Collector;
 
 public sealed record QuestieDbConfig(string Repository, string Commit);
 
-/// <summary>A fetchable kind of page: where it lives and whether it needs a real browser.</summary>
-public sealed record KindConfig(string? Url, string Source);
+/// <summary>
+/// A fetchable kind of page: where it lives, whether it needs a real browser, and the browser
+/// capture a page of this kind must yield to be worth keeping.
+/// </summary>
+public sealed record KindConfig(string? Url, string Source, string? RequiredCapture = null);
 
 public sealed record WowheadConfig(
     string UserAgent,

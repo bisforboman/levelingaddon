@@ -35,6 +35,9 @@
       // Site pages sit behind a browser check, so these open a visible browser window.
       "quest": { "url": "https://www.wowhead.com/forever/quest={id}", "source": "browser" },
       "list": { "source": "browser" },
+      // One ability listing per class; the addresses are in tools/collector/class-spells.txt.
+      // A page on which the "spells" capture below finds nothing stops the run and is not cached.
+      "class-spells": { "source": "browser", "requiredCapture": "spells" },
 
       // Tooltip JSON, served to plain HTTP clients.
       "npc-tooltip": { "url": "https://nether.wowhead.com/forever/tooltip/npc/{id}", "source": "http" },
@@ -42,8 +45,11 @@
     },
 
     // Evaluated on each browser page; a null result is not stored.
+    // "spells" is an assumption, not yet checked against a real page: that a spell listing keeps
+    // its rows in g_listviews.spells, the way the quest listing keeps them in g_listviews.quests.
     "browserCaptures": {
-      "listview": "JSON.stringify(window.g_listviews && window.g_listviews.quests ? window.g_listviews.quests.data : null)"
+      "listview": "JSON.stringify(window.g_listviews && window.g_listviews.quests ? window.g_listviews.quests.data : null)",
+      "spells": "JSON.stringify(window.g_listviews && window.g_listviews.spells ? window.g_listviews.spells.data : null)"
     }
   }
 }
