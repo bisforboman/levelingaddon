@@ -279,6 +279,19 @@ Recommendation: 1. It keeps the rows as pure status, puts every control in one p
 place, and skipping "what I am told to do now" is the case that matters. Undo stays available
 until the next step completes. A key binding for skip can accompany any of them.
 
+**Planning ahead** (owner's question: is there a timeline of following steps?). At rest the
+card shows the current step and the next two. Two on-demand views extend that without adding
+anything to the screen during play:
+
+- A chevron on the hover rail unrolls the card into a timeline of roughly the next eight steps
+  along a line, grouped under the place they happen in. Place names are the only added text.
+  Unrolled, the card takes about 5% of a 1920x1080 screen.
+- On the world map, the next few stops are numbered and joined by a dashed line.
+
+Since the route is computed as the player goes (section 1), steps further out are a forecast
+and can change after a level-up, a new quest or a skip. Later stops are drawn hollow on the map
+to show that.
+
 ## 7. Suggested v1 surfaces
 
 Chosen by the owner on 2026-11-14:
