@@ -1,6 +1,7 @@
 -- One arrow pointing at the current step, with the distance in yards: at the nearest of the
 -- places the step can be done at, and at the corpse while the player is a ghost. On arrival it
--- becomes a ring; a step on another continent is named instead. If TomTom is installed it gets
+-- becomes a ring; a step on another continent is named instead; for a step a flight away it
+-- points at the flight master first. If TomTom is installed it gets
 -- the waypoint instead and we draw nothing, so there are never two arrows.
 local _, ns = ...
 
@@ -316,7 +317,16 @@ function Arrow:StepChanged()
     local wanted = ns.db.shown and UnitIsGhost and UnitIsGhost("player") and "corpse" or step
     local old = self.wanted
     local same = wanted == old or (wanted and old and wanted ~= "corpse" and old ~= "corpse" and sameStep(wanted, old))
-    if not same or (wanted and not self.target) then
+    -- A step in the zone the planner chose because a flight gets there soonest (#16): the way
+    -- to the flight master comes first. Asked only then, since it searches the flight routes.
+    -- It is nil again once the character has landed, so the arrow goes back to the step.
+    local via
+    local planner, flights = ns.Planner, ns.Flights
+    if wanted and wanted ~= "corpse" and wanted.map and planner and planner.byFlight == wanted.map then
+        via = flights and flights.PointTowards(wanted.map) or nil
+    end
+    local viaName = via and via.name or nil
+    if not same or viaName ~= self.via or (wanted and not self.target) then
         self.target = wanted == "corpse" and corpseTarget()
             or wanted and wanted.map and wanted.x and wanted.y and newTarget(
                 wanted.map,
@@ -324,9 +334,12 @@ function Arrow:StepChanged()
                 wanted.kind == "kill" or wanted.kind == "loot"
             )
             or nil
+        -- The flight master's place is in map percent. Where the client has no position for
+        -- it, the step's own target stays.
+        self.target = via and newTarget(via.map, { via.x / 100, via.y / 100 }) or self.target
         self.point, self.wait = nil, 0
     end
-    self.wanted = wanted
+    self.wanted, self.via = wanted, viaName
     -- The frame stays shown while there is a target, and its task runs; Update hides the frame
     -- and stops the task where there is nothing to point at (an instance, another continent).
     local shown = self.target ~= nil and ns.db.arrow and not self.tomtom

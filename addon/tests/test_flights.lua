@@ -313,7 +313,36 @@ C_Map.GetWorldPosFromMapPos = function() end
 assert(ns.Flights.PointTowards(1433) == nil)
 C_Map.GetWorldPosFromMapPos = position
 saved.known = { [2] = true, [5] = true }
+
+-- The arrow (#5): when the planner chose the step's zone because a flight gets there soonest,
+-- it points at the flight master to walk to, and at the step again after landing.
+local step = ns.Steps:Current()
+T.px, T.py = 0.1, 0.1
+ns.Planner.byFlight = step.map
+A:StepChanged()
+assert(#A.target == 1 and A.target.map == 1453, "the arrow points at the flight master")
+assert(math.abs(A.target[1].x + 520) < 0.01 and math.abs(A.target[1].y + 420) < 0.01, "at its own place")
+-- A ghost is still shown the way to the corpse.
+T.ghost, T.corpse = true, { 0.5, 0.5 }
+A:StepChanged()
+assert(A.target and A.target.map ~= 1453, "the corpse comes before the flight master")
+T.ghost, T.corpse = false, nil
+A:StepChanged()
+assert(A.target.map == 1453)
+-- A current step in another zone than the one flown to (a vendor on the way) is not detoured.
+ns.Planner.byFlight = 1433
+A:StepChanged()
+assert(A.target.map == step.map, "only steps in the zone flown to are detoured")
+-- Landed at the point nearest the zone: the step itself.
+ns.Planner.byFlight = step.map
+A:StepChanged()
+assert(A.target.map == 1453)
+T.px, T.py = 0.51, 0.51
+A:StepChanged()
+assert(A.target.map == step.map, "after landing the arrow points at the step")
+ns.Planner.byFlight = nil
 T.px, T.py = 0.492, 0.463
+A:StepChanged()
 
 -- A client without the flight map's functions, or without flight data, raises no error.
 ns.Data.taxiNodes = nil

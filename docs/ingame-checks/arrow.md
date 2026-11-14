@@ -67,6 +67,12 @@ Nothing to point at
       (`PLAYER_ENTERING_WORLD`, `ZONE_CHANGED_NEW_AREA`), and the frame is narrow again.
 - [ ] Taking a flight while the name shows: the flight timer takes the frame, and the name is
       back after landing.
+- [ ] After the chat line "The next steps are in <zone>: fly from A to B", the arrow points at
+      the flight master at A, not at the step, and shows the ring on arrival there.
+- [ ] After landing at B the arrow points at the step again without `/reload`
+      (`ZONE_CHANGED_NEW_AREA`). If it stays on a flight master, note where the character
+      stood.
+- [ ] A "sell" step that comes first while the steps are a flight away points at the vendor.
 - [ ] In a dungeon there is no arrow and no error, and it comes back on leaving
       (`IsInInstance`).
 - [ ] In both cases `/lvl debug` shows the shared loop is not running for the arrow: with
