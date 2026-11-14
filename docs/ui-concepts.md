@@ -395,5 +395,9 @@ that does it, LibEditMode, is "All rights reserved" with its own terms (read 202
 be shipped unmodified inside an addon, not distributed otherwise), which do not fit this
 GPL-3.0 project. The window is moved by dragging, with a lock and a reset.
 
-Not built yet: the numbered route on the world map, and the arrow's "arrived" ring (the arrow
-hides instead).
+The arrow points at the nearest of a step's places, at the corpse while the player is a ghost,
+and becomes the "arrived" ring within reach of a single place (README, "The arrow"). With the
+target on another continent it is hidden for now; what it should show there is the open
+question in section 8.
+
+Not built yet: the numbered route on the world map.

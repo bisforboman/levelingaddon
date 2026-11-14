@@ -61,7 +61,8 @@ The tests in `addon/tests/` run the addon outside the game, against a stub of th
 with a fake quest log (`stub.lua`). Run each from the repository root, for example
 `lua5.1 addon/tests/test_ui.lua`. `test_ui.lua` checks tracking, skip and restore, combat
 folding, the arrow's direction and distance, and the TomTom hand-off, on a fixed route
-(`northshire.lua`) with no quest data loaded; `test_settings.lua` checks the settings page, the
+(`northshire.lua`) with no quest data loaded; `test_arrow.lua` checks the rest of the arrow on
+the same route (see "The arrow"); `test_settings.lua` checks the settings page, the
 lock, the pause mark and that only changed rows are redrawn; `test_core.lua` checks the shared
 machinery below. `test_planner.lua` checks the planner on quest data cut from a real export
 (`planner_data.lua`): a fresh character, a mid-level character with a half-finished zone, a
@@ -121,6 +122,31 @@ The steps are `ns.Steps.list`, rows of `{ kind, name, need, questID, objective, 
 (`Steps.lua` describes each field), read through `ns.Steps:Current()`, `Count()`,
 `Status(index)` and `Progress(index)`, and redrawn by `ns.Refresh()`. Finished steps and the
 step a skip was made on stay above the plan as history.
+
+### The arrow
+
+`Arrow.lua` points at the current step (issue #5), or hands the waypoint to TomTom when that is
+installed.
+
+- **Several places**: a planner step carries one point, but the thing to find often has many.
+  When a step becomes current the arrow looks the step's name up among what the quest names in
+  the plain tables (`quests`, then `npcs`, `objects`, `items`: the quest's givers and takers,
+  its creatures and objects, and for an item whatever drops or sells it), takes their spawn
+  points on the step's map, and converts them to world coordinates once, with the client's
+  `C_Map.GetWorldPosFromMapPos`. It points at the nearest. With no match in the data it uses
+  the step's own point.
+- **Reached**: a kill or collect step with several places counts a place as reached within 30
+  yards and moves on to the next nearest, round and round. Any other step is arrived at within
+  8 yards (30 for a kill or collect step with one place): the arrow becomes a ring until the
+  step completes.
+- **Dead**: a ghost is pointed to the corpse.
+- **Nowhere to point**: with the target on another continent, or in an instance, nothing is
+  drawn. What to show for another continent instead is an open question
+  (`docs/ui-concepts.md`, section 8).
+- **Cost**: ten updates a second on the shared loop: one `UnitPosition`, one `GetPlayerFacing`
+  and arithmetic. The nearest place is looked for twice a second, the texture turns only for a
+  change of about a degree, the distance text changes only with the number, and the task is
+  off while there is nothing to point at.
 
 ### Writing a feature
 
@@ -355,8 +381,8 @@ The data has no quest type, so the marks are derived, and were checked against t
 
 On this data: 512 raid, 357 dungeon, 99 pvp and 233 group quests out of 5,768. The two tables
 take 5.7 MB (plannerQuests) and 0.3 MB in the collector's interpreter, 7.7 and 0.4 MB in stock
-Lua 5.1. The planner reads only these two tables; the six plain tables are loaded for the
-features to come.
+Lua 5.1. The planner reads only these two tables; the arrow reads `quests`, `npcs`, `objects`,
+`items` and `zones` for a step's places, and the rest are loaded for the features to come.
 
 ### Spawns and waypoints
 
