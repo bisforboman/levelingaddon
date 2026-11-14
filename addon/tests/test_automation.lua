@@ -107,6 +107,7 @@ choices = 0
 -- Shift does the opposite of the setting, for that window.
 shiftDown = true
 assert(show("QUEST_DETAIL", 7) == "" and show("QUEST_COMPLETE", 783) == "")
+fire("QUEST_FINISHED")
 cmd("set autoAccept off")
 cmd("set autoTurnIn off")
 assert(show("QUEST_DETAIL", 7) == "accept" and show("QUEST_COMPLETE", 783) == "reward 0")
@@ -119,6 +120,7 @@ cmd("set autoAccept on")
 assert(show("QUEST_DETAIL", 7) == "accept" and show("QUEST_COMPLETE", 783) == "")
 cmd("set autoAccept off")
 cmd("set autoTurnIn on")
+assert(did() == "reward 0", "a changed setting looks at the open window again, at once")
 assert(show("QUEST_DETAIL", 7) == "" and show("QUEST_COMPLETE", 783) == "reward 0")
 cmd("set autoAccept on")
 fire("QUEST_FINISHED")

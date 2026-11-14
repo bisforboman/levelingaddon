@@ -55,8 +55,13 @@ step skips its quest, the arrow on a skipped step brings the quest back. A skipp
 out of the suggestions, on that character only, until it is brought back.
 In a dungeon the window shrinks to a pause mark.
 
-The settings page holds scale, background opacity, steps in view, arrow, map pin, combat
-dimming, lock and reset position. Every change applies at once.
+The settings page holds every setting: scale, background opacity, steps in view, arrow, map
+pin, combat dimming, lock and reset position, and after them what each feature adds (the
+drowning alarm, junk selling, the three party settings, verbose output, the item hint,
+automation, the dungeon and group quest switches, reward marks, the item button). Every change applies at once, with no reload and
+no loss of progress (#24), and a feature's own slash command changes the same setting the same
+way. A changed preference about which quests to suggest is one debounced planner pass; a pass
+keeps finished steps, skipped quests and counts.
 
 The tests in `addon/tests/` run the addon outside the game, against a stub of the game API
 with a fake quest log (`stub.lua`). Run each from the repository root, for example
@@ -64,7 +69,9 @@ with a fake quest log (`stub.lua`). Run each from the repository root, for examp
 folding, the arrow's direction and distance, and the TomTom hand-off, on a fixed route
 (`northshire.lua`) with no quest data loaded; `test_arrow.lua` checks the rest of the arrow on
 the same route (see "The arrow"); `test_settings.lua` checks the settings page, the
-lock, the pause mark and that only changed rows are redrawn; `test_core.lua` checks the shared
+lock, the pause mark and that only changed rows are redrawn; `test_settings_apply.lua` changes
+every setting on the page and checks what it is for right after, and fails for a setting that
+has no check in it; `test_core.lua` checks the shared
 machinery below. `test_planner.lua` checks the planner on quest data cut from a real export
 (`planner_data.lua`): a fresh character, a mid-level character with a half-finished zone, a
 character who skipped ahead, a full quest log, skips, and the events that ask for a pass.
@@ -152,15 +159,15 @@ and one function that reads the character's real state.
 
 - **Only the steps in view are followed**: the two rows above the current step and as many
   rows as the window has. `Steps.lua` acts only on the events of their kinds, and a check, 0.2
-  seconds later, reads those steps alone. A planner pass reads its whole list once. `Core.lua`
-  still asks for a check on every quest event as well; that check too reads only these steps.
+  seconds later, reads those steps alone. A planner pass reads its whole list once.
 - **Already done**: when a step finishes, the steps that come into view are read at once, so
   whatever the character has already done is ticked the moment it is shown.
 - **Grace period**: for 3 seconds after `QUEST_ACCEPTED` or `QUEST_TURNED_IN` the event is
   taken at its word, because the quest log and the completed flag follow a moment later.
   After that only the game's own state counts.
-- **A reached point stays reached** while its quest is in the log, and the planner's repeat of
-  that step is left out of the list.
+- **A reached point stays reached** while its quest is in the log. The planner asks
+  (`ns.Steps:Reached(questID, index)`) and does not suggest the point again; the quest's
+  hand-in waits until the quest log calls the objective finished.
 - The position is looked at on the shared loop, only while a `go` step in view is open.
 
 Not built, by the brief for #7: the kinds for reaching a level, training, buying, setting the
@@ -300,8 +307,8 @@ shares, so that no feature needs a frame for events or an `OnUpdate` of its own.
 | `ns.commands.name = function(arg) end` | Adds `/lvl name arg`. The help line is built from the table. |
 | `ns.defaults.key = value` | A default for an account-wide setting, set at file scope and read as `ns.db.key` from `ADDON_LOADED` on. A table default is copied, and filled in key by key. |
 | `ns.charDefaults.key = value` | The same per character, read as `ns.char.key`. |
-| `ns.AddSetting({ key = "name", label = "Text" })` | Puts a control for `ns.db.name` on the addon's settings page, and under `/lvl set name`. Call it at file scope, after setting `ns.defaults.name`: a boolean default gives a checkbox, a number a slider, which also needs `min`, `max` and `step`. Optional: `tooltip`, and `onChange = function(value) end`, called after the value has changed; without it `ns.Refresh()` is called. Either way a change applies at once, with no reload. `ns.AddSetting({ label = "Text", func = function() end })` adds a button. |
-| `ns.Set(key, value)` | Changes a setting added with `ns.AddSetting` from code (a slash command, say) and applies it the same way. |
+| `ns.AddSetting({ key = "name", label = "Text" })` | Puts a control for `ns.db.name` on the addon's settings page, and under `/lvl set name`. Call it at file scope, after setting `ns.defaults.name`: a boolean default gives a checkbox, a number a slider, which also needs `min`, `max` and `step`, a string a dropdown, which also needs `options = { "a", "b" }`. Every setting needs a check in `addon/tests/test_settings_apply.lua`. Optional: `tooltip`, and `onChange = function(value) end`, called after the value has changed; without it `ns.Refresh()` is called. Either way a change applies at once, with no reload. `ns.AddSetting({ label = "Text", func = function() end })` adds a button. |
+| `ns.Set(key, value)` | Changes a setting added with `ns.AddSetting` from code and applies it the same way. A slash command that changes a setting calls this, never `ns.db` directly, so the command and the page agree. |
 | `ns.say(text)` | Prints a line to chat under the addon's name. |
 | `ns.Debug(text)` | The same, but only while verbose output is on (`/lvl verbose`). For anything worth seeing while chasing a bug and not otherwise. |
 | `ns.errors` | The last ten errors the shared loop and the jobs caught, oldest first, as text. `/lvl report` lists them. |
@@ -357,7 +364,7 @@ addon caught. It never asks the game for the character's name, realm, guild or a
 feature that saves settings should keep names out of them for the same reason: the settings
 are printed as they are.
 
-`/lvl verbose` switches verbose output on or off (saved account-wide). While it is on, the
+`/lvl verbose`, or "Verbose output" on the settings page, switches verbose output on or off (saved account-wide). While it is on, the
 addon prints what `ns.Debug` is given, including every event below as it is sent.
 
 ### Events for other addons

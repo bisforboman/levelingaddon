@@ -373,7 +373,9 @@ local function plan(working, me, log, logListed, px, py, free)
                     target = quest.obj and quest.obj[index]
                 end
                 if not objective.finished then
-                    if target and target[3] then
+                    -- A point already reached is not suggested again; its quest waits for the
+                    -- log to call the objective finished.
+                    if target and target[3] and not ns.Steps:Reached(id, index) then
                         table.insert(open[id], { target = target, index = index, need = objective.numRequired })
                     else
                         stuck[id] = true

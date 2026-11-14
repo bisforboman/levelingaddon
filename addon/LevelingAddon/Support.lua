@@ -5,6 +5,12 @@ local _, ns = ...
 -- Verbose mode ---------------------------------------------------------------------------
 
 ns.defaults.verbose = false
+ns.AddSetting({
+    key = "verbose",
+    label = "Verbose output",
+    tooltip = "Print what the addon does, for chasing a bug.",
+    onChange = function() end, -- read at every line; nothing to redraw
+})
 
 -- Prints only while /lvl verbose is on. For any feature to call.
 function ns.Debug(text)
@@ -14,7 +20,7 @@ function ns.Debug(text)
 end
 
 ns.commands.verbose = function()
-    ns.db.verbose = not ns.db.verbose
+    ns.Set("verbose", not ns.db.verbose)
     ns.say("verbose output " .. (ns.db.verbose and "on" or "off") .. ".")
 end
 
