@@ -188,6 +188,13 @@ function Arrow:Create()
     self.distance = frame:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
     self.distance:SetPoint("BOTTOM", 0, 5)
 
+    -- In flight (see SetFlight): the time left, large, and the destination under it.
+    self.flightTime = frame:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
+    self.flightTime:SetPoint("TOP", 0, -12)
+    self.flightTime:SetTextColor(0.95, 0.76, 0.19)
+    self.flightName = frame:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+    self.flightName:SetPoint("BOTTOM", 0, 5)
+
     frame:RegisterEvent("PLAYER_REGEN_DISABLED")
     frame:RegisterEvent("PLAYER_REGEN_ENABLED")
     self.combat = InCombatLockdown()
@@ -199,7 +206,24 @@ end
 
 -- Invisible where there is nothing to point at; dimmed in combat if the player wants that.
 function Arrow:Fade()
-    self.frame:SetAlpha(self.away and 0 or self.combat and ns.db.combatDim and 0.4 or 1)
+    self.frame:SetAlpha(self.away and not self.flight and 0 or self.combat and ns.db.combatDim and 0.4 or 1)
+end
+
+-- In flight the arrow has nothing to point at, so Flights.lua (#16) borrows its frame: `time`
+-- is the text shown large and `name` the destination under it. SetFlight(nil) gives the frame
+-- back to the arrow. The frame grows sideways to fit the name.
+function Arrow:SetFlight(time, name)
+    if not self.frame then
+        return
+    end
+    local changed = (time ~= nil) ~= (self.flight ~= nil)
+    self.flight = time
+    self.flightTime:SetText(time or "")
+    if changed then
+        self.flightName:SetText(name or "")
+        self.frame:SetWidth(time and math.max(56, self.flightName:GetStringWidth() + 12) or 56)
+        self:StepChanged()
+    end
 end
 
 ns.Task("arrow", 0.1, function()
@@ -264,8 +288,15 @@ function Arrow:StepChanged()
     -- The frame stays shown while there is a target, and its task runs; Update hides the frame
     -- and stops the task where there is nothing to point at (an instance, another continent).
     local shown = self.target ~= nil and ns.db.arrow and not self.tomtom
-    self.frame:SetShown(shown)
-    ns.SetTask("arrow", shown)
+    local flying = self.flight ~= nil and ns.db.shown
+    self.frame:SetShown(shown or flying)
+    ns.SetTask("arrow", shown and not flying)
+    if flying then
+        self.texture:Hide()
+        self.ring:Hide()
+        self.distance:SetText("")
+        self.turn, self.yards = nil, nil -- so that the arrow draws itself again after landing
+    end
     self:Fade()
 end
 
