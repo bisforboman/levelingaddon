@@ -175,6 +175,9 @@ end
 function UnitXPMax()
     return T.xpMax
 end
+function UnitFactionGroup()
+    return "Alliance"
+end
 function GetRealZoneText()
     return T.zone
 end
