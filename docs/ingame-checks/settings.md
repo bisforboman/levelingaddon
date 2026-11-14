@@ -9,8 +9,9 @@ what #24 added: every feature's setting on the page, and each one taking effect 
 
 - [ ] After the Reset position button the page shows, in this order: Drowning alarm, Sell
       junk, Party version check, Announce level-ups, Share quests, Verbose output, Quest item
-      hint, Accept quests automatically, Hand in quests automatically, Mark quest rewards,
-      Quest item button; then whatever later features added.
+      hint, Accept quests automatically, Hand in quests automatically, Include dungeon quests,
+      Include group quests, Mark quest rewards, Quest item button; then whatever later
+      features added.
 - [ ] "Announce level-ups" is a dropdown offering Off, Party and Guild
       (`Settings.CreateDropdown(category, setting, optionsFunction, tooltip)` with
       `Settings.CreateControlTextContainer()`, `:Add(value, label)`, `:GetData()`). If the
@@ -66,9 +67,9 @@ For each line: change the setting on the page (not with `/reload`) and look righ
 
 ## Preferences and the planner
 
-- [ ] With the quest data loaded, changing a preference about which quests to suggest (the
-      dungeon and group quest switches of #20, once they are in) changes the list within a
-      moment, and finished steps, skipped quests and counts stay.
+- [ ] With the quest data loaded, "Include dungeon quests" and "Include group quests" (#20),
+      changed on the page, with `/lvl dungeons` or `/lvl groups`, or on the first-run panel,
+      change the list within a moment, and finished steps, skipped quests and counts stay.
 - [ ] `/lvl debug` before and after flipping one switch several times quickly: "planner pass"
       ran once for the burst (its time changes once), and the frame rate does not dip.
 
