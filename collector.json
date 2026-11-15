@@ -53,8 +53,6 @@
     },
 
     // Evaluated on each browser page; a null result is not stored.
-    // "spells" is an assumption, not yet checked against a real page: that a spell listing keeps
-    // its rows in g_listviews.spells, the way the quest listing keeps them in g_listviews.quests.
     "browserCaptures": {
       "listview": "JSON.stringify(window.g_listviews && window.g_listviews.quests ? window.g_listviews.quests.data : null)",
       "spells": "JSON.stringify(window.g_listviews && window.g_listviews.spells ? window.g_listviews.spells.data : null)"

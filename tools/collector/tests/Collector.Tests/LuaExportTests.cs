@@ -89,6 +89,36 @@ public sealed class LuaExportTests : IDisposable
     }
 
     [Fact]
+    public void Class_spells_are_lists_by_class_token_and_the_export_verifies_with_and_without_them()
+    {
+        var exporter = new LuaExporter(new ExportConfig());
+        var without = exporter.Run(Parsed, Output);
+        Assert.DoesNotContain("classSpells-1.lua", without.Files);
+        Assert.Empty(exporter.Verify(Parsed, Output, without).Differences);
+
+        File.WriteAllText(Path.Combine(Parsed, "class-spells.json"), """
+            [
+            {"class":"MAGE","id":143,"name":"Fireball","rank":2,"level":6,"cost":100},
+            {"class":"MAGE","id":3565,"name":"Teleport: Darnassus","level":30,"cost":8000,"races":[1,3,4,7]},
+            {"class":"WARRIOR","id":100,"name":"Charge","rank":1,"level":4,"cost":100}
+            ]
+            """);
+        var export = exporter.Run(Parsed, Output);
+
+        var lines = File.ReadAllLines(Path.Combine(Output, "classSpells-1.lua"));
+        Assert.Contains("Wowhead", lines[0]);
+        Assert.DoesNotContain(lines, line => line.Contains("QuestieDB"));
+        Assert.Equal(["t.MAGE={", """{id=143,name="Fireball",rank=2,level=6,cost=100},""", """{id=3565,name="Teleport: Darnassus",level=30,cost=8000,races={1,3,4,7}},""", "}", "t.WARRIOR={"], lines[5..10]);
+        Assert.Contains("\t<Script file=\"classSpells-1.lua\"/>", File.ReadAllLines(Path.Combine(Output, "data.xml")));
+        Assert.Equal(3, export.Tables.Single(t => t.Name == "classSpells").Rows);
+        Assert.Empty(exporter.Verify(Parsed, Output, export).Differences);
+
+        // A value that differs from the JSON is found.
+        File.WriteAllText(Path.Combine(Output, "classSpells-1.lua"), File.ReadAllText(Path.Combine(Output, "classSpells-1.lua")).Replace("cost=8000", "cost=8001"));
+        Assert.Contains("classSpells.MAGE.2.cost", Assert.Single(exporter.Verify(Parsed, Output, export).Differences));
+    }
+
+    [Fact]
     public void Coordinate_lists_are_flat_and_few_spawns_are_kept_exactly()
     {
         new LuaExporter(new ExportConfig()).Run(Parsed, Output);

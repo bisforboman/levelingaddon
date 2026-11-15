@@ -1,7 +1,5 @@
 # The ability listing of each class, for `collector fetch class-spells --urls-file class-spells.txt`.
-# One request per line. These addresses are an assumption (the Forever section of the site, laid
-# out like the quest pages in collector.json) and have not been opened yet: correct them here if a
-# page is missing or the run stops because it found no spell list.
+# One request per line. The class is read from the last part of the address.
 https://www.wowhead.com/forever/spells/abilities/druid
 https://www.wowhead.com/forever/spells/abilities/hunter
 https://www.wowhead.com/forever/spells/abilities/mage

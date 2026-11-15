@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Collector.Parse;
 using Collector.QuestieDb;
 
@@ -114,6 +115,29 @@ public sealed class LuaExporter(ExportConfig config)
             est = g.Any(f => f.Estimated == true) ? g.Where(f => f.Estimated == true).ToDictionary(f => f.To, _ => true) : null,
         }), DataWriter.Json));
 
+        // classSpells.MAGE = { spell, ... }: lists by class token, from Wowhead, so under a header of their own.
+        var classSpells = ClassSpellLists(parsedDirectory);
+        if (classSpells.EnumerateObject().Any())
+        {
+            var constants = new LuaConstants();
+            var lua = new StringBuilder($"{GeneratedMarker} from data/parsed/{ClassSpells.SpellsFile} (Wowhead's class ability listings). Do not edit.\n" +
+                                        $"local _, ns = ...\nns.{config.Table}=ns.{config.Table} or {{}}\nns.{config.Table}.classSpells={{}}\nlocal t=ns.{config.Table}.classSpells\n");
+            var count = 0;
+            foreach (var list in classSpells.EnumerateObject())
+            {
+                lua.Append("t.").Append(list.Name).Append("={\n");
+                foreach (var spell in list.Value.EnumerateArray())
+                {
+                    LuaWriter.Write(lua, spell, constants);
+                    lua.Append(",\n");
+                    count++;
+                }
+                lua.Append("}\n");
+            }
+            files.Add(WriteFile(outputDirectory, "classSpells-1.lua", lua));
+            tables.Add(new ExportedTable("classSpells", count, [files[^1]], constants.Count));
+        }
+
         // One stable line in the addon's TOC can include everything through this file.
         var xml = new StringBuilder("<Ui xmlns=\"http://www.blizzard.com/wow/ui/\">\n");
         xml.Append($"\t<!-- {GeneratedMarker[3..]} ({provenance}). Do not edit. -->\n");
@@ -137,7 +161,7 @@ public sealed class LuaExporter(ExportConfig config)
             "before = settled()\n" +
             string.Concat(g.Files.Select(f => $"assert(loadfile(\"{f}\"))(\"Addon\", ns)\n")) +
             "memory[#memory + 1] = string.format('%.17g', settled() - before)"));
-        var returns = string.Join(", ", Sources.Select(s => $"toJson(ns.{config.Table}.{s.Table})").Append($"toJson(ns.{config.Table}.manifest)"));
+        var returns = string.Join(", ", Sources.Select(s => $"toJson(ns.{config.Table}.{s.Table})").Append($"toJson(ns.{config.Table}.classSpells or {{}})").Append($"toJson(ns.{config.Table}.manifest)"));
         using var sandbox = new LuaSandbox(outputDirectory);
         var json = sandbox.Run($$"""
             {{QuestieDbMerge.JsonEncoder}}
@@ -148,7 +172,7 @@ public sealed class LuaExporter(ExportConfig config)
             end
             {{loads}}
             return table.concat(memory, " "), {{returns}}
-            """, "=export-verify", Sources.Length + 2);
+            """, "=export-verify", Sources.Length + 3);
         var memory = json[0].Split(' ').Select((kilobytes, i) => (groups[i].Name, double.Parse(kilobytes, CultureInfo.InvariantCulture) / 1024)).ToList();
         json = json[1..];
 
@@ -172,11 +196,34 @@ public sealed class LuaExporter(ExportConfig config)
             if (loaded != rows) differences.Add($"{table}: {rows} rows in JSON, {loaded} loaded from Lua");
         }
 
+        using var loadedClassSpells = JsonDocument.Parse(json[^2]);
+        if (LuaEquivalence.Difference(ClassSpellLists(parsedDirectory), loadedClassSpells.RootElement, "classSpells") is { } classSpellsDifference)
+            differences.Add(classSpellsDifference);
+
         using var manifest = JsonDocument.Parse(File.ReadAllBytes(Path.Combine(parsedDirectory, "manifest.json")));
         using var loadedManifest = JsonDocument.Parse(json[^1]);
         if (LuaEquivalence.Difference(manifest.RootElement, loadedManifest.RootElement, "manifest") is { } manifestDifference)
             differences.Add(manifestDifference);
         return new Verification(differences, memory);
+    }
+
+    /// <summary>class-spells.json as the addon reads it: each class token with its spells, a spell without its class. Empty without the file.</summary>
+    private static JsonElement ClassSpellLists(string parsedDirectory)
+    {
+        var path = Path.Combine(parsedDirectory, ClassSpells.SpellsFile);
+        var lists = new SortedDictionary<string, List<JsonNode>>(StringComparer.Ordinal);
+        if (File.Exists(path))
+        {
+            foreach (var row in JsonNode.Parse(File.ReadAllBytes(path))!.AsArray())
+            {
+                var spell = row!.AsObject();
+                var token = spell["class"]!.GetValue<string>();
+                spell.Remove("class");
+                if (!lists.TryGetValue(token, out var list)) lists[token] = list = [];
+                list.Add(spell);
+            }
+        }
+        return JsonSerializer.SerializeToElement(lists);
     }
 
     /// <summary>Splits rows into groups whose distinct literals stay under the per-file budget.</summary>

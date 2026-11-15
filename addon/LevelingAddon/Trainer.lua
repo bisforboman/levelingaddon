@@ -12,8 +12,8 @@
 -- buying nothing. Both thresholds are first guesses, to be tuned in the game.
 --
 -- The spell list is ns.Data.classSpells, built by the collector from Wowhead's class ability
--- pages (README, "Fetching class spells"). Not built yet: its shape below is what the parser
--- is to write, and until it exists the feature says nothing and suggests nothing.
+-- pages (README, "Fetching class spells"). Without it the feature says nothing and suggests
+-- nothing.
 --
 --   ns.Data.classSpells[classToken] = {
 --       { id = spellId, name = "Frostbolt", rank = 2, level = 8, cost = 200, key = true },
@@ -22,7 +22,8 @@
 --   classToken  the client's class token in upper case, as UnitClass returns it ("MAGE")
 --   rank        optional: a rank of a spell with several, to skip ranks below one known
 --   cost        in copper, before any reputation discount
---   key         optional: true for a spell worth a trip of its own
+--   races       optional: the race ids (UnitRace's third value) that can learn it; absent: all
+--   key         optional: true for a spell worth a trip of its own; the collector writes none yet
 --
 -- The trainers are the data's NPCs with the trainer flag whose subtitle names the class, such
 -- as "Mage Trainer". The data's subtitles are English whatever the client's language.
@@ -63,8 +64,23 @@ local function classToken()
     return token
 end
 
+-- Whether the character's race can learn a spell. Where the client gives no race id, a spell
+-- for some races only is left out: better a spell too few than a trip for nothing.
+local function forRace(spell, race)
+    if not spell.races then
+        return true
+    end
+    for _, id in ipairs(spell.races) do
+        if id == race then
+            return true
+        end
+    end
+    return false
+end
+
 -- The spells the character could learn at its level and does not know yet, cheapest first, and
--- what the affordable ones weigh. A rank below a rank the character knows is left out.
+-- what the affordable ones weigh. A rank below a rank the character knows is left out, and so
+-- is a spell for other races.
 function ns.TrainSpells()
     local list = ns.Data and ns.Data.classSpells and ns.Data.classSpells[classToken() or ""]
     local spells, weight, cost = {}, 0, 0
@@ -72,6 +88,7 @@ function ns.TrainSpells()
         return spells, weight, cost
     end
     local level = UnitLevel("player") or 1
+    local _, _, race = UnitRace("player")
     local best = {} -- [name] = the highest rank known
     for _, spell in ipairs(list) do
         if spell.rank and IsKnown(spell.id) and spell.rank > (best[spell.name] or 0) then
@@ -80,7 +97,7 @@ function ns.TrainSpells()
     end
     for _, spell in ipairs(list) do
         local below = spell.rank and spell.rank <= (best[spell.name] or 0)
-        if spell.level <= level and not below and not IsKnown(spell.id) then
+        if spell.level <= level and not below and forRace(spell, race) and not IsKnown(spell.id) then
             spells[#spells + 1] = spell
         end
     end

@@ -20,7 +20,9 @@ const string Usage = """
           Merge QuestieDB (its own code, run in a sandboxed Lua interpreter), write the normalized
           JSON to data/parsed/ and the validation report to reports/. Then convert the flight
           points and flight times of the taxi source pinned in collector.json, and link
-          QuestieDB's flight masters to them.
+          QuestieDB's flight masters to them. Then, when the class pages of `fetch class-spells`
+          are in data/raw/, write the spells each class trainer teaches; without them the
+          committed data/parsed/class-spells.json stays as it is.
 
       export [--out DIRECTORY]
           Write data/parsed/ as Lua table files for the addon (default: data/lua/), with spawn
@@ -116,6 +118,18 @@ try
                               $"({taxi.Paths.Count(p => p.Estimated == true)} with an estimated time) to data/parsed.");
             Console.WriteLine($"Flight points without a flight master: {string.Join("; ", taxi.Nodes.Where(n => n.NpcId is null).Select(n => $"{n.Id} {n.Name}"))}");
             Console.WriteLine($"Flight masters linked to no flight point ({taxi.UnlinkedMasters.Count}): {string.Join("; ", taxi.UnlinkedMasters.Select(m => $"{m.Id} {m.Name}"))}");
+
+            // Wowhead's pages are fetched on the owner's machine only, so most runs have none.
+            if (cache.Count(ClassSpells.Kind) == 0)
+            {
+                Console.WriteLine($"No class-spell pages in data/raw; data/parsed/{ClassSpells.SpellsFile} is left as it is.");
+                return 0;
+            }
+            var classSpells = ClassSpells.Build(Path.Combine(cache.Root, ClassSpells.Kind));
+            ClassSpells.Write(classSpells, Path.Combine(root, "data", "parsed"));
+            Console.WriteLine($"Wrote {classSpells.Spells.Count} trainer spells to data/parsed: " +
+                              string.Join(", ", classSpells.Spells.GroupBy(s => s.Class).Select(g => $"{g.Key} {g.Count()}")) + ".");
+            Console.WriteLine($"Left out, trained ranks of a spell whose rank 1 is not on the page ({classSpells.TalentRanks.Count}): {string.Join("; ", classSpells.TalentRanks)}");
             return 0;
         }
 

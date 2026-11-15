@@ -1,9 +1,8 @@
 # In-game checks: trainer visits (Trainer.lua)
 
-None of this has been run in the game client yet, and the spell list it needs
-(`ns.Data.classSpells`) is not built: the collector has no parser for it until sample pages
-come back (README, "Fetching class spells"). Until then the checks marked *(no data)* can be
-done, and the rest wait for the data.
+None of this has been run in the game client yet. The spell list (`ns.Data.classSpells`) is
+built by `collector export` (README, "Fetching class spells"). The checks marked *(no data)*
+are for an addon folder without `Data/classSpells-1.lua`.
 
 ## Without spell data
 
@@ -22,6 +21,10 @@ done, and the rest wait for the data.
 
 ## With spell data
 
+- [ ] `/dump UnitRace("player")` gives a number as its third value (1 Human, 2 Orc, 3 Dwarf,
+      4 Night Elf, 5 Undead, 6 Tauren, 7 Gnome, 8 Troll). Without it no race-only spell (a
+      priest's racial spells, a mage's teleports and portals) is ever counted.
+- [ ] A mage sees its own side's teleports in `/lvl trainer list` and not the other side's.
 - [ ] A character with spells waiting it can pay for, two in all or one marked `key`: a row with
       the trainer cursor and the trainer's name appears under the current step, while a class
       trainer of the character's side is within about 200 yards of the way.
