@@ -449,6 +449,33 @@ function effects.itemHint(set)
     assert(lines() == 1)
 end
 
+-- With a spell waiting that the character can pay for, a trainer visit is suggested only while
+-- the setting is on, and the planner is asked for a pass at once.
+function effects.trainer(set)
+    local class, money, spell, request = UnitClass, GetMoney, IsPlayerSpell, ns.Planner.Request
+    local asked = 0
+    UnitClass = function()
+        return "Mage", "MAGE"
+    end
+    GetMoney = function()
+        return 10000
+    end
+    IsPlayerSpell = function()
+        return false
+    end
+    ns.Planner.Request = function()
+        asked = asked + 1
+    end
+    ns.Data.classSpells = { MAGE = { { id = 1, name = "Frost Nova", level = 1, cost = 100, key = true } } }
+    assert(ns.TrainStep() == "near")
+    set(false)
+    assert(ns.TrainStep() == nil and asked == 1, "off: nothing suggested, one pass asked for")
+    set(true)
+    assert(ns.TrainStep() == "near" and asked == 2)
+    ns.Data.classSpells = nil
+    UnitClass, GetMoney, IsPlayerSpell, ns.Planner.Request = class, money, spell, request
+end
+
 -- Quest 15 has a pending pick-up on the route, quest 7 a pending hand-in. A window that is
 -- open when the setting changes is looked at again.
 function effects.autoAccept(set)

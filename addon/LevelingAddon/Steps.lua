@@ -6,8 +6,9 @@
 --
 -- A step is { kind, name, need, questID, objective, map, x, y }:
 --   kind       "accept" (pick a quest up), "turnin" (hand it in), "kill", "loot", "go"
---              (be somewhere: an escort, an exploration), or "sell" (a vendor, when the bags
---              run low; its questID is ns.SELL, which is no quest)
+--              (be somewhere: an escort, an exploration), "sell" (a vendor, when the bags
+--              run low; its questID is ns.SELL, which is no quest), or "train" (the class
+--              trainer, when there are spells worth the trip; its questID is ns.TRAIN)
 --   name       the NPC, creature, item or place to find
 --   need       how many, for a kill or loot step whose quest is in the log
 --   objective  which of the quest's objectives in the log a kill, loot or go step is about;
@@ -149,6 +150,14 @@ local KINDS = {
         read = function(step)
             step.sold = step.sold or ns.SellDone()
             return step.sold
+        end,
+    },
+    -- A visit to the class trainer (Trainer.lua): over once a trainer window has been open.
+    train = {
+        events = { "TRAINER_SHOW" },
+        read = function(step)
+            step.trained = step.trained or ns.TrainDone()
+            return step.trained
         end,
     },
 }

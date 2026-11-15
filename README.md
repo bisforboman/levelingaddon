@@ -11,7 +11,7 @@ A leveling addon for World of Warcraft: Forever, and the collector that gathers 
 | Validation report | Done: [`reports/validation.md`](reports/validation.md) |
 | Polite, resumable Wowhead fetcher with raw cache | Built and tested against a local test server; not yet run against Wowhead |
 | Wowhead list / quest page parsers | Not built: need a few real sample pages first |
-| Class spells per level, with training cost (#17) | Fetch prepared, not yet run: see "Fetching class spells". No parser yet |
+| Class spells per level, with training cost (#17) | Fetch prepared, not yet run: see "Fetching class spells". No parser yet. The addon side is built against a provisional shape (see "Trainer visits") |
 | Flight points and flight times (#16) | Done: 65 points, 286 flights, converted by `collector parse` from a second pinned source (see "Sources") |
 | JSON → Lua export | Done: `collector export`, with reduced spawn lists and a per-table memory report; checked by loading the files back |
 
@@ -60,7 +60,7 @@ In a dungeon the window shrinks to a pause mark.
 The settings page holds every setting: scale, background opacity, steps in view, arrow, map
 pin, combat dimming, lock and reset position, and after them what each feature adds (the
 drowning alarm, junk selling, the four party settings, verbose output, the item hint,
-automation, the dungeon and group quest switches, reward marks, the item button). Every change applies at once, with no reload and
+automation, the dungeon and group quest switches, reward marks, the item button, trainer visits). Every change applies at once, with no reload and
 no loss of progress (#24), and a feature's own slash command changes the same setting the same
 way. A changed preference about which quests to suggest is one debounced planner pass; a pass
 keeps finished steps, skipped quests and counts.
@@ -79,6 +79,7 @@ machinery below. `test_planner.lua` checks the planner on quest data cut from a 
 character who skipped ahead, a full quest log, skips, and the events that ask for a pass.
 `test_automation.lua` checks accepting and handing in.
 `test_rewards.lua` checks the reward marks.
+`test_trainer.lua` checks the trainer visits, on a provisional spell list.
 `test_support.lua` checks the report, the events for other addons and verbose output.
 `test_flights.lua` checks the flight time on the flight map, the flight timer and what is
 remembered per character.
@@ -335,6 +336,40 @@ what it targeted:
 - **Cost**: everything is read from the client on `QUEST_COMPLETE` and again when item data
   arrives, only while a window with a choice is open. Two badge frames, made once.
 - Not built: stat weights per class, and an automatic pick.
+
+### Trainer visits
+
+`Trainer.lua` suggests a visit to the class trainer (issue #17) as a "train" row among the steps,
+with a setting, "Suggest trainer visits" (`/lvl trainer`), on by default. `/lvl trainer list`
+prints the spells waiting. Nothing is bought: at the trainer one line says what to learn and
+what it costs, and the player clicks "Train".
+
+- **What is waiting**: the spells of the character's class up to its level that it does not
+  know (`IsPlayerSpell`), leaving out a rank below one it knows. So a character that starts
+  late, or skipped a visit, gets the right list.
+- **Worth the trip**: the spells it can pay for, cheapest first, each counting 1, or 3 when the
+  data marks it `key`. From 2 points the visit is a side task, under the current step, while a
+  class trainer of the character's side is within 200 yards of the way. From 5 it is the
+  current step, at the nearest one; if the planner can place none nearby, one line a level
+  says how many spells are waiting. First guesses, to be tuned in the game.
+- **Over**: once a trainer window has been open, until the next level. A skip lasts until the
+  next level as well.
+- **Trainers**: the data's NPCs with the trainer flag (`npcFlags` 16) whose subtitle names the
+  class ("Mage Trainer"): 160 class trainers. Only those in this zone and the next are placed,
+  as for the vendor stop.
+- **Data**: `ns.Data.classSpells`, not built yet. The shape the parser is to write, so that the
+  addon needs no change when it comes:
+
+  ```lua
+  ns.Data.classSpells.MAGE = {
+      { id = 116, name = "Frostbolt", rank = 1, level = 4, cost = 100, key = true }, -- made-up values
+      -- id, name, level (to learn), cost (copper, no discount); rank only for spells with
+      -- ranks; key for a spell worth a trip of its own
+  }
+  ```
+
+  The key mark is not on Wowhead: it is a choice per class, to be made once the list exists.
+- Not built: buying automatically, professions, pet training, and reputation discounts.
 
 ### Quests not worth keeping
 
