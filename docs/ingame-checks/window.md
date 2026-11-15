@@ -17,12 +17,25 @@ None of this has been run in the game client yet. Tick each off in the game.
 - [ ] The sliders show a value beside them: a percentage for scale and opacity, a whole number
       for steps in view (`MinimalSliderWithSteppersMixin.Label.Right`).
 - [ ] Dragging each slider changes the window while dragging, with no reload: size, backplate
-      darkness, number of rows. At opacity 0% the text is still readable over a bright scene,
-      or note that it is not.
+      darkness, number of rows.
 - [ ] The Arrow switch hides and shows the arrow at once.
 - [ ] The page's "Defaults" button puts every setting back, and the window follows.
 - [ ] After `/lvl scale 1.5` or `/lvl set rows 5`, reopening the page shows the new value.
 - [ ] After `/reload`, every setting is as it was left.
+
+## No background
+
+- [ ] On a fresh install (or after the page's "Defaults") nothing is drawn behind the list:
+      Background opacity is 0%. A saved opacity from before this change is kept.
+- [ ] The text and the "!" and "?" marks have a dark outline (`SetFont(file, size, "OUTLINE")`
+      on the game's font objects) and are readable over grass, bright sky and snow. Note where
+      they are not, and whether the icons (which have no outline) get lost.
+- [ ] The current step has the yellow bar on its left and larger, brighter text, and no band
+      behind it.
+- [ ] With the pointer on a row, that row gets a faint highlight and its control: the cross on
+      a pending step, the restore arrow on a skipped one. Nothing else appears, and both go
+      when the pointer leaves.
+- [ ] The empty space between the rows' text still takes the mouse wheel and the drag.
 
 ## Lock and position
 
@@ -39,8 +52,8 @@ None of this has been run in the game client yet. Tick each off in the game.
 
 ## Dungeon pause mark
 
-- [ ] Entering a dungeon shrinks the window to a small dark square with a pause mark (two
-      bars) and prints one line in chat; leaving brings the list back (`IsInInstance()` read at
+- [ ] Entering a dungeon shrinks the window to a pause mark (two bars, on a small dark
+      square if the background is turned on) and prints one line in chat; leaving brings the list back (`IsInInstance()` read at
       `PLAYER_ENTERING_WORLD`).
 - [ ] The square stays where the window's anchored corner was, and can be dragged.
 - [ ] Note what happens in a battleground or other instance kind: it pauses there too.

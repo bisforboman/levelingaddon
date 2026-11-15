@@ -14,7 +14,7 @@ local function view()
     for _, r in ipairs(W.rows) do
         if r.shown then
             local mark = r.status == "done" and "v" or r.status == "skipped" and "x" or ""
-            out[#out + 1] = r.step and (r.index .. mark .. (r.band.shown and "*" or "")) or "-"
+            out[#out + 1] = r.step and (r.index .. mark .. (r.bar.shown and "*" or "")) or "-"
         end
     end
     return table.concat(out, " ")
