@@ -119,6 +119,38 @@ public sealed class LuaExportTests : IDisposable
     }
 
     [Fact]
+    public void A_key_spell_is_marked_on_its_first_purchase_only_and_a_name_that_marks_nothing_stops_the_export()
+    {
+        File.WriteAllText(Path.Combine(Parsed, "class-spells.json"), """
+            [
+            {"class":"MAGE","id":116,"name":"Frostbolt","rank":1,"level":4,"cost":100},
+            {"class":"MAGE","id":143,"name":"Fireball","rank":2,"level":6,"cost":100},
+            {"class":"MAGE","id":205,"name":"Frostbolt","rank":2,"level":8,"cost":200},
+            {"class":"MAGE","id":1953,"name":"Blink","level":20,"cost":2000},
+            {"class":"WARRIOR","id":100,"name":"Charge","rank":1,"level":4,"cost":100}
+            ]
+            """);
+        ExportConfig Keys(params string[] mage) => new(ClassSpellKeys: new() { ["MAGE"] = mage });
+
+        var exporter = new LuaExporter(Keys("Frostbolt", "Blink"));
+        var export = exporter.Run(Parsed, Output);
+
+        Assert.Equal(
+        [
+            """{id=116,name="Frostbolt",rank=1,level=4,cost=100,key=true},""",
+            """{id=143,name="Fireball",rank=2,level=6,cost=100},""",
+            """{id=205,name="Frostbolt",rank=2,level=8,cost=200},""",
+            """{id=1953,name="Blink",level=20,cost=2000,key=true},""",
+        ], File.ReadAllLines(Path.Combine(Output, "classSpells-1.lua"))[6..10]);
+        Assert.Equal(2, export.KeySpells);
+        Assert.Empty(exporter.Verify(Parsed, Output, export).Differences);
+
+        // Rank 1 of Fireball is a starting spell, not in the data; Charge is another class's; Blnk is a typo.
+        foreach (var name in new[] { "Fireball", "Charge", "Blnk" })
+            Assert.Contains($"MAGE \"{name}\" names 0", Assert.Throws<InvalidDataException>(() => new LuaExporter(Keys(name)).Run(Parsed, Output)).Message);
+    }
+
+    [Fact]
     public void Coordinate_lists_are_flat_and_few_spawns_are_kept_exactly()
     {
         new LuaExporter(new ExportConfig()).Run(Parsed, Output);

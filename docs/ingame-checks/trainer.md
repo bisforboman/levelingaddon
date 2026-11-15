@@ -24,6 +24,10 @@ are for an addon folder without `Data/classSpells-1.lua`.
 - [ ] `/dump UnitRace("player")` gives a number as its third value (1 Human, 2 Orc, 3 Dwarf,
       4 Night Elf, 5 Undead, 6 Tauren, 7 Gnome, 8 Troll). Without it no race-only spell (a
       priest's racial spells, a mage's teleports and portals) is ever counted.
+- [ ] A Hunter Trainer does not list the pet skills (Great Stamina, Natural Armor, the
+      resistances): the data leaves them out on that assumption.
+- [ ] Whether a Mage Trainer sells the teleports and portals, or only a portal trainer does. The
+      data counts them for a Mage Trainer visit; if that is wrong they must come out.
 - [ ] A mage sees its own side's teleports in `/lvl trainer list` and not the other side's.
 - [ ] A character with spells waiting it can pay for, two in all or one marked `key`: a row with
       the trainer cursor and the trainer's name appears under the current step, while a class

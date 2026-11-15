@@ -11,7 +11,8 @@ namespace Collector.Export;
 public sealed record ExportedTable(string Name, int Rows, IReadOnlyList<string> Files, int LargestLiteralCount);
 
 /// <param name="SpawnPoints">Spawn points in the JSON, and how many of them the reduction kept.</param>
-public sealed record ExportResult(IReadOnlyList<ExportedTable> Tables, IReadOnlyList<string> Files, long Bytes, int SpawnPoints, int SpawnPointsKept);
+/// <param name="KeySpells">Class spells exported with the key mark.</param>
+public sealed record ExportResult(IReadOnlyList<ExportedTable> Tables, IReadOnlyList<string> Files, long Bytes, int SpawnPoints, int SpawnPointsKept, int KeySpells = 0);
 
 /// <param name="Differences">Where the loaded Lua is not what the JSON and the spawn rule call for; empty when it is.</param>
 /// <param name="Memory">What each table holds once loaded, in the collector's interpreter, in load order.</param>
@@ -64,6 +65,7 @@ public sealed class LuaExporter(ExportConfig config)
 
         var files = new List<string>();
         var tables = new List<ExportedTable>();
+        var keySpells = 0;
         (_spawnPoints, _spawnPointsKept) = (0, 0);
 
         var manifestLua = new StringBuilder(Header("manifest.json", provenance, null));
@@ -136,6 +138,7 @@ public sealed class LuaExporter(ExportConfig config)
             }
             files.Add(WriteFile(outputDirectory, "classSpells-1.lua", lua));
             tables.Add(new ExportedTable("classSpells", count, [files[^1]], constants.Count));
+            keySpells = classSpells.EnumerateObject().Sum(list => list.Value.EnumerateArray().Count(spell => spell.TryGetProperty("key", out _)));
         }
 
         // One stable line in the addon's TOC can include everything through this file.
@@ -145,7 +148,7 @@ public sealed class LuaExporter(ExportConfig config)
         xml.Append("</Ui>\n");
         File.WriteAllText(Path.Combine(outputDirectory, "data.xml"), xml.ToString(), Utf8);
 
-        return new ExportResult(tables, files, files.Sum(f => new FileInfo(Path.Combine(outputDirectory, f)).Length), _spawnPoints, _spawnPointsKept);
+        return new ExportResult(tables, files, files.Sum(f => new FileInfo(Path.Combine(outputDirectory, f)).Length), _spawnPoints, _spawnPointsKept, keySpells);
     }
 
     /// <summary>
@@ -207,8 +210,13 @@ public sealed class LuaExporter(ExportConfig config)
         return new Verification(differences, memory);
     }
 
-    /// <summary>class-spells.json as the addon reads it: each class token with its spells, a spell without its class. Empty without the file.</summary>
-    private static JsonElement ClassSpellLists(string parsedDirectory)
+    /// <summary>
+    /// class-spells.json as the addon reads it: each class token with its spells, a spell without
+    /// its class. Empty without the file. A spell named in the configuration's key list gets
+    /// <c>key = true</c> on its first purchase: its rank 1 row, or its only row when it has no
+    /// ranks. A name that marks no row, or more than one, is an error.
+    /// </summary>
+    private JsonElement ClassSpellLists(string parsedDirectory)
     {
         var path = Path.Combine(parsedDirectory, ClassSpells.SpellsFile);
         var lists = new SortedDictionary<string, List<JsonNode>>(StringComparer.Ordinal);
@@ -221,6 +229,17 @@ public sealed class LuaExporter(ExportConfig config)
                 spell.Remove("class");
                 if (!lists.TryGetValue(token, out var list)) lists[token] = list = [];
                 list.Add(spell);
+            }
+            foreach (var (token, names) in config.ClassSpellKeys ?? [])
+            {
+                foreach (var name in names)
+                {
+                    var first = lists.GetValueOrDefault(token, [])
+                        .Where(s => s["name"]!.GetValue<string>() == name && (s["rank"]?.GetValue<int>() ?? 1) == 1).ToList();
+                    if (first.Count != 1)
+                        throw new InvalidDataException($"classSpellKeys: {token} \"{name}\" names {first.Count} first purchases (a rank 1 row, or a row without a rank) in {ClassSpells.SpellsFile}; it must name one.");
+                    first[0]["key"] = true;
+                }
             }
         }
         return JsonSerializer.SerializeToElement(lists);

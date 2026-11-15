@@ -25,7 +25,24 @@
     "table": "Data",
     "maxConstantsPerFile": 200000,
     "spawnMergeAbove": 10,
-    "spawnMergeDistance": 2
+    "spawnMergeDistance": 2,
+
+    // Class spells worth a trainer visit of their own (#17): the addon counts one 3, any other
+    // spell 1. The mark goes on a spell's first purchase only (its rank 1 row, or its only row
+    // when it has no ranks), so a spell whose rank 1 is a starting spell cannot be listed. A
+    // name that matches no such row stops the export. Picked from memory of Classic, to be
+    // tuned in game; this server's own spells are not judged.
+    "classSpellKeys": {
+      "DRUID": ["Rejuvenation", "Entangling Roots", "Regrowth", "Swipe", "Cat Form", "Claw", "Rip", "Ferocious Bite", "Travel Form", "Dire Bear Form", "Innervate"],
+      "HUNTER": ["Serpent Sting", "Arcane Shot", "Concussive Shot", "Aspect of the Hawk", "Mend Pet", "Wing Clip", "Multi-Shot", "Aspect of the Cheetah", "Freezing Trap", "Feign Death"],
+      "MAGE": ["Frostbolt", "Conjure Water", "Polymorph", "Frost Nova", "Arcane Explosion", "Blink", "Blizzard", "Evocation", "Counterspell", "Cone of Cold"],
+      "PALADIN": ["Blessing of Might", "Judgement", "Hammer of Justice", "Lay on Hands", "Retribution Aura", "Consecration", "Flash of Light", "Blessing of Kings", "Divine Shield"],
+      "PRIEST": ["Shadow Word: Pain", "Power Word: Shield", "Renew", "Mind Blast", "Inner Fire", "Psychic Scream", "Flash Heal", "Greater Heal"],
+      "ROGUE": ["Gouge", "Evasion", "Sprint", "Slice and Dice", "Kick", "Vanish", "Cheap Shot", "Kidney Shot", "Blind"],
+      "SHAMAN": ["Earth Shock", "Lightning Shield", "Flametongue Weapon", "Flame Shock", "Ghost Wolf", "Frost Shock", "Lesser Healing Wave", "Windfury Weapon", "Chain Lightning", "Astral Recall"],
+      "WARLOCK": ["Corruption", "Life Tap", "Bane of Agony", "Fear", "Drain Soul", "Drain Life", "Create Healthstone", "Demon Armor", "Death Coil"],
+      "WARRIOR": ["Charge", "Rend", "Thunder Clap", "Hamstring", "Bloodrage", "Overpower", "Cleave", "Execute", "Berserker Rage", "Whirlwind"]
+    }
   },
 
   // Secondary source, fetched only by you, on your own machine.
