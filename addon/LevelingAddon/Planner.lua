@@ -184,6 +184,46 @@ local function suits(id, quest, me)
         and (not quest.maxRep or standing(quest.maxRep[1]) < quest.maxRep[2])
 end
 
+-- For a quest giver's tooltip (#80): could the character pick this quest up now? The same
+-- checks as a pass makes, on the game's own state: right for the character, not done, not in
+-- the log, and its earlier quests done.
+function Planner.CanTake(id)
+    local quests = ns.Data and ns.Data.plannerQuests
+    local quest = quests and quests[id]
+    if not quest then
+        return false
+    end
+    if not completed then
+        readCompleted()
+    end
+    local function isOn(other)
+        return C_QuestLog.IsOnQuest(other)
+    end
+    if isCompleted(id) or isOn(id) or not suits(id, quest, readCharacter()) then
+        return false
+    end
+    if quest.pre then
+        local any = false
+        for _, other in ipairs(quest.pre) do
+            any = any or isCompleted(other)
+        end
+        if not any then
+            return false
+        end
+    end
+    for _, other in ipairs(quest.preAll or {}) do
+        if not isCompleted(other) then
+            return false
+        end
+    end
+    for _, other in ipairs(quest.excl or {}) do
+        if isCompleted(other) or isOn(other) then
+            return false
+        end
+    end
+    return not quest.parent or isOn(quest.parent)
+end
+
 -- Maps --------------------------------------------------------------------------------------
 
 -- Each zone map as a frame in world yards: an origin and the vectors along its two edges,

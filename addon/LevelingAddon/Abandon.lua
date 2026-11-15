@@ -54,6 +54,8 @@ local function readyToHandIn(id)
     return objectives[1] ~= nil
 end
 
+ns.ReadyToHandIn = readyToHandIn -- also for the quest giver's tooltip (Hints.lua)
+
 local function tooLow(quest, level)
     return quest.level ~= nil and quest.level > 0 and quest.level + LEVELS_BELOW < level
 end

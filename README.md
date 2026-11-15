@@ -79,6 +79,7 @@ machinery below. `test_planner.lua` checks the planner on quest data cut from a 
 character who skipped ahead, a full quest log, skips, and the events that ask for a pass.
 `test_automation.lua` checks accepting and handing in.
 `test_rewards.lua` checks the reward marks.
+`test_npchint.lua` checks the quest giver's tooltip lines and the quest log marks.
 `test_trainer.lua` checks the trainer visits, on a short spell list of its own.
 `test_support.lua` checks the report, the events for other addons and verbose output.
 `test_flights.lua` checks the flight time on the flight map, the flight timer and what is
@@ -343,6 +344,29 @@ what it targeted:
 - **Cost**: everything is read from the client on `QUEST_COMPLETE` and again when item data
   arrives, only while a window with a choice is open. Two badge frames, made once.
 - Not built: stat weights per class, and an automatic pick.
+
+### Quest hints
+
+`Hints.lua` adds a line where the player already looks (issues #14 and #80). Each has its own
+setting, on by default.
+
+- **Item tooltip**: "Needed for: <quest>" on an item a quest the character has or can still do
+  needs, so it is not sold or deleted ("Quest item hint", `/lvl set itemHint`). The lookup is
+  the one junk selling uses, `ns.QuestNeedsItem`.
+- **Quest giver tooltip** (#80): one line per quest the character can hand in or pick up at this
+  NPC now, in the addon's yellow: "? <quest>" for a quest in the log that is ready, "! <quest>"
+  for one `ns.Planner.CanTake(id)` allows (the planner's own checks: side, race, class, level,
+  earlier quests, not done and not in the log). Quests the steps suggest come first, in the
+  steps' order, then hand-ins, then pick-ups; at most three, then "and N more". The NPC comes
+  from the unit's GUID and its quests from `ns.Data.npcs[id].questStarts` and `questEnds`.
+  Nothing for players or for a unit the client keeps from addons ("Quest giver hint",
+  `/lvl set npcHint`).
+- **Quest log** (#80): a small yellow ring (the arrow's `ring.tga`) at the right end of each row
+  whose quest is in the guide's pending steps: the current trail. It hooks the classic quest
+  log, `QuestLog_Update` and its rows `QuestLogTitle1` to `QuestLogTitle<QUESTS_DISPLAYED>`,
+  and is set again when the steps change while the log is open ("Mark the trail in the quest
+  log", `/lvl set questLogMark`).
+- **Cost**: lookups by id when a tooltip or the log is drawn; nothing runs in the background.
 
 ### Trainer visits
 

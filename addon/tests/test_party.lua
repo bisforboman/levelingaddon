@@ -54,12 +54,18 @@ function UnitInParty(unit)
     return unit == "mouseover" and T.overInParty
 end
 -- The unit tooltip: what the game calls when it has filled one, and the lines added to it.
-local unitTooltip, tooltipLines = nil, {}
+-- Every unit callback is kept: the quest giver hint (Hints.lua) adds one too.
+local unitCalls, tooltipLines = {}, {}
+local function unitTooltip(...)
+    for _, fn in ipairs(unitCalls) do
+        fn(...)
+    end
+end
 Enum = { TooltipDataType = { Item = 0, Unit = 2 } }
 TooltipDataProcessor = {
     AddTooltipPostCall = function(kind, fn)
         if kind == Enum.TooltipDataType.Unit then
-            unitTooltip = fn
+            unitCalls[#unitCalls + 1] = fn
         end
     end,
 }
