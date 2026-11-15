@@ -126,6 +126,18 @@ local function createRow(parent)
     return row
 end
 
+-- The line through a row's name: on a skipped step, and, while the pointer is on a skip
+-- button, on every pending step of that button's quest, to show what the skip would cross out.
+local function drawStrike(row)
+    local skipped = row.status == "skipped"
+    local quest = row.step.questID
+    local preview = row.status == "pending" and quest ~= nil and quest == Window.previewQuest
+    row.preview = preview
+    row.strike:SetShown(skipped or preview)
+    row.strike:SetWidth(math.min(row.name:GetStringWidth(), WIDTH - 80))
+    row:SetAlpha((row.status == "done" or skipped or preview) and 0.8 or 1)
+end
+
 -- Draw one row for the step at `index`, or leave it empty when there is no such step. A row
 -- that already shows exactly this is left alone, also when the planner has handed over the
 -- same step in a new table.
@@ -198,9 +210,7 @@ local function drawRow(row, index, currentIndex)
         setColor(row.icon, color)
     end
 
-    row.strike:SetShown(status == "skipped")
-    row.strike:SetWidth(math.min(row.name:GetStringWidth(), WIDTH - 80))
-    row:SetAlpha((done or status == "skipped") and 0.8 or 1)
+    drawStrike(row)
 end
 
 -- Show the one control the pointer's row offers: skip on a pending step, restore on a skipped one.
@@ -273,6 +283,20 @@ ns.Task("window", 0.05, function()
     local over = self.frame:IsMouseOver()
     for _, row in ipairs(self.rows) do
         setHot(row, over and row:IsShown() and row:IsMouseOver())
+    end
+    local quest
+    for _, row in ipairs(self.rows) do
+        if row.skip:IsShown() and row.skip:IsMouseOver() then
+            quest = row.step.questID
+        end
+    end
+    if quest ~= self.previewQuest then
+        self.previewQuest = quest
+        for _, row in ipairs(self.rows) do
+            if row.step then
+                drawStrike(row)
+            end
+        end
     end
     if self.scroll ~= 0 then
         if over then

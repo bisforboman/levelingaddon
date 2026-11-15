@@ -52,7 +52,8 @@ chat that it has no quest data. Then copy `addon/LevelingAddon` into the game's
 | `/lvl help` | List every command, including those that features add |
 
 In the window: drag to move, mouse wheel to scroll through the steps, the cross on a pending
-step skips its quest, the arrow on a skipped step brings the quest back. A skipped quest stays
+step skips its quest, the arrow on a skipped step brings the quest back. Pointing at the cross
+previews the skip: every step it would cross out is crossed out already. A skipped quest stays
 out of the suggestions, on that character only, until it is brought back.
 In a dungeon the window shrinks to a pause mark.
 

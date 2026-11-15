@@ -35,6 +35,9 @@ None of this has been run in the game client yet. Tick each off in the game.
 - [ ] With the pointer on a row, that row gets a faint highlight and its control: the cross on
       a pending step, the restore arrow on a skipped one. Nothing else appears, and both go
       when the pointer leaves.
+- [ ] With the pointer on the cross itself, the step's name is crossed out already, as a preview
+      of the skip, and so is every other pending step of the same quest in view (its turn-in).
+      Moving off the cross without clicking takes the lines away again.
 - [ ] The empty space between the rows' text still takes the mouse wheel and the drag.
 
 ## Lock and position
