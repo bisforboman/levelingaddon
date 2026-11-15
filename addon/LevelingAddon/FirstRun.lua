@@ -84,7 +84,7 @@ local function createPanel()
     hint:SetPoint("TOPLEFT", 14, -94)
     hint:SetWidth(WIDTH - 28)
     hint:SetJustifyH("LEFT")
-    hint:SetText("Drag the window where you want it.")
+    hint:SetText("Point at the list and drag its header.")
     hint:SetTextColor(DIM[1], DIM[2], DIM[3])
 
     local start = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")

@@ -35,13 +35,26 @@ None of this has been run in the game client yet. Tick each off in the game.
 - [ ] With the pointer on a row, that row gets a faint highlight and its control: the cross on
       a pending step, the restore arrow on a skipped one. Nothing else appears, and both go
       when the pointer leaves.
-- [ ] The empty space between the rows' text still takes the mouse wheel and the drag.
+- [ ] The empty space between the rows' text still takes the mouse wheel.
+
+## Header
+
+- [ ] With the pointer anywhere on the list, a dark bar appears above the first row with a grip
+      (six dots) and "Leveling Guide". The list itself does not move when it comes or goes.
+- [ ] Moving the pointer from a row up onto the header keeps it shown; it goes within a moment
+      of the pointer leaving both.
+- [ ] Dragging the header moves the window, and the header stays up for the whole drag, also
+      when the pointer runs ahead of it.
+- [ ] Dragging a row does nothing.
+- [ ] With the window at the top edge of the screen the header is still on the screen
+      (`SetClampRectInsets(0, 0, 20, 0)`): if it is cut off, the sign of the top inset is wrong.
+- [ ] In combat with the window folded to one row, the header still appears and drags.
 
 ## Lock and position
 
-- [ ] With Lock position on, or after `/lvl lock`, dragging a row does not move the window;
-      the cross and the restore arrow still work.
-- [ ] Unlocked, the window drags from any row, and the place survives `/reload`.
+- [ ] With Lock position on, or after `/lvl lock`, the header does not appear and nothing moves
+      the window; the cross and the restore arrow still work.
+- [ ] Unlocked, the window drags from its header, and the place survives `/reload`.
 - [ ] Reset position puts the window back at the right edge, left of the objective tracker.
 
 ## Combat
@@ -55,7 +68,7 @@ None of this has been run in the game client yet. Tick each off in the game.
 - [ ] Entering a dungeon shrinks the window to a pause mark (two bars, on a small dark
       square if the background is turned on) and prints one line in chat; leaving brings the list back (`IsInInstance()` read at
       `PLAYER_ENTERING_WORLD`).
-- [ ] The square stays where the window's anchored corner was, and can be dragged.
+- [ ] The square stays where the window's anchored corner was, and can be dragged by itself: it has no header.
 - [ ] Note what happens in a battleground or other instance kind: it pauses there too.
 
 ## Icons
