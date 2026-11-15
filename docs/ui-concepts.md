@@ -370,6 +370,10 @@ Decided by the owner since, also on 2026-11-14:
   without a click; Shift does the opposite for one window, a choice of rewards is always left
   to the player, and repeatable quests are never touched (#9, section 9).
 - Item tooltip hint ("Needed for: quest"): in (#14).
+- Quest giver tooltip and quest log marks (#80), chosen from mockups on 2026-11-15: one line
+  per quest that can be picked up ("!") or handed in ("?") there now, suggested ones first, at
+  most three and then "and N more"; in the quest log, only a small icon on the quests in the
+  current trail of steps.
 - Quest item button: in, as one button, not a bar (#11, section 9). Chosen from mockups.
 
 Not yet decided by the owner: an all-quests map layer. An earlier version of this section

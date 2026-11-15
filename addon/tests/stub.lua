@@ -34,6 +34,7 @@ local T = {
     corpse = nil, -- { x, y }: the corpse's map position
     bags = {}, -- [item id] = how many the character has, in the bags and equipped
     itemSpells = {}, -- [item id] = the name of the item's use effect
+    guids = {}, -- [unit] = UnitGUID
 }
 local function widget()
     local w = { scripts = {}, shown = true, h = 20, alpha = 1 }
@@ -167,6 +168,9 @@ end
 function UpdateAddOnMemoryUsage() end
 function GetAddOnMemoryUsage()
     return 123.4
+end
+function UnitGUID(unit)
+    return T.guids[unit]
 end
 function GetUnitSpeed()
     return T.speed

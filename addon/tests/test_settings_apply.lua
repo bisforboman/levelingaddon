@@ -161,17 +161,24 @@ end
 QuestInfoRewardsFrame = { RewardButtons = buttons }
 T.frames = {} -- so that Core's frame is the first again
 
--- An item tooltip.
-local tooltipLines, showTooltip = 0, nil
+-- An item tooltip, and a unit tooltip on the same GameTooltip.
+local tooltipLines, showTooltip, showUnit = 0, nil, nil
 GameTooltip = {
     AddLine = function()
         tooltipLines = tooltipLines + 1
     end,
+    GetUnit = function()
+        return "Someone", "mouseover"
+    end,
 }
-Enum = { TooltipDataType = { Item = 0 } }
+Enum = { TooltipDataType = { Item = 0, Unit = 2 } }
 TooltipDataProcessor = {
-    AddTooltipPostCall = function(_, fn)
-        showTooltip = fn
+    AddTooltipPostCall = function(kind, fn)
+        if kind == 0 then
+            showTooltip = fn
+        else
+            showUnit = fn
+        end
     end,
 }
 
@@ -447,6 +454,59 @@ function effects.itemHint(set)
     assert(lines() == 0)
     set(true)
     assert(lines() == 1)
+end
+
+-- A quest giver with a quest the character can take: one line on its tooltip, or none.
+function effects.npcHint(set)
+    ns.Data.npcs = { [5] = { name = "Giver", questStarts = { 9001 } } }
+    ns.Data.plannerQuests = { [9001] = { name = "Something To Do", req = 1 } }
+    T.guids.mouseover = "Creature-0-1-0-12-5-0000"
+    local class, race = UnitClass, UnitRace
+    UnitClass = function()
+        return "Warrior", "WARRIOR"
+    end
+    UnitRace = function()
+        return "Human", "Human"
+    end
+    local function lines()
+        tooltipLines = 0
+        showUnit(GameTooltip, {})
+        return tooltipLines
+    end
+    assert(lines() == 1)
+    set(false)
+    assert(lines() == 0)
+    set(true)
+    assert(lines() == 1)
+    ns.Data.npcs, ns.Data.plannerQuests, T.guids.mouseover = nil, nil, nil
+    UnitClass, UnitRace = class, race
+end
+
+-- The quest log's one row shows the current step's quest: marked, or not.
+function effects.questLogMark(set)
+    local button, mark = CreateFrame("Button", "QuestLogTitle1"), nil
+    rawset(button, "GetID", function()
+        return 1
+    end)
+    rawset(button, "CreateTexture", function()
+        mark = CreateFrame("Texture")
+        return mark
+    end)
+    QUESTS_DISPLAYED, QuestLogTitle1 = 1, button
+    local questID = ns.Steps:Current().questID
+    GetNumQuestLogEntries = function()
+        return 1
+    end
+    GetQuestLogTitle = function()
+        return "A quest", 1, nil, false, nil, nil, nil, questID
+    end
+    set(false)
+    assert(mark == nil, "off: no mark")
+    set(true)
+    assert(mark and mark.shown, "on: the row is marked")
+    set(false)
+    assert(not mark.shown, "off again: the mark goes")
+    QUESTS_DISPLAYED, QuestLogTitle1, GetNumQuestLogEntries, GetQuestLogTitle = nil, nil, nil, nil
 end
 
 -- With a spell waiting that the character can pay for, a trainer visit is suggested only while
