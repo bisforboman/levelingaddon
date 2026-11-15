@@ -80,6 +80,19 @@ Nothing to point at
 - [ ] Entering combat in a dungeon does not bring a stale arrow back; on another continent
       than the step the name dims like the arrow does.
 
+Moving it (#76)
+
+- [ ] Drag the arrow with the left button: it follows the mouse, cannot leave the screen, and
+      stays where it was dropped after `/reload` and on another character (saved account-wide,
+      like the window).
+- [ ] The frame made wider for a zone name or the flight timer stays centred on where it was
+      dropped, not shifted to one side.
+- [ ] "Lock position" (or `/lvl lock`) locks the arrow with the window: it cannot be dragged,
+      and clicks on it go through to the world (right-clicking an NPC behind it works). Unlocked,
+      a click on the arrow does not reach the world: note if that gets in the way.
+- [ ] "Reset position" (or `/lvl reset`) puts it back at the top centre with the window.
+- [ ] Dragging in combat works or does nothing, and raises no "action blocked" message.
+
 Settings
 
 - [ ] "Dim in combat" on: the arrow fades to 40% in combat, as the window does. Off: it does

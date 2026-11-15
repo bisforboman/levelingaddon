@@ -458,8 +458,9 @@ nothing for them: choosing a gossip option, confirming an inn.
 dungeon quests and group quests (both off by default, per character), in a small panel shown
 beside the live window, which the player can drag into place meanwhile; "Start" closes it
 (#20). The same two switches are on the settings page and under `/lvl dungeons` and
-`/lvl groups`; `/lvl setup` shows the panel again. The arrow cannot be dragged yet, so the
-panel does not offer it.
+`/lvl groups`; `/lvl setup` shows the panel again. Its hint line also says the arrow can be
+dragged (#76): the arrow moves with the left button while unlocked, shares the window's "Lock
+position" and "Reset position", and is saved account-wide like the window.
 
 `Target.lua` keeps one macro, made on `/lvl macro`, pointed at the names of the current step's
 NPC or creatures, with a raid marker on what it targets (#12; README, "The target macro"). By

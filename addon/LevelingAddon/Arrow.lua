@@ -170,11 +170,60 @@ local function nearest(target, px, py)
     return best, bestSquare
 end
 
+-- Where the arrow sits (#76). Dragged, it is kept as the middle of its top edge, so that a
+-- frame made wider for a name or a flight stays centred where the player put it. The window's
+-- lock and reset cover it too (Settings.lua, /lvl reset).
+function Arrow:RestorePosition()
+    local frame, saved = self.frame, ns.db.arrowPoint
+    frame:ClearAllPoints()
+    if saved then
+        frame:SetPoint("TOP", UIParent, "BOTTOMLEFT", saved[1], saved[2])
+    else
+        frame:SetPoint("TOP", UIParent, "TOP", 0, -110)
+    end
+end
+
+function Arrow:StopMoving()
+    local frame = self.frame
+    frame:StopMovingOrSizing()
+    frame:SetUserPlaced(false)
+    local x, top = frame:GetCenter(), frame:GetTop()
+    if x and top then
+        ns.db.arrowPoint = { x, top }
+    end
+    self:RestorePosition()
+end
+
+-- Unlocked, the arrow takes the mouse so it can be dragged; locked, clicks go through it.
+function Arrow:ApplyLock()
+    local movable = not ns.db.locked
+    if self.movable ~= movable then
+        self.movable = movable
+        self.frame:EnableMouse(movable)
+    end
+end
+
 function Arrow:Create()
     local frame = CreateFrame("Frame", "LevelingAddonArrow", UIParent)
     self.frame = frame
     frame:SetSize(56, 60)
-    frame:SetPoint("TOP", UIParent, "TOP", 0, -110)
+    frame:SetMovable(true)
+    frame:SetClampedToScreen(true)
+    frame:RegisterForDrag("LeftButton")
+    frame:SetScript("OnDragStart", function()
+        if not ns.db.locked then
+            self.moving = true
+            frame:StartMoving()
+        end
+    end)
+    frame:SetScript("OnDragStop", function()
+        if self.moving then
+            self.moving = false
+            self:StopMoving()
+        end
+    end)
+    self:RestorePosition()
+    self:ApplyLock()
 
     local background = frame:CreateTexture(nil, "BACKGROUND")
     background:SetAllPoints()
@@ -308,6 +357,7 @@ end
 -- Called when the current step, a setting, or where the player is may have changed. The
 -- step's places are turned into world coordinates here, once, and never in the update loop.
 function Arrow:StepChanged()
+    self:ApplyLock()
     if not self.frame then
         return
     end

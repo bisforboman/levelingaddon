@@ -205,6 +205,43 @@ UnitPosition = position
 tick()
 assert(A.frame.alpha == 1)
 
+-- Moving the arrow (#76): dragged while unlocked and kept as the middle of its top edge;
+-- locked, it does not move and lets clicks through; /lvl reset puts it back.
+local F = A.frame
+local moved, mouse = 0, nil
+rawset(F, "StartMoving", function()
+    moved = moved + 1
+end)
+rawset(F, "StopMovingOrSizing", function() end)
+rawset(F, "GetCenter", function()
+    return 300, 200
+end)
+rawset(F, "GetTop", function()
+    return 450
+end)
+rawset(F, "EnableMouse", function(_, on)
+    mouse = on
+end)
+A.movable = nil
+A:StepChanged()
+assert(mouse == true, "unlocked: the arrow takes the mouse")
+F.scripts.OnDragStart()
+F.scripts.OnDragStop()
+assert(moved == 1 and ns.db.arrowPoint[1] == 300 and ns.db.arrowPoint[2] == 450, "the place is saved")
+assert(F.point[1] == "TOP" and F.point[3] == "BOTTOMLEFT" and F.point[4] == 300 and F.point[5] == 450)
+T.cmd("lock")
+assert(mouse == false, "locked: clicks go through")
+F.scripts.OnDragStart()
+F.scripts.OnDragStop()
+assert(moved == 1, "locked: no move")
+T.cmd("lock")
+assert(mouse == true)
+F.point = nil
+A:RestorePosition()
+assert(F.point[4] == 300 and F.point[5] == 450, "restored where it was put")
+T.cmd("reset")
+assert(ns.db.arrowPoint == nil and F.point[1] == "TOP" and F.point[3] == "TOP" and F.point[5] == -110, "reset")
+
 -- /lvl arrow still switches it off.
 T.cmd("arrow")
 assert(not A.frame.shown)

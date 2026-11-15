@@ -44,10 +44,10 @@ chat that it has no quest data. Then copy `addon/LevelingAddon` into the game's
 | `/lvl set`, `/lvl set key value` | List the settings, or change one (`/lvl set opacity 0.4`, `/lvl set combatDim off`) |
 | `/lvl rows N`, `/lvl scale N` | Steps in view (3 to 16), window scale (0.6 to 2) |
 | `/lvl arrow` | Turn our arrow on or off |
-| `/lvl lock` | Lock the window in place, or unlock it |
+| `/lvl lock` | Lock the window and the arrow in place, or unlock them |
 | `/lvl skipped` | List the quests skipped on this character |
 | `/lvl unskip NUMBER`, `/lvl unskip all` | Bring one skipped quest back (by the number in the list), or all of them |
-| `/lvl reset` | Put the window back where it starts |
+| `/lvl reset` | Put the window and the arrow back where they start |
 | `/lvl debug` | Print the addon's memory use and timings (see "Writing a feature") |
 | `/lvl help` | List every command, including those that features add |
 
@@ -201,6 +201,11 @@ in `KINDS`.
 
 `Arrow.lua` points at the current step (issue #5), or hands the waypoint to TomTom when that is
 installed.
+
+- **Moving it** (#76): drag it with the left button while the window is unlocked. Its place is
+  saved account-wide as the middle of its top edge (`ns.db.arrowPoint`), so a frame widened for
+  a name stays centred there. "Lock position" and "Reset position" (`/lvl lock`, `/lvl reset`)
+  cover the window and the arrow alike; locked, the arrow lets clicks through.
 
 - **Several places**: a planner step carries one point, but the thing to find often has many.
   When a step becomes current the arrow looks the step's name up among what the quest names in

@@ -157,7 +157,7 @@ end
 -- rows in view and the lock.
 ns.defaults.opacity = 0 -- of a dark plate behind the list: none unless the player wants one
 ns.defaults.combatDim = true -- fold to the current step and dim while in combat
-ns.defaults.locked = false -- the window cannot be dragged
+ns.defaults.locked = false -- the window and the arrow cannot be dragged
 
 ns.AddSetting({ key = "scale", label = "Scale", min = 0.6, max = 2, step = 0.05 })
 ns.AddSetting({ key = "opacity", label = "Background opacity", min = 0, max = 1, step = 0.05 })
@@ -165,10 +165,14 @@ ns.AddSetting({ key = "rows", label = "Steps in view", min = 3, max = 16, step =
 ns.AddSetting({ key = "arrow", label = "Arrow", tooltip = "Point at the current step." })
 ns.AddSetting({ key = "pin", label = "Map pin", tooltip = "Mark the current target on the map and the minimap." })
 ns.AddSetting({ key = "combatDim", label = "Dim in combat", tooltip = "Show only the current step, dimmed." })
-ns.AddSetting({ key = "locked", label = "Lock position", tooltip = "The window cannot be dragged and has no header." })
+ns.AddSetting({
+    key = "locked",
+    label = "Lock position",
+    tooltip = "The window and the arrow cannot be dragged, and the window has no header.",
+})
 ns.AddSetting({
     label = "Reset position",
-    tooltip = "Put the window back where it starts.",
+    tooltip = "Put the window and the arrow back where they start.",
     func = function()
         ns.commands.reset()
     end,
