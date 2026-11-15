@@ -635,7 +635,7 @@ t[228]={name="Avette Fellwood",minLevel=24,zoneId=10,spawns={[10]={73.03,44.42}}
 
 | Output | Contents |
 | --- | --- |
-| `quests-N.lua`, `questRelations-N.lua`, `npcs-N.lua`, `objects-N.lua`, `items-N.lua`, `zones-N.lua` | `ns.Data.<table>[id] = row` |
+| `quests-N.lua`, `npcs-N.lua`, `objects-N.lua`, `items-N.lua`, `zones-N.lua` | `ns.Data.<table>[id] = row`, with only the fields the addon reads (see "Memory") |
 | `plannerQuests-N.lua`, `plannerZones-N.lua` | The planner index: see below |
 | `dangers-N.lua` | `ns.Data.dangers[uiMapId].mobs`: the elite mobs with a spawn on that zone map, for the elite warning. Each is `{ id, name, level, side, patrols, quests, at }`: `side` is `"A"` or `"H"` when the mob is friendly to that side (mobs friendly to both are left out), `patrols` is true when it has `waypoints`, `quests` are the quests it is an objective of, and `at` is its spawn points on that map, flat and reduced like `spawns`. Elite is `rank` 1 to 3; rank 4 is a rare that is not elite. Instances are left out. Only NPCs a quest refers to are in the data, so the list is never all of a zone's elites. |
 | `taxiNodes-N.lua` | `ns.Data.taxiNodes[id] = row`, as in `taxi-nodes.json` |
@@ -758,6 +758,28 @@ Measured and not done: writing rows as positional arrays (`{"Avette Fellwood",24
 index table per data table) would save a further 5.4 MB in Lua 5.1 (22.8 to 17.4 MB), because
 the named rows themselves cost about 10 MB. The owner decided to keep named rows for now;
 dropping unused fields later shrinks the same cost.
+
+**Fields trimmed (#1).** The plain tables now keep only what the addon reads:
+`LuaExporter.Fields` in the collector lists, per table, the properties a row keeps (and for
+`objectives`, which of its lists). `quest-relations.json` is no longer exported: the planner
+reads its own index, and nothing else read relations. A feature that starts reading another
+field adds it to that list; the export's verification compares the Lua with the trimmed JSON.
+Everything the addon loads, QuestieDB commit `4dbb82440a`, in MB, after a full collection:
+
+| Table | Before, 5.4 | After, 5.4 | Before, 5.1 | After, 5.1 |
+| --- | ---: | ---: | ---: | ---: |
+| `quests` | 8.42 | 4.37 | 11.30 | 5.75 |
+| `questRelations` | 0.82 | (gone) | 1.05 | (gone) |
+| `npcs` | 5.63 | 4.10 | 7.36 | 5.03 |
+| `objects` | 1.02 | 0.92 | 1.21 | 1.06 |
+| `items` | 1.89 | 1.31 | 2.39 | 1.56 |
+| `zones`, `taxiNodes` | 0.06 | 0.04 | 0.10 | 0.05 |
+| Planner, dangers, flights, class spells | 7.00 | 6.99 | 8.82 | 8.85 |
+| Total | 24.84 | 17.73 | 32.23 | 22.30 |
+
+The files on disk went from 6.4 to 3.8 MB. What is left in the plain tables is mostly names
+and spawn points. Still not built: a split by faction and loading data on demand, which wait
+on whether load-on-demand data addons work on the Forever client.
 
 Memory in the game client has not been measured yet.
 

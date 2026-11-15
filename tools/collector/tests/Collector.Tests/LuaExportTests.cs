@@ -43,6 +43,11 @@ public sealed class LuaExportTests : IDisposable
 
     public void Dispose() => Directory.Delete(_directory, recursive: true);
 
+    // These tests are about how JSON becomes Lua, so they keep every field; trimming to what the
+    // addon reads has tests of its own.
+    private static readonly IReadOnlyDictionary<string, IReadOnlyDictionary<string, string[]?>> Everything =
+        new Dictionary<string, IReadOnlyDictionary<string, string[]?>>();
+
     private static string Lua(string json)
     {
         var lua = new StringBuilder();
@@ -61,20 +66,58 @@ public sealed class LuaExportTests : IDisposable
     [Fact]
     public void Each_entity_is_one_line_keyed_by_id_without_repeating_the_id()
     {
-        new LuaExporter(new ExportConfig()).Run(Parsed, Output);
+        new LuaExporter(new ExportConfig(), Everything).Run(Parsed, Output);
 
         var lines = File.ReadAllLines(Path.Combine(Output, "quests-1.lua"));
         Assert.StartsWith(LuaExporter.GeneratedMarker, lines[0]);
         Assert.Contains("local _, ns = ...", lines);
         Assert.Contains("ns.Data.quests=ns.Data.quests or {}", lines);
         Assert.Contains("""t[2]={name="Sharptalon's Claw",level=30,start={items={16305}},["end"]={npcs={12696}},requiredRaces=8589934770,repeatable=true,origin="era",side="horde"}""", lines);
-        Assert.Contains("t[2]={preQuestSingle={6383},nextQuestInChain=25}", File.ReadAllLines(Path.Combine(Output, "questRelations-1.lua")));
+        Assert.False(File.Exists(Path.Combine(Output, "questRelations-1.lua")), "quest relations are not exported");
+    }
+
+    [Fact]
+    public void Rows_keep_only_what_the_addon_reads_and_still_verify()
+    {
+        var exporter = new LuaExporter(new ExportConfig());
+        var export = exporter.Run(Parsed, Output);
+
+        var quests = File.ReadAllLines(Path.Combine(Output, "quests-1.lua"));
+        var quest = quests.Single(l => l.StartsWith("t[2]="));
+        Assert.Contains("name=\"Sharptalon's Claw\"", quest);
+        Assert.Contains("repeatable=true", quest);
+        Assert.Contains("side=\"horde\"", quest);
+        Assert.Contains("start={items={16305}}", quest);
+        Assert.DoesNotContain("level=", quest);
+        Assert.DoesNotContain("origin=", quest);
+        Assert.DoesNotContain("requiredRaces=", quest);
+        Assert.DoesNotContain("triggerEnd", quests.Single(l => l.StartsWith("t[25]=")));
+        Assert.DoesNotContain("nested", quests.Single(l => l.StartsWith("t[900]=")));
+
+        var npc = File.ReadAllLines(Path.Combine(Output, "npcs-1.lua")).Single(l => l.StartsWith("t[6]="));
+        Assert.Contains("spawns=", npc);
+        Assert.DoesNotContain("waypoints", npc);
+        var node = File.ReadAllLines(Path.Combine(Output, "taxiNodes-1.lua")).Single(l => l.StartsWith("t[2]="));
+        Assert.DoesNotContain("npcId", node);
+        Assert.DoesNotContain("npcName", node);
+        Assert.Contains("t[331]={}", File.ReadAllLines(Path.Combine(Output, "zones-1.lua")));
+
+        Assert.DoesNotContain("questRelations", export.Tables.Select(t => t.Name));
+        Assert.Empty(exporter.Verify(Parsed, Output, export).Differences);
+    }
+
+    [Fact]
+    public void Trimming_keeps_the_listed_properties_of_a_nested_object_and_drops_one_left_empty()
+    {
+        using var rows = JsonDocument.Parse("""[{"id":7,"name":"A","level":2,"objectives":{"npcs":[{"id":6}],"reputation":[{"factionId":1}]}},{"id":8,"objectives":{"spells":[1]}}]""");
+        var trimmed = LuaExporter.Trim(LuaExporter.Fields, "quests", "id", rows.RootElement);
+        Assert.Equal("""[{"id":7,"name":"A","objectives":{"npcs":[{"id":6}]}},{"id":8}]""", trimmed.GetRawText());
     }
 
     [Fact]
     public void Flight_points_and_flights_are_exported_under_their_own_notice()
     {
-        new LuaExporter(new ExportConfig()).Run(Parsed, Output);
+        new LuaExporter(new ExportConfig(), Everything).Run(Parsed, Output);
 
         var nodes = File.ReadAllLines(Path.Combine(Output, "taxiNodes-1.lua"));
         Assert.Equal(["-- From elsewhere, GPL-3.0-or-later.", "--", "-- MIT License"], nodes[1..4]);
@@ -91,7 +134,7 @@ public sealed class LuaExportTests : IDisposable
     [Fact]
     public void Class_spells_are_lists_by_class_token_and_the_export_verifies_with_and_without_them()
     {
-        var exporter = new LuaExporter(new ExportConfig());
+        var exporter = new LuaExporter(new ExportConfig(), Everything);
         var without = exporter.Run(Parsed, Output);
         Assert.DoesNotContain("classSpells-1.lua", without.Files);
         Assert.Empty(exporter.Verify(Parsed, Output, without).Differences);
@@ -153,7 +196,7 @@ public sealed class LuaExportTests : IDisposable
     [Fact]
     public void Coordinate_lists_are_flat_and_few_spawns_are_kept_exactly()
     {
-        new LuaExporter(new ExportConfig()).Run(Parsed, Output);
+        new LuaExporter(new ExportConfig(), Everything).Run(Parsed, Output);
 
         var lines = File.ReadAllLines(Path.Combine(Output, "npcs-1.lua"));
         Assert.Contains("""t[6]={name="Kobold Vermin",spawns={[12]={48.89,36.44,49.55,36.06,-1,-1,47.58,35.94,60,20,49.27,37.05},[1]={-1,-1}},waypoints={[12]={{48.89,36.44,49,36.5},{60,20,61,21,60,20}}}}""", lines);
@@ -165,7 +208,7 @@ public sealed class LuaExportTests : IDisposable
     [Fact]
     public void Many_spawns_in_a_zone_are_merged_and_the_export_still_verifies()
     {
-        var exporter = new LuaExporter(new ExportConfig(SpawnMergeAbove: 3, SpawnMergeDistance: 2));
+        var exporter = new LuaExporter(new ExportConfig(SpawnMergeAbove: 3, SpawnMergeDistance: 2), Everything);
 
         var export = exporter.Run(Parsed, Output);
 
@@ -183,7 +226,7 @@ public sealed class LuaExportTests : IDisposable
     [InlineData("{[331]={73.78,61.46}}", "{[331]={{73.78,61.46}}}", "flat")]
     public void Verification_reports_spawns_that_break_the_reduction_rule(string exported, string tampered, string expectedMessage)
     {
-        var exporter = new LuaExporter(new ExportConfig(SpawnMergeAbove: 3, SpawnMergeDistance: 2));
+        var exporter = new LuaExporter(new ExportConfig(SpawnMergeAbove: 3, SpawnMergeDistance: 2), Everything);
         var export = exporter.Run(Parsed, Output);
         var path = Path.Combine(Output, "npcs-1.lua");
         Assert.Contains(exported, File.ReadAllText(path));
@@ -195,11 +238,11 @@ public sealed class LuaExportTests : IDisposable
     [Fact]
     public void Verification_measures_what_each_table_holds_in_memory()
     {
-        var exporter = new LuaExporter(new ExportConfig());
+        var exporter = new LuaExporter(new ExportConfig(), Everything);
 
         var memory = exporter.Verify(Parsed, Output, exporter.Run(Parsed, Output)).Memory;
 
-        Assert.Equal(["manifest", "quests", "questRelations", "npcs", "objects", "items", "zones", "taxiNodes", "plannerQuests", "plannerZones", "dangers", "taxiPaths"], memory.Select(m => m.Table));
+        Assert.Equal(["manifest", "quests", "npcs", "objects", "items", "zones", "taxiNodes", "plannerQuests", "plannerZones", "dangers", "taxiPaths"], memory.Select(m => m.Table));
         Assert.All(memory, m => Assert.InRange(m.Megabytes, 0.00001, 1));
         Assert.Equal(0, memory.Single(m => m.Table == "objects").Megabytes, 3);
     }
@@ -207,12 +250,12 @@ public sealed class LuaExportTests : IDisposable
     [Fact]
     public void The_export_loads_and_reads_back_identical_to_the_json()
     {
-        var exporter = new LuaExporter(new ExportConfig());
+        var exporter = new LuaExporter(new ExportConfig(), Everything);
 
         var export = exporter.Run(Parsed, Output);
 
         Assert.Empty(exporter.Verify(Parsed, Output, export).Differences);
-        Assert.Equal(["manifest.lua", "quests-1.lua", "questRelations-1.lua", "npcs-1.lua", "objects-1.lua", "items-1.lua", "zones-1.lua", "taxiNodes-1.lua", "plannerQuests-1.lua", "plannerZones-1.lua", "dangers-1.lua", "taxiPaths-1.lua"], export.Files);
+        Assert.Equal(["manifest.lua", "quests-1.lua", "npcs-1.lua", "objects-1.lua", "items-1.lua", "zones-1.lua", "taxiNodes-1.lua", "plannerQuests-1.lua", "plannerZones-1.lua", "dangers-1.lua", "taxiPaths-1.lua"], export.Files);
         var xml = File.ReadAllText(Path.Combine(Output, "data.xml"));
         Assert.All(export.Files, file => Assert.Contains($"<Script file=\"{file}\"/>", xml));
     }
@@ -220,7 +263,7 @@ public sealed class LuaExportTests : IDisposable
     [Fact]
     public void A_table_is_split_when_one_file_would_hold_too_many_distinct_literals()
     {
-        var exporter = new LuaExporter(new ExportConfig(MaxConstantsPerFile: 20));
+        var exporter = new LuaExporter(new ExportConfig(MaxConstantsPerFile: 20), Everything);
 
         var export = exporter.Run(Parsed, Output);
 
@@ -247,7 +290,7 @@ public sealed class LuaExportTests : IDisposable
         new LuaExporter(new ExportConfig(MaxConstantsPerFile: 20)).Run(Parsed, Output);
         File.WriteAllText(Path.Combine(Output, "handwritten.lua"), "-- mine\nreturn 1\n");
 
-        new LuaExporter(new ExportConfig()).Run(Parsed, Output);
+        new LuaExporter(new ExportConfig(), Everything).Run(Parsed, Output);
 
         Assert.False(File.Exists(Path.Combine(Output, "quests-2.lua")));
         Assert.True(File.Exists(Path.Combine(Output, "quests-1.lua")));
@@ -257,7 +300,7 @@ public sealed class LuaExportTests : IDisposable
     [Fact]
     public void Verification_reports_a_value_that_differs_from_the_json()
     {
-        var exporter = new LuaExporter(new ExportConfig());
+        var exporter = new LuaExporter(new ExportConfig(), Everything);
         var export = exporter.Run(Parsed, Output);
         var path = Path.Combine(Output, "quests-1.lua");
         File.WriteAllText(path, File.ReadAllText(path).Replace("level=30", "level=31"));
