@@ -11,7 +11,7 @@ A leveling addon for World of Warcraft: Forever, and the collector that gathers 
 | Validation report | Done: [`reports/validation.md`](reports/validation.md) |
 | Polite, resumable Wowhead fetcher with raw cache | Built and tested against a local test server; not yet run against Wowhead |
 | Wowhead list / quest page parsers | Not built: need a few real sample pages first |
-| Class spells per level, with training cost (#17) | Fetch prepared, not yet run: see "Fetching class spells". No parser yet. The addon side is built against a provisional shape (see "Trainer visits") |
+| Class spells per level, with training cost (#17) | Done: 1,265 trainer spells of the nine classes, converted by `collector parse` from Wowhead's ability listings (see "Fetching class spells"). No spell is marked `key` yet |
 | Flight points and flight times (#16) | Done: 65 points, 286 flights, converted by `collector parse` from a second pinned source (see "Sources") |
 | JSON → Lua export | Done: `collector export`, with reduced spawn lists and a per-table memory report; checked by loading the files back |
 
@@ -357,18 +357,21 @@ what it costs, and the player clicks "Train".
 - **Trainers**: the data's NPCs with the trainer flag (`npcFlags` 16) whose subtitle names the
   class ("Mage Trainer"): 160 class trainers. Only those in this zone and the next are placed,
   as for the vendor stop.
-- **Data**: `ns.Data.classSpells`, not built yet. The shape the parser is to write, so that the
-  addon needs no change when it comes:
+- **Data**: `ns.Data.classSpells`, exported from `data/parsed/class-spells.json`:
 
   ```lua
   ns.Data.classSpells.MAGE = {
-      { id = 116, name = "Frostbolt", rank = 1, level = 4, cost = 100, key = true }, -- made-up values
-      -- id, name, level (to learn), cost (copper, no discount); rank only for spells with
-      -- ranks; key for a spell worth a trip of its own
+      { id = 116, name = "Frostbolt", rank = 1, level = 4, cost = 100 },
+      { id = 3567, name = "Teleport: Orgrimmar", level = 20, cost = 2000, races = { 2, 5, 6, 8 } },
+      -- id, name, level (to learn), cost (copper, no discount); rank only for "Rank N"
+      -- spells; races (the client's race ids) only for a spell some races get, which the
+      -- addon leaves out for the others; key for a spell worth a trip of its own
   }
   ```
 
-  The key mark is not on Wowhead: it is a choice per class, to be made once the list exists.
+  The key mark is not on Wowhead: it is a choice per class, not made yet, so no spell has it.
+- **Not in the data**: the trained ranks of talent spells (Pyroblast, Mortal Strike) and of pet
+  spells (Growl); see "Fetching class spells".
 - Not built: buying automatically, professions, pet training, and reputation discounts.
 
 ### Quests not worth keeping
@@ -810,9 +813,9 @@ look at, and is asked for again on the next run.
 
 The trainer suggestions (#17) need the spells each class learns at each level and what they
 cost to train. QuestieDB has neither, so they come from Wowhead's ability listing of each
-class. This is prepared and has not been run: like every Wowhead fetch, you run it on your own
-machine, never from a cloud agent session. **Read Wowhead's terms of use first**; nobody has
-yet (see "Sources").
+class. It was run on 2026-11-15. Like every Wowhead fetch, you run it on your own machine,
+never from a cloud agent session. **Read Wowhead's terms of use first**; nobody has yet (see
+"Sources").
 
 ```sh
 cd tools/collector
@@ -827,25 +830,32 @@ dotnet run --project src/Collector -- fetch class-spells --urls-file class-spell
 - **Where it lands**: `data/raw/wowhead/class-spells/` (gitignored). Per class, the page
   (`forever_spells_abilities_<class>-<hash>.html`), its `.meta.json`, and the rows of the spell
   list as `forever_spells_abilities_<class>-<hash>.spells.json`.
-- **What to send back**: two or three classes' `.spells.json` and `.html` files, so that the
-  parser can be written against real pages. Either attach them to #17, or commit them to a
-  branch that is not meant to be merged (`git add -f`, since `data/raw/` is ignored).
+- **Samples**: the pages and rows of mage, priest and warrior as fetched are on the branch
+  `samples/class-spells`, which is not meant to be merged.
 
-Three things here are assumptions, because the site cannot be opened from where this was
-written:
+Then `collector parse` writes `data/parsed/class-spells.json`, which is committed, and
+`collector export` turns it into `ns.Data.classSpells`. A `parse` without the pages in
+`data/raw/` (the nightly update, a fresh clone) leaves the committed file as it is.
 
-| Assumption | Where to correct it |
-| --- | --- |
-| The pages are at `https://www.wowhead.com/forever/spells/abilities/<class>` | `tools/collector/class-spells.txt` |
-| The page keeps the rows of its spell list in `g_listviews.spells.data`, as the quest listing does in `g_listviews.quests.data` | `browserCaptures.spells` in `collector.json` |
-| One page holds all of a class's abilities, with level and training cost in the rows | Not checked by the collector: look at the row count in a `.spells.json` |
+What the parser keeps, as found on the nine pages (154 to 315 rows each):
 
-That is what the one-page trial is for. With a wrong address it reports the page as
-"recorded as missing", or the site sends the browser somewhere else and the run ends as below.
-With a wrong list name the run ends with "the browser capture 'spells' found nothing", stops at
-that page and leaves a `.rejected.html`. Then open the address in your browser, type
+- **A trainer spell is a row with `trainingcost`.** The listing also holds starting spells,
+  talents, books, quest rewards and other versions of a spell under other ids; none of those
+  has a training cost. 1,265 rows remain.
+- **`rank`** is the number of a "Rank N" text; "Passive", "Shapeshift" and "Summon" are no rank.
+- **`races`** is the row's own list, on 61 rows: the priest's racial spells and the mage's
+  teleports and portals.
+- **Left out: 32 spells whose lowest rank on the page is above 1**, such as Pyroblast, Mortal
+  Strike and Growl. Their rank 1 comes from a talent or belongs to a pet, and the page does not
+  say which character can buy the other ranks, so a character without the talent would be sent
+  to the trainer for nothing. `parse` prints their names. This is inferred from the ranks, not
+  read from a field.
+
+If a page changes shape, the fetch ends with "the browser capture 'spells' found nothing",
+stops at that page and leaves a `.rejected.html`. Then open the address in your browser, type
 `Object.keys(g_listviews)` in the developer console to see what the list is called, and correct
-the expression; or send the `.rejected.html` back instead of the samples.
+`browserCaptures.spells` in `collector.json`. A wrong address in
+`tools/collector/class-spells.txt` is reported as "recorded as missing".
 
 ## Checks
 

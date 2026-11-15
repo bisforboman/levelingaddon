@@ -9,8 +9,9 @@ local ns, fire = T.ns, T.fire
 function UnitClass()
     return "Mage", "MAGE"
 end
+local raceId
 function UnitRace()
-    return "Human", "Human"
+    return "Human", "Human", raceId
 end
 local copper = 0
 function GetMoney()
@@ -157,6 +158,17 @@ assert(not trainRow() and #ns.TrainSpells() == 0)
 known[102] = nil
 known[103] = true
 assert(#ns.TrainSpells() == 0, "Fireball rank 2 is below the known rank 3")
+
+-- A spell for some races only counts for those races, and for nobody where the client gives no
+-- race id.
+local teleport = { id = 107, name = "Teleport: Orgrimmar", level = 8, cost = 300, races = { 2, 5, 6, 8 } }
+table.insert(SPELLS.MAGE, teleport)
+assert(#ns.TrainSpells() == 0, "no race id")
+raceId = 1
+assert(#ns.TrainSpells() == 0, "a Human cannot learn Teleport: Orgrimmar")
+raceId = 5
+assert(#ns.TrainSpells() == 1 and ns.TrainSpells()[1] == teleport)
+table.remove(SPELLS.MAGE)
 
 -- At the trainer with too little money: says what the cheapest spell costs.
 known[103], known[106] = nil, nil
