@@ -77,6 +77,16 @@ public sealed class RawCache(string rootDirectory)
         return entry;
     }
 
+    /// <summary>Keeps a page that was not accepted, for inspection. It has no meta file, so it is not a cache entry.</summary>
+    public string WriteRejected(FetchRequest request, FetchResult result)
+    {
+        var directory = Path.Combine(Root, request.Kind);
+        Directory.CreateDirectory(directory);
+        var path = Path.Combine(directory, request.Key + ".rejected" + ExtensionFor(result.ContentType));
+        WriteAtomically(path, result.Body);
+        return path;
+    }
+
     public int Count(string kind)
     {
         var directory = Path.Combine(Root, kind);

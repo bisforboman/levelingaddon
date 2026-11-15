@@ -18,11 +18,14 @@ const string Usage = """
 
       parse
           Merge QuestieDB (its own code, run in a sandboxed Lua interpreter), write the normalized
-          JSON to data/parsed/ and the validation report to reports/.
+          JSON to data/parsed/ and the validation report to reports/. Then convert the flight
+          points and flight times of the taxi source pinned in collector.json, and link
+          QuestieDB's flight masters to them.
 
       export [--out DIRECTORY]
-          Write data/parsed/ as Lua table files for the addon (default: data/lua/), then load them
-          back in the sandboxed interpreter and check every value against the JSON.
+          Write data/parsed/ as Lua table files for the addon (default: data/lua/), with spawn
+          lists reduced as collector.json says. Then load them back in the sandboxed interpreter,
+          report the memory each table takes and check every value against the JSON.
 
       fetch <kind> (--ids 1,2,3 | --ids-file FILE | --urls-file FILE) [--limit N] [--delay SECONDS]
           Fetch pages of a kind defined in collector.json into data/raw/wowhead/<kind>/.
@@ -30,6 +33,7 @@ const string Usage = """
           again, so re-running the same command resumes an interrupted run.
           --limit counts network requests, so `--limit 5` is a five-page trial.
           Browser kinds open a visible browser window; --browser-path overrides the channel.
+          A kind with a requiredCapture stops at the first page that capture finds nothing on.
     """;
 
 if (args.Length == 0 || args[0] is "-h" or "--help")
@@ -103,6 +107,15 @@ try
 
             Console.WriteLine($"Wrote {data.Quests.Count} quests, {data.Relations.Count} relation rows, {data.Npcs.Count} NPCs, {data.Objects.Count} objects, " +
                               $"{data.Items.Count} items, {data.Zones.Count} zones to data/parsed; {data.Failures.Count} parse failure(s). Report: reports/validation.md");
+
+            var taxiConfig = config.Taxi ?? throw new InvalidDataException("collector.json has no \"taxi\" source.");
+            var taxiCheckout = await QuestieDbSync.EnsureAsync(new QuestieDbConfig(taxiConfig.Source, taxiConfig.Revision), Path.Combine(rawRoot, "taxi"), Console.WriteLine, "shortest-path-forever");
+            var taxi = Taxi.Build(taxiCheckout, taxiConfig, merged);
+            Taxi.Write(taxi, Path.Combine(root, "data", "parsed"));
+            Console.WriteLine($"Wrote {taxi.Nodes.Count} flight points ({taxi.Nodes.Count(n => n.NpcId is null)} without a flight master) and {taxi.Paths.Count} flights " +
+                              $"({taxi.Paths.Count(p => p.Estimated == true)} with an estimated time) to data/parsed.");
+            Console.WriteLine($"Flight points without a flight master: {string.Join("; ", taxi.Nodes.Where(n => n.NpcId is null).Select(n => $"{n.Id} {n.Name}"))}");
+            Console.WriteLine($"Flight masters linked to no flight point ({taxi.UnlinkedMasters.Count}): {string.Join("; ", taxi.UnlinkedMasters.Select(m => $"{m.Id} {m.Name}"))}");
             return 0;
         }
 
@@ -116,14 +129,20 @@ try
                 Console.WriteLine($"{table.Name,-16} {table.Rows,6} rows in {table.Files.Count} file(s), up to {table.LargestLiteralCount} distinct literals per file");
             Console.WriteLine($"Wrote {export.Files.Count} Lua files and data.xml to {output} ({export.Bytes / 1024.0 / 1024.0:0.0} MB).");
 
-            var differences = exporter.Verify(parsed, output, export);
-            if (differences.Count == 0)
+            Console.WriteLine($"Spawn points: {export.SpawnPoints} in data/parsed, {export.SpawnPointsKept} exported.");
+
+            var verification = exporter.Verify(parsed, output, export);
+            Console.WriteLine("Memory once loaded, in the collector's interpreter:");
+            foreach (var (table, megabytes) in verification.Memory) Console.WriteLine($"  {table,-16} {megabytes,6:0.00} MB");
+            Console.WriteLine($"  {"total",-16} {verification.Memory.Sum(m => m.Megabytes),6:0.00} MB");
+
+            if (verification.Differences.Count == 0)
             {
-                Console.WriteLine("Verified: the Lua files load and every value matches data/parsed.");
+                Console.WriteLine("Verified: the Lua files load, spawns follow the reduction rule and every other value matches data/parsed.");
                 return 0;
             }
             Console.Error.WriteLine("Export does not match data/parsed:");
-            foreach (var difference in differences) Console.Error.WriteLine("  " + difference);
+            foreach (var difference in verification.Differences) Console.Error.WriteLine("  " + difference);
             return 1;
         }
 
@@ -168,7 +187,7 @@ async Task<int> FetchAsync(string kindName, string[] options)
     FetchSummary summary;
     try
     {
-        summary = await runner.RunAsync(plan, new FetchOptions(limit, config.Wowhead.MaxConsecutiveFailures), cancel.Token);
+        summary = await runner.RunAsync(plan, new FetchOptions(limit, config.Wowhead.MaxConsecutiveFailures, RequiredCapture: kind.RequiredCapture), cancel.Token);
     }
     catch (OperationCanceledException)
     {

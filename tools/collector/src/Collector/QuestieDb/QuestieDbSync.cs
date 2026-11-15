@@ -3,17 +3,17 @@ using System.Diagnostics;
 namespace Collector.QuestieDb;
 
 /// <summary>
-/// Keeps a checkout of QuestieDB at the pinned commit under the raw data folder. It only moves
-/// files with git; nothing from the checkout is executed.
+/// Keeps a checkout of QuestieDB, or of another pinned source, at the pinned commit under the raw
+/// data folder. It only moves files with git; nothing from the checkout is executed.
 /// </summary>
 public static class QuestieDbSync
 {
-    public static async Task<string> EnsureAsync(QuestieDbConfig config, string directory, Action<string> log)
+    public static async Task<string> EnsureAsync(QuestieDbConfig config, string directory, Action<string> log, string name = "QuestieDB")
     {
         if (Directory.Exists(Path.Combine(directory, ".git")) &&
             (await GitAsync(directory, "rev-parse", "HEAD")).Output.Trim() == config.Commit)
         {
-            log($"QuestieDB already at {config.Commit[..10]} in {directory}; nothing fetched.");
+            log($"{name} already at {config.Commit[..10]} in {directory}; nothing fetched.");
             return directory;
         }
 
@@ -23,10 +23,10 @@ public static class QuestieDbSync
             await GitOrThrowAsync(directory, "init", "--quiet");
             await GitOrThrowAsync(directory, "remote", "add", "origin", config.Repository);
         }
-        log($"Fetching QuestieDB {config.Commit[..10]} from {config.Repository} ...");
+        log($"Fetching {name} {config.Commit[..10]} from {config.Repository} ...");
         await GitOrThrowAsync(directory, "fetch", "--quiet", "--depth", "1", "origin", config.Commit);
         await GitOrThrowAsync(directory, "-c", "advice.detachedHead=false", "checkout", "--quiet", "--force", config.Commit);
-        log($"QuestieDB checked out at {config.Commit[..10]}.");
+        log($"{name} checked out at {config.Commit[..10]}.");
         return directory;
     }
 
