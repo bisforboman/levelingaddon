@@ -35,7 +35,8 @@ That writes the Lua tables and `data.xml` into `addon/LevelingAddon/Data/` (giti
 TOC loads them through its one `Data\data.xml` line. Without them the addon loads and says in
 chat that it has no quest data. Then copy `addon/LevelingAddon` into the game's
 `Interface/AddOns` folder. What to check in the game is listed in
-[`docs/ingame-checks/`](docs/ingame-checks/).
+[`docs/ingame-checks/`](docs/ingame-checks/); start with
+[`first-session.md`](docs/ingame-checks/first-session.md).
 
 | Command | Does |
 | --- | --- |
