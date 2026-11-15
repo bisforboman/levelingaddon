@@ -22,7 +22,7 @@ function IsPlayerSpell(id)
     return known[id] == true
 end
 
--- A provisional spell list, in the shape Trainer.lua documents.
+-- A short spell list, in the shape Trainer.lua documents.
 local SPELLS = {
     MAGE = {
         { id = 101, name = "Fireball", rank = 1, level = 1, cost = 10 },

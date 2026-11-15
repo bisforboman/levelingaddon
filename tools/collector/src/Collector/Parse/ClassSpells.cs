@@ -82,6 +82,9 @@ public static partial class ClassSpells
             tables.Spells.AddRange(spells);
             tables.TalentRanks.AddRange(talentRanks.Select(name => $"{classToken} {name}"));
         }
+        // The result replaces the committed file, so a trial fetch of one page must not get that far.
+        var missing = Classes.Except(tables.Spells.Select(s => s.Class)).ToList();
+        if (missing.Count > 0) throw new InvalidDataException($"No cached page for {string.Join(", ", missing)} in {cacheDirectory}; finish the fetch first.");
         return tables;
     }
 

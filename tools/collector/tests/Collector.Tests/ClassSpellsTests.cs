@@ -63,17 +63,22 @@ public sealed class ClassSpellsTests : IDisposable
     [Fact]
     public void The_class_comes_from_the_address_of_each_cached_page()
     {
-        Cache("b-1", "https://example.test/forever/spells/abilities/warrior", """[{"id":100,"name":"Charge","rank":"Rank 1","level":4,"trainingcost":100}]""");
-        Cache("a-2", "https://example.test/forever/spells/abilities/mage", MageRows);
+        const string Charge = """[{"id":100,"name":"Charge","rank":"Rank 1","level":4,"trainingcost":100}]""";
+        foreach (var token in ClassSpells.Classes.Where(c => c != "MAGE"))
+            Cache("b-" + token, "https://example.test/forever/spells/abilities/" + token.ToLowerInvariant(), Charge);
 
+        // One class short: a trial fetch must not replace the whole file.
+        Assert.Contains("No cached page for MAGE", Assert.Throws<InvalidDataException>(() => ClassSpells.Build(_directory)).Message);
+
+        Cache("a-mage", "https://example.test/forever/spells/abilities/mage", MageRows);
         var tables = ClassSpells.Build(_directory);
         ClassSpells.Write(tables, _directory);
 
-        Assert.Equal(["MAGE", "MAGE", "MAGE", "MAGE", "WARRIOR"], tables.Spells.Select(s => s.Class));
+        Assert.Equal(ClassSpells.Classes, tables.Spells.Select(s => s.Class).Distinct().Order());
         Assert.Equal(["MAGE Pyroblast"], tables.TalentRanks);
         var lines = File.ReadAllLines(Path.Combine(_directory, ClassSpells.SpellsFile));
-        Assert.Equal("""{"class":"MAGE","id":143,"name":"Fireball","rank":2,"level":6,"cost":100},""", lines[1]);
-        Assert.Equal("""{"class":"WARRIOR","id":100,"name":"Charge","rank":1,"level":4,"cost":100}""", lines[5]);
+        Assert.Contains("""{"class":"MAGE","id":143,"name":"Fireball","rank":2,"level":6,"cost":100},""", lines);
+        Assert.Equal("""{"class":"WARRIOR","id":100,"name":"Charge","rank":1,"level":4,"cost":100}""", lines[^2]);
     }
 
     [Theory]

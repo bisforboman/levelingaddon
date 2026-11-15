@@ -183,6 +183,9 @@ end
 function UnitFactionGroup()
     return "Alliance"
 end
+function UnitRace()
+    return "Human", "Human"
+end
 function GetRealZoneText()
     return T.zone
 end

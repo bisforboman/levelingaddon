@@ -79,7 +79,7 @@ machinery below. `test_planner.lua` checks the planner on quest data cut from a 
 character who skipped ahead, a full quest log, skips, and the events that ask for a pass.
 `test_automation.lua` checks accepting and handing in.
 `test_rewards.lua` checks the reward marks.
-`test_trainer.lua` checks the trainer visits, on a provisional spell list.
+`test_trainer.lua` checks the trainer visits, on a short spell list of its own.
 `test_support.lua` checks the report, the events for other addons and verbose output.
 `test_flights.lua` checks the flight time on the flight map, the flight timer and what is
 remembered per character.
