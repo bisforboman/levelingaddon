@@ -627,29 +627,46 @@ local function plan(working, me, log, logListed, px, py, free)
         end
     end
 
-    -- Bag space (#15, Junk.lua): a stop at the nearest vendor the data knows. With the bags
-    -- full it is the current step. With little room left it is a side task: right under the
-    -- current step, and only for a vendor within SIDE_YARDS of the way there.
-    local sell = ns.SellStep and ns.SellStep()
-    if sell and (sell == "full" or rows[1]) then
-        local bx, by = ax, ay -- full: the vendor nearest the character
-        if sell == "low" then
+    -- A stop at an NPC among the steps, at one of `places` ({ name, map, x, y, ... } each).
+    -- `due`: the current step, at the place nearest the character. Otherwise a side task: right
+    -- under the current step, and only for a place within SIDE_YARDS of the way there.
+    -- Returns whether a place was found.
+    local function stop(kind, questID, due, places)
+        if not (due or rows[1]) then
+            return false
+        end
+        local bx, by = ax, ay
+        if not due then
             bx, by = worldPosition(rows[1].map, rows[1].x, rows[1].y)
         end
-        local best, yards = nil, sell == "low" and SIDE_YARDS or math.huge
-        for _, vendor in ipairs(ns.Vendors(me.side)) do
-            for _, point in ipairs(pointsOf(vendor, 2)) do
+        local best, yards = nil, due and math.huge or SIDE_YARDS
+        for _, place in ipairs(places) do
+            for _, point in ipairs(pointsOf(place, 2)) do
                 local off = offWay(point, ax, ay, bx, by)
                 if off < yards then
                     yards = off
-                    best = { kind = "sell", questID = ns.SELL, name = vendor[1], map = point.map }
+                    best = { kind = kind, questID = questID, name = place[1], map = point.map }
                     best.x, best.y = point.x, point.y
                 end
             end
         end
         if best then
-            table.insert(rows, sell == "low" and 2 or 1, best)
+            table.insert(rows, due and 1 or 2, best)
         end
+        return best ~= nil
+    end
+
+    -- A visit to the class trainer (#17, Trainer.lua), when there are spells worth the trip.
+    local train = ns.TrainStep and ns.TrainStep()
+    if train and not stop("train", ns.TRAIN, train == "due", ns.Trainers(me.side)) and train == "due" then
+        ns.TrainNone()
+    end
+    -- Bag space (#15, Junk.lua): a stop at the nearest vendor the data knows; the current step
+    -- with the bags full, a side task with little room left. Put in last, so that with the bags
+    -- full it comes before a trainer visit.
+    local sell = ns.SellStep and ns.SellStep()
+    if sell then
+        stop("sell", ns.SELL, sell == "full", ns.Vendors(me.side))
     end
     return rows, blocked
 end

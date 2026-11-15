@@ -35,6 +35,7 @@ local KIND_TEXTURE = {
     loot = "Interface\\Cursor\\Pickup",
     go = "Interface\\Cursor\\Taxi", -- be somewhere: an escort, an exploration
     sell = "Interface\\Cursor\\Buy", -- a vendor, when the bags run low
+    train = "Interface\\Cursor\\Trainer", -- the class trainer, when there are spells worth the trip
 }
 local KIND_GLYPH = { accept = "!", turnin = "?" }
 
