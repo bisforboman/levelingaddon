@@ -724,6 +724,8 @@ function Planner:Run()
             flown = flight
             -- For the arrow (#5): the zone the steps are in when a flight gets there soonest.
             Planner.byFlight = flight and there.map or nil
+            -- For taking that flight at the flight map (#78): the flight point flown to.
+            Planner.flightTo = flight and there.to or nil
         end
         ns.Report("planner pass", ns.Clock() - start)
     end

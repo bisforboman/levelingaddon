@@ -60,6 +60,20 @@ The timer
 - [ ] `/lvl debug` during a flight: the shared loop's time per frame is no higher than with
       the arrow on the ground.
 
+Taking the suggested flight (#78)
+
+- [ ] When the chat says "The next steps are in <zone>: fly from A to B", talking to the flight
+      master at A takes the flight to B at once, and chat says "taking the suggested flight to
+      B". The timer starts as for a flight clicked by hand. If the map stays open and nothing
+      happens, or the game shows "action blocked", `TakeTaxiNode` cannot be called from the
+      `TAXIMAP_OPENED` event on this client: note which, in #78.
+- [ ] The same from another flight master than A, from which B can be reached: taken too.
+- [ ] Shift held while right-clicking the flight master: the map stays open and nothing is
+      taken. With "Take suggested flights automatically" off: nothing, unless Shift is held.
+- [ ] With no flight suggested (the steps are near), opening the flight map takes nothing.
+- [ ] Too little money for the flight: the game's own message, no error, and no timer.
+- [ ] Note whether taking off as the map opens feels too sudden; the setting is on by default.
+
 Ellesmere UI
 
 - [ ] With Ellesmere UI's flight timer present, ours is not drawn (the arrow keeps pointing at

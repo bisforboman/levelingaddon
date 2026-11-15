@@ -555,6 +555,24 @@ function effects.flightTimer(set)
     ns.Data.taxiNodes, ns.Data.taxiPaths = nil, nil
 end
 
+-- The flight the planner suggests is taken when the flight map opens, or not.
+function effects.autoFlight(set)
+    ns.Data = ns.Data or {}
+    ns.Data.taxiNodes = { [1] = { name = "Here, Zone" }, [2] = { name = "There, Zone" } }
+    ns.Planner.flightTo = 2
+    local take, taken = TakeTaxiNode, nil
+    TakeTaxiNode = function(slot)
+        taken = slot
+    end
+    set(false)
+    fire("TAXIMAP_OPENED")
+    assert(taken == nil, "off: the map stays open")
+    set(true)
+    fire("TAXIMAP_OPENED")
+    assert(taken == 2, "on: the suggested flight is taken")
+    TakeTaxiNode, ns.Planner.flightTo, ns.Data.taxiNodes = take, nil, nil
+end
+
 -- The preferences: settings that change what the planner suggests. They are checked further
 -- down, on planner data. [key] = the planner's mark for the quests the setting lets in.
 local PREFERENCES = { dungeons = "dungeon", groups = "group" }

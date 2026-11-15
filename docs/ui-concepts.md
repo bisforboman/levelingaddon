@@ -446,8 +446,9 @@ target on another continent the frame names the destination instead (section 8).
 `Automation.lua` accepts and hands in the quests that have a pending "accept" or "turnin" step,
 from the quest windows and from an NPC's list of quests, on the game's own events (#9). Two
 settings, both on by default: "Accept quests automatically" and "Hand in quests
-automatically". Not built, because the data has nothing for them: choosing a gossip option,
-taking a flight, confirming an inn.
+automatically". `Flights.lua` takes the flight the planner suggests when the flight map opens
+(#78), on by default: "Take suggested flights automatically". Not built, because the data has
+nothing for them: choosing a gossip option, confirming an inn.
 
 `FirstRun.lua` asks a character once, at its first login with the addon, whether to include
 dungeon quests and group quests (both off by default, per character), in a small panel shown

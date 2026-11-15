@@ -699,6 +699,7 @@ assert(
     said()[1]:find("The next steps are in Duskwood: fly from Ironforge to Darkshire (about 4:10).", 1, true),
     said()[1]
 )
+assert(ns.Planner.flightTo == 12, "the flight point to take at the flight map (#78): Darkshire")
 -- Another pass with the same flight to take says nothing more.
 ns.Planner.Request()
 fire(nil)
@@ -708,6 +709,7 @@ ns.char.flights.times[6] = { [12] = 200 }
 ns.char.flights.known[6] = nil
 fire("ZONE_CHANGED_NEW_AREA")
 assert(ns.Steps.list[1].map == 1433 and #said() == 1, "without the flight point at hand it is Redridge again")
+assert(ns.Planner.flightTo == nil, "no flight, none to take")
 ns.char.flights.known[6] = true
 fire("ZONE_CHANGED_NEW_AREA")
 assert(ns.Steps.list[1].map == 1431 and #said() == 2 and said()[2]:find("(3:20)", 1, true), said()[2])

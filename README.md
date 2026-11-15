@@ -257,6 +257,12 @@ and from the character's own flights.
   The arrow asks it only for a step in the zone the planner chose because a flight gets there
   soonest (`ns.Planner.byFlight`), and then points at that flight master until the character
   has landed. TomTom, when installed, still gets the step itself.
+- **Taking the suggested flight** (#78): when the planner sends the character to a zone a
+  flight gets to soonest, it names the flight point to fly to (`ns.Planner.flightTo`, the "B"
+  of "fly from A to B"). When the flight map opens at any flight master from which that point
+  can be reached, the flight is taken and one line in chat says so. Shift held while the map
+  opens does the opposite of the setting, as for quests. On by default: "Take suggested
+  flights automatically" (`/lvl set autoFlight`).
 - **Cost**: the flight map is read once when it opens; the tooltip line is worked out when a
   point is hovered; one task, five times a second, runs only during a flight and hands the
   frame a new text once a second.
@@ -278,7 +284,8 @@ default, each with its own setting: "Accept quests automatically" (`/lvl set aut
 - **Never**: choosing between rewards (it stops at the reward window), and repeatable quests.
 - **Any state**: if the steps change while an NPC's window is open, the window is looked at
   again.
-- Not built, because the data has nothing for them: gossip options, flights (#16), inns.
+- Taking the suggested flight is in `Flights.lua` (see "Flights").
+- Not built, because the data has nothing for them: gossip options, inns.
 
 ### First-run setup and quest preferences
 

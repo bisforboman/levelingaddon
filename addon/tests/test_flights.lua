@@ -1,6 +1,7 @@
 -- Flights: the tooltip time for a direct and a multi-hop route, the timer counting down and
 -- stopping, a measured flight correcting the next estimate, nothing drawn when another flight
--- timer is loaded, and the flight points the character knows.
+-- timer is loaded, the flight points the character knows, and the suggested flight taken when
+-- the flight map opens.
 -- From the repository root: lua5.1 addon/tests/test_flights.lua
 local T = dofile("addon/tests/stub.lua")
 local ns, fire, tick = T.ns, T.fire, T.tick
@@ -61,7 +62,13 @@ end
 function IsAddOnLoaded(name)
     return loadedAddons[name] or false
 end
-function TakeTaxiNode() end
+local taken, shiftDown = {}, false -- the flights asked for, by button; Shift as the map opens
+function TakeTaxiNode(slot)
+    taken[#taken + 1] = slot
+end
+function IsShiftKeyDown()
+    return shiftDown
+end
 function TaxiNodeOnButtonEnter() end
 local tooltip = {}
 function GameTooltip:AddLine(text)
@@ -101,6 +108,7 @@ ns.Data = {
 T.login()
 local A, saved = ns.Arrow, ns.char.flights
 assert(ns.db.flightTimer == true, "the timer is on by default")
+assert(ns.db.autoFlight == true, "taking the suggested flight is on by default")
 assert(A.frame.shown and T.looping(), "the arrow points at the first step")
 
 -- Nothing is known before the flight map has been opened, and hovering does nothing.
@@ -343,6 +351,39 @@ assert(A.target.map == step.map, "after landing the arrow points at the step")
 ns.Planner.byFlight = nil
 T.px, T.py = 0.492, 0.463
 A:StepChanged()
+
+-- The suggested flight (#78): the planner names the flight point the steps are reached by, and
+-- the flight map takes it when it opens, from whichever flight master this is.
+local function open()
+    taken, T.chat = {}, {}
+    fire("TAXIMAP_OPENED")
+    return table.concat(taken, " ")
+end
+assert(open() == "", "no flight suggested, none taken")
+ns.Planner.flightTo = 12 -- Darkshire: button 4
+assert(open() == "4", "the suggested flight is taken")
+assert(T.chat[1]:find("taking the suggested flight to Darkshire. Hold Shift", 1, true), T.chat[1])
+-- Shift as the map opens: the player chooses.
+shiftDown = true
+assert(open() == "" and #T.chat == 0, "Shift: nothing taken")
+-- The setting off: nothing, unless Shift is held.
+ns.Set("autoFlight", false)
+shiftDown = false
+assert(open() == "")
+shiftDown = true
+assert(open() == "4", "off, with Shift: taken")
+shiftDown = false
+ns.Set("autoFlight", true)
+-- Not a point this map can fly to: not discovered, or where the character stands.
+ns.Planner.flightTo = 19 -- Booty Bay, not discovered
+assert(open() == "")
+ns.Planner.flightTo = 2 -- Stormwind, the point the map was opened at
+assert(open() == "")
+map[4].kind = "UNREACHABLE"
+ns.Planner.flightTo = 12
+assert(open() == "", "a point the game says cannot be reached")
+map[4].kind = "REACHABLE"
+ns.Planner.flightTo = nil
 
 -- A client without the flight map's functions, or without flight data, raises no error.
 ns.Data.taxiNodes = nil
