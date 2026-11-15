@@ -313,6 +313,15 @@ about eight rows:
   restoring makes it current again. The list returns to the current step after a few seconds.
 - In combat the window folds to the current row at 40% opacity.
 
+**No background** (owner, 2026-11-15). The dark backplate and the band behind the current step
+are gone: the list is outlined text straight on the scene. The current step is the larger,
+brighter line with the yellow bar; "the band" above now means that line. The cross and the
+restore arrow still appear only on the row under the pointer, with a faint highlight. The
+backplate setting stays, at 0% by default, for anyone who cannot read the list on snow or sky.
+This sets aside the "always a dark backplate" rule from the research above. The three options
+that were shown: [`mockups/no-background-options.png`](mockups/no-background-options.png)
+(A was chosen). The two older mockups below still show the plate.
+
 Cost: about 3.7% of a 1920x1080 screen at eight rows, against 1.3% for the three-row card.
 Height should be adjustable. The mockup uses the first stretch of Northshire with six quests
 interleaved: [`mockups/step-list-flow.png`](mockups/step-list-flow.png),

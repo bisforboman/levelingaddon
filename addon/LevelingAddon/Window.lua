@@ -1,6 +1,10 @@
 -- The guide window: a list of steps with the current one always in the same row. Finished and
 -- skipped steps stay above it; the mouse wheel scrolls through the whole route.
 --
+-- Nothing is drawn behind the list unless the player turns the backplate on: the text is
+-- outlined to stay readable over the scene, and the current step is the larger, brighter line
+-- with the yellow bar. A row's control shows only while the pointer is on it.
+--
 -- This is a plain frame. It is never anchored to one of the game's protected frames, so it
 -- may be shown, hidden, moved and resized during combat.
 local _, ns = ...
@@ -32,6 +36,15 @@ local KIND_TEXTURE = {
 }
 local KIND_GLYPH = { accept = "!", turnin = "?" }
 
+-- A game font object, outlined: there is no plate behind the text to give it contrast.
+local function setFont(text, object)
+    text:SetFontObject(object)
+    local file, size = text:GetFont()
+    if file then
+        text:SetFont(file, size, "OUTLINE")
+    end
+end
+
 local function setColor(region, color, alpha)
     region:SetVertexColor(color[1], color[2], color[3], alpha or 1)
 end
@@ -60,9 +73,6 @@ local function createRow(parent)
     makeDraggable(row)
     row.current = 0 -- nothing drawn yet: not the same as an empty row
 
-    row.band = row:CreateTexture(nil, "BACKGROUND")
-    row.band:SetAllPoints()
-    row.band:SetColorTexture(YELLOW[1], YELLOW[2], YELLOW[3], 0.16)
     row.bar = row:CreateTexture(nil, "BORDER")
     row.bar:SetPoint("TOPLEFT")
     row.bar:SetPoint("BOTTOMLEFT")
@@ -75,13 +85,15 @@ local function createRow(parent)
     row.icon = row:CreateTexture(nil, "ARTWORK")
     row.icon:SetSize(14, 14)
     row.icon:SetPoint("LEFT", 10, 0)
-    row.glyph = row:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+    row.glyph = row:CreateFontString(nil, "ARTWORK")
+    setFont(row.glyph, "GameFontNormal")
     row.glyph:SetPoint("CENTER", row.icon, "CENTER")
 
-    row.name = row:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+    row.name = row:CreateFontString(nil, "ARTWORK")
     row.name:SetJustifyH("LEFT")
     row.name:SetWordWrap(false)
-    row.count = row:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+    row.count = row:CreateFontString(nil, "ARTWORK")
+    setFont(row.count, "GameFontNormal")
     row.count:SetPoint("RIGHT", -30, 0)
     row.name:SetPoint("LEFT", row, "LEFT", 32, 0)
     row.name:SetPoint("RIGHT", row.count, "LEFT", -6, 0)
@@ -144,7 +156,6 @@ local function drawRow(row, index, currentIndex)
     row.restore:Hide()
     row.hover:Hide()
     if not step then
-        row.band:Hide()
         row.bar:Hide()
         row.icon:Hide()
         row.glyph:Hide()
@@ -157,11 +168,10 @@ local function drawRow(row, index, currentIndex)
     row.name:Show()
     row.count:Show()
     row:SetHeight(current and CURRENT_HEIGHT or ROW_HEIGHT)
-    row.band:SetShown(current)
     row.bar:SetShown(current)
 
     local color = current and BRIGHT or DIM
-    row.name:SetFontObject(current and "GameFontHighlightLarge" or "GameFontHighlight")
+    setFont(row.name, current and "GameFontHighlightLarge" or "GameFontHighlight")
     row.name:SetText(step.name)
     row.name:SetTextColor(color[1], color[2], color[3])
 

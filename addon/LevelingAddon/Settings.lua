@@ -155,7 +155,7 @@ end
 
 -- The settings the owner chose for the first version (docs/ui-concepts.md, section 7), plus
 -- rows in view and the lock.
-ns.defaults.opacity = 0.65 -- of the window's dark backplate
+ns.defaults.opacity = 0 -- of a dark plate behind the list: none unless the player wants one
 ns.defaults.combatDim = true -- fold to the current step and dim while in combat
 ns.defaults.locked = false -- the window cannot be dragged
 
