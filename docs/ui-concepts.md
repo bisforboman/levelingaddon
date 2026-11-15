@@ -322,6 +322,13 @@ This sets aside the "always a dark backplate" rule from the research above. The 
 that were shown: [`mockups/no-background-options.png`](mockups/no-background-options.png)
 (A was chosen). The two older mockups below still show the plate.
 
+**Header** (owner, 2026-11-15). So that it is clear what to press to move the list, a dark bar
+with a grip and "Leveling Guide" appears above the first row while the pointer is on the list,
+and it is the only place to drag from: rows no longer drag. It is hidden while the position is
+locked. Options shown: [`mockups/header-options.png`](mockups/header-options.png) (when it
+shows; the owner chose hover, with a visible background) and
+[`mockups/header-style-options.png`](mockups/header-style-options.png) (1, the dark bar).
+
 Cost: about 3.7% of a 1920x1080 screen at eight rows, against 1.3% for the three-row card.
 Height should be adjustable. The mockup uses the first stretch of Northshire with six quests
 interleaved: [`mockups/step-list-flow.png`](mockups/step-list-flow.png),

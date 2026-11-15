@@ -64,6 +64,26 @@ assert(S:Progress(5) == 3 and rowFor(5).count.text == "3/8")
 -- The player skips the wolves: the step stays, crossed out, and the kobolds become current.
 -- A skip is for the whole quest, so its turn-in (step 9) is crossed out as well.
 local wolf = rowFor(5)
+-- The header: up while the pointer is on the list or on the header itself, never when locked.
+assert(not W.header.shown, "no header while playing")
+W.frame.over = true
+tick()
+assert(W.header.shown, "the pointer on the list brings the header")
+W.frame.over = false
+W.header.over = true
+tick()
+assert(W.header.shown, "it stays under the pointer")
+W.header.over = false
+tick()
+assert(not W.header.shown, "and goes when the pointer leaves")
+ns.db.locked = true
+W.frame.over = true
+tick()
+assert(not W.header.shown, "a locked window has no header")
+ns.db.locked = false
+W.frame.over = false
+tick()
+
 W.frame.over = true
 wolf.over = true
 tick()

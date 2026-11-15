@@ -295,8 +295,8 @@ function effects.locked(set)
         moves = moves + 1
     end
     local function drag()
-        W.rows[1].scripts.OnDragStart()
-        W.rows[1].scripts.OnDragStop()
+        W.header.scripts.OnDragStart()
+        W.header.scripts.OnDragStop()
     end
     set(true)
     drag()

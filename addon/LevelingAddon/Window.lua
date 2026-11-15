@@ -3,7 +3,8 @@
 --
 -- Nothing is drawn behind the list unless the player turns the backplate on: the text is
 -- outlined to stay readable over the scene, and the current step is the larger, brighter line
--- with the yellow bar. A row's control shows only while the pointer is on it.
+-- with the yellow bar. A row's control shows only while the pointer is on it, and so does the
+-- header above the list: a dark bar that is the one place to drag the window from.
 --
 -- This is a plain frame. It is never anchored to one of the game's protected frames, so it
 -- may be shown, hidden, moved and resized during combat.
@@ -14,6 +15,7 @@ ns.Window = Window
 
 local WIDTH = 240
 local ROW_HEIGHT = 20
+local HEADER_HEIGHT = 20
 local CURRENT_HEIGHT = 26 -- the current step is set in larger type
 local HISTORY_ROWS = 2 -- rows kept above the current step, so it sits in the third row
 local RETURN_AFTER = 5 -- seconds before a scrolled list goes back to the current step
@@ -49,12 +51,13 @@ local function setColor(region, color, alpha)
     region:SetVertexColor(color[1], color[2], color[3], alpha or 1)
 end
 
--- The window is dragged by itself (the pause mark) or by any row, unless it is locked.
-local function makeDraggable(region)
+-- The window is dragged by its header, or by itself while it is only the pause mark, unless
+-- it is locked. `allowed` says whether this region may start a drag now.
+local function makeDraggable(region, allowed)
     region:EnableMouse(true)
     region:RegisterForDrag("LeftButton")
     region:SetScript("OnDragStart", function()
-        if not ns.db.locked then
+        if not ns.db.locked and (not allowed or allowed()) then
             Window.moving = true
             Window.frame:StartMoving()
         end
@@ -70,7 +73,6 @@ end
 local function createRow(parent)
     local row = CreateFrame("Frame", nil, parent)
     row:SetWidth(WIDTH)
-    makeDraggable(row)
     row.current = 0 -- nothing drawn yet: not the same as an empty row
 
     row.bar = row:CreateTexture(nil, "BORDER")
@@ -239,8 +241,35 @@ function Window:Create()
     self.combat = InCombatLockdown()
     frame:SetClampedToScreen(true)
     frame:SetMovable(true)
-    makeDraggable(frame)
+    makeDraggable(frame, function()
+        return self.paused
+    end)
     frame:EnableMouseWheel(true)
+
+    -- The header sits above the first row, outside the frame, so the list does not move when
+    -- it comes and goes. The clamp reaches up to keep it on the screen.
+    frame:SetClampRectInsets(0, 0, HEADER_HEIGHT, 0)
+    local header = CreateFrame("Frame", nil, frame)
+    self.header = header
+    header:SetHeight(HEADER_HEIGHT)
+    header:SetPoint("BOTTOMLEFT", frame, "TOPLEFT")
+    header:SetPoint("BOTTOMRIGHT", frame, "TOPRIGHT")
+    makeDraggable(header)
+    header:Hide()
+    local plate = header:CreateTexture(nil, "BACKGROUND")
+    plate:SetAllPoints()
+    plate:SetColorTexture(0.05, 0.055, 0.06, 0.8)
+    for column = 0, 1 do -- the grip: two columns of three dots
+        for line = -1, 1 do
+            local dot = header:CreateTexture(nil, "ARTWORK")
+            dot:SetSize(2, 2)
+            dot:SetPoint("CENTER", header, "LEFT", 15 + column * 5, line * 5)
+            dot:SetColorTexture(BRIGHT[1], BRIGHT[2], BRIGHT[3], 1)
+        end
+    end
+    local title = header:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+    title:SetPoint("LEFT", 32, 0)
+    title:SetText("Leveling Guide")
 
     self.background = frame:CreateTexture(nil, "BACKGROUND", nil, -8)
     self.background:SetAllPoints()
@@ -277,10 +306,13 @@ function Window:Create()
     self:RestorePosition()
 end
 
--- While the window is shown: which row is under the pointer, and the return of a scrolled list.
+-- While the window is shown: which row is under the pointer, whether the header is up, and the
+-- return of a scrolled list. The header stays while it is under the pointer or being dragged.
 ns.Task("window", 0.05, function()
     local self = Window
-    local over = self.frame:IsMouseOver()
+    local header = self.header
+    local over = self.frame:IsMouseOver() or (header:IsShown() and header:IsMouseOver()) or self.moving or false
+    header:SetShown(over and not ns.db.locked)
     for _, row in ipairs(self.rows) do
         setHot(row, over and row:IsShown() and row:IsMouseOver())
     end
@@ -364,6 +396,9 @@ function Window:Refresh()
     frame:SetWidth(paused and ROW_HEIGHT or WIDTH)
     self.background:SetColorTexture(0.05, 0.055, 0.06, ns.db.opacity)
     self.pause:SetShown(paused)
+    if paused or ns.db.locked then
+        self.header:Hide() -- the pointer check is off while paused
+    end
 
     local total = ns.Steps:Count()
     local current = ns.Steps:CurrentIndex() or total + 1
