@@ -160,11 +160,14 @@ end
 W.frame.StopMovingOrSizing = function()
     saved = saved + 1
 end
-local row = W.rows[3]
 local function drag()
-    row.scripts.OnDragStart()
-    row.scripts.OnDragStop()
+    W.header.scripts.OnDragStart()
+    W.header.scripts.OnDragStop()
 end
+assert(not W.rows[3].scripts.OnDragStart, "a row is not a handle")
+W.frame.scripts.OnDragStart()
+W.frame.scripts.OnDragStop()
+assert(moves == 0, "nor is the list itself, outside a dungeon")
 drag()
 assert(moves == 1 and saved == 1 and ns.db.point, "unlocked: dragging moves the window and saves the place")
 cmd("lock")

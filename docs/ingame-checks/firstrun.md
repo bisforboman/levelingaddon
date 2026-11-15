@@ -7,8 +7,8 @@ new character does, log in on a character that has never had the addon, or run `
 
 - [ ] First login of a character with the addon: a small dark panel in the middle of the
       screen, titled "Welcome to Leveling" in the addon's yellow, with two tick boxes
-      ("Include dungeon quests", "Include group quests"), both empty, one dimmed line "Drag the
-      window where you want it." and a "Start" button. No error on login.
+      ("Include dungeon quests", "Include group quests"), both empty, one dimmed line "Point at
+      the list and drag its header." and a "Start" button. No error on login.
 - [ ] `CreateFrame("CheckButton", nil, parent, "UICheckButtonTemplate")` and
       `CreateFrame("Button", nil, parent, "UIPanelButtonTemplate")` exist on this client and
       look right at 24 x 24 and 90 x 22. If a tick box draws a label of its own beside ours,
@@ -17,10 +17,10 @@ new character does, log in on a character that has never had the addon, or run `
       box.
 - [ ] The text fits the panel (260 x 150) at the default UI scale and at the smallest and
       largest; nothing overlaps the button.
-- [ ] No line "is on. Drag the window to move it." in chat at a first login: the panel
+- [ ] No line "is on. Drag the header that shows above the list to move it." in chat at a first login: the panel
       replaces it.
 - [ ] While the panel is open the guide window and the arrow are on screen with real
-      suggestions, and the window can be dragged; the panel does not cover it at its starting
+      suggestions, and the window can be dragged by its header; the panel does not cover it at its starting
       place (top right). The arrow cannot be dragged (it has no dragging yet), which is why the
       line does not mention it.
 - [ ] The panel sits above the window and the arrow (frame strata `DIALOG`) and below the

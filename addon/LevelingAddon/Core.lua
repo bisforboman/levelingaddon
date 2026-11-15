@@ -360,6 +360,6 @@ ns.On("PLAYER_LOGIN", function()
     ns.Arrow:Create()
     ns.Refresh()
     if ns.firstRun then
-        say("is on. Drag the window to move it. /lvl hides or shows it.")
+        say("is on. Drag the header that shows above the list to move it. /lvl hides or shows it.")
     end
 end)
