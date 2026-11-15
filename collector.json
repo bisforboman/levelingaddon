@@ -3,7 +3,7 @@
   // Data derived from it is GPLv3; see README.md.
   "questieDb": {
     "repository": "https://github.com/Questie/QuestieDB",
-    "commit": "3f10ca075123d3aeb110315adc17dc85d7c20f5e"
+    "commit": "4dbb82440a27856f8dccf57094a5d792cdc7cc9b"
   },
 
   // Flight points and flight times (#16): Data/Taxi.lua of this repository, GPL-3.0-or-later,
