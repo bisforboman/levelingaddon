@@ -165,7 +165,7 @@ ns.AddSetting({ key = "rows", label = "Steps in view", min = 3, max = 16, step =
 ns.AddSetting({ key = "arrow", label = "Arrow", tooltip = "Point at the current step." })
 ns.AddSetting({ key = "pin", label = "Map pin", tooltip = "Mark the current target on the map and the minimap." })
 ns.AddSetting({ key = "combatDim", label = "Dim in combat", tooltip = "Show only the current step, dimmed." })
-ns.AddSetting({ key = "locked", label = "Lock position", tooltip = "The window cannot be dragged, and its header stays hidden." })
+ns.AddSetting({ key = "locked", label = "Lock position", tooltip = "The window cannot be dragged and has no header." })
 ns.AddSetting({
     label = "Reset position",
     tooltip = "Put the window back where it starts.",
