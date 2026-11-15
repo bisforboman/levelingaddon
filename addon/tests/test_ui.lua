@@ -88,8 +88,24 @@ W.frame.over = true
 wolf.over = true
 tick()
 assert(wolf.skip.shown and not wolf.restore.shown, "a pending row offers skip")
+-- With the pointer on the skip button itself, the skip is previewed: the step and its quest's
+-- turn-in are crossed out already. Moving off the button takes the preview away.
+assert(not wolf.strike.shown and not wolf.preview)
+wolf.skip.over = true
+tick()
+assert(wolf.strike.shown and wolf.alpha == 0.8, "the hovered skip is previewed")
+assert(rowFor(9).strike.shown and not rowFor(6).strike.shown, "the preview covers the whole quest, and only it")
+assert(S:Status(5) == "pending", "a preview skips nothing")
+wolf.skip.over = false
+tick()
+assert(not wolf.strike.shown and not rowFor(9).strike.shown and wolf.alpha == 1, "the preview goes with the pointer")
+wolf.skip.over = true
+tick()
 wolf.skip.scripts.OnClick()
 print("skip wolves  ", view())
+wolf.skip.over = false
+tick()
+assert(W.previewQuest == nil and rowFor(5).strike.shown, "after the click the line is the skip's own")
 assert(view() == "4v 5x 6* 7 8 9x 10 11", view())
 assert(ns.char.skipped[33] and ns.db.skipped == nil, "skips are kept per quest and per character")
 W.frame.over = false
