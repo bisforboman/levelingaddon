@@ -11,7 +11,7 @@ A leveling addon for World of Warcraft: Forever, and the collector that gathers 
 | Validation report | Done: [`reports/validation.md`](reports/validation.md) |
 | Polite, resumable Wowhead fetcher with raw cache | Built and tested against a local test server; not yet run against Wowhead |
 | Wowhead list / quest page parsers | Not built: need a few real sample pages first |
-| Class spells per level, with training cost (#17) | Done: 1,265 trainer spells of the nine classes, converted by `collector parse` from Wowhead's ability listings (see "Fetching class spells"). No spell is marked `key` yet |
+| Class spells per level, with training cost (#17) | Done: 1,225 trainer spells of the nine classes, converted by `collector parse` from Wowhead's ability listings (see "Fetching class spells"); 86 of them marked `key` from the list in `collector.json` |
 | Flight points and flight times (#16) | Done: 65 points, 286 flights, converted by `collector parse` from a second pinned source (see "Sources") |
 | JSON → Lua export | Done: `collector export`, with reduced spawn lists and a per-table memory report; checked by loading the files back |
 
@@ -361,7 +361,7 @@ what it costs, and the player clicks "Train".
 
   ```lua
   ns.Data.classSpells.MAGE = {
-      { id = 116, name = "Frostbolt", rank = 1, level = 4, cost = 100 },
+      { id = 116, name = "Frostbolt", rank = 1, level = 4, cost = 100, key = true },
       { id = 3567, name = "Teleport: Orgrimmar", level = 20, cost = 2000, races = { 2, 5, 6, 8 } },
       -- id, name, level (to learn), cost (copper, no discount); rank only for "Rank N"
       -- spells; races (the client's race ids) only for a spell some races get, which the
@@ -369,9 +369,17 @@ what it costs, and the player clicks "Train".
   }
   ```
 
-  The key mark is not on Wowhead: it is a choice per class, not made yet, so no spell has it.
-- **Not in the data**: the trained ranks of talent spells (Pyroblast, Mortal Strike) and of pet
-  spells (Growl); see "Fetching class spells".
+- **Key spells**: the key mark is not on Wowhead. It is a choice per class, kept as
+  `export.classSpellKeys` in `collector.json`: about ten abilities a class that change how it
+  plays while leveling (Polymorph, Charge, Cat Form), 86 in all. `collector export` puts the
+  mark on a listed spell's first purchase only, its rank 1 row or its only row when it has no
+  ranks; later ranks count 1 like any spell. So a spell whose rank 1 is a starting spell
+  (Sinister Strike, Shadow Bolt) cannot be listed, and a name that matches no such row stops
+  the export. The list was picked from memory of Classic, and leaves this server's own spells
+  alone: to be tuned in the game.
+- **Not in the data**: the trained ranks of talent spells (Pyroblast, Mortal Strike), and the
+  hunter's pet skills (Growl, Great Stamina), which pet trainers sell; see "Fetching class
+  spells".
 - Not built: buying automatically, professions, pet training, and reputation discounts.
 
 ### Quests not worth keeping
@@ -841,7 +849,7 @@ What the parser keeps, as found on the nine pages (154 to 315 rows each):
 
 - **A trainer spell is a row with `trainingcost`.** The listing also holds starting spells,
   talents, books, quest rewards and other versions of a spell under other ids; none of those
-  has a training cost. 1,265 rows remain.
+  has a training cost: 1,265 rows.
 - **`rank`** is the number of a "Rank N" text; "Passive", "Shapeshift" and "Summon" are no rank.
 - **`races`** is the row's own list, on 61 rows: the priest's racial spells and the mage's
   teleports and portals.
@@ -850,6 +858,9 @@ What the parser keeps, as found on the nine pages (154 to 315 rows each):
   say which character can buy the other ranks, so a character without the talent would be sent
   to the trainer for nothing. `parse` prints their names. This is inferred from the ranks, not
   read from a field.
+- **Left out: the hunter's 40 pet skills** (Great Stamina, Natural Armor and the five
+  resistances), the rows of skill line 261. Pet trainers sell those, and the addon sends a
+  hunter to a hunter trainer. 1,225 rows remain.
 
 If a page changes shape, the fetch ends with "the browser capture 'spells' found nothing",
 stops at that page and leaves a `.rejected.html`. Then open the address in your browser, type

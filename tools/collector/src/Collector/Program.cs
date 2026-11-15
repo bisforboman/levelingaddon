@@ -144,6 +144,7 @@ try
             Console.WriteLine($"Wrote {export.Files.Count} Lua files and data.xml to {output} ({export.Bytes / 1024.0 / 1024.0:0.0} MB).");
 
             Console.WriteLine($"Spawn points: {export.SpawnPoints} in data/parsed, {export.SpawnPointsKept} exported.");
+            Console.WriteLine($"Class spells marked key: {export.KeySpells}.");
 
             var verification = exporter.Verify(parsed, output, export);
             Console.WriteLine("Memory once loaded, in the collector's interpreter:");

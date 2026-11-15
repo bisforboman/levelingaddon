@@ -23,7 +23,7 @@
 --   rank        optional: a rank of a spell with several, to skip ranks below one known
 --   cost        in copper, before any reputation discount
 --   races       optional: the race ids (UnitRace's third value) that can learn it; absent: all
---   key         optional: true for a spell worth a trip of its own; the collector writes none yet
+--   key         optional: true for a spell worth a trip of its own (collector.json lists them)
 --
 -- The trainers are the data's NPCs with the trainer flag whose subtitle names the class, such
 -- as "Mage Trainer". The data's subtitles are English whatever the client's language.

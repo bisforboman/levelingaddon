@@ -24,6 +24,9 @@ public static partial class ClassSpells
 
     public static readonly IReadOnlyList<string> Classes = ["DRUID", "HUNTER", "MAGE", "PALADIN", "PRIEST", "ROGUE", "SHAMAN", "WARLOCK", "WARRIOR"];
 
+    /// <summary>The skill line of the hunter's pet skills (Great Stamina, Natural Armor), which pet trainers sell.</summary>
+    public const int BeastTrainingSkill = 261;
+
     [GeneratedRegex(@"^Rank (\d+)$")]
     private static partial Regex RankText();
 
@@ -35,6 +38,9 @@ public static partial class ClassSpells
     /// Left out: the trained ranks of a spell whose lowest rank on the page is above 1. Rank 1
     /// of those comes from a talent (Pyroblast, Mortal Strike) or belongs to a pet (Growl), and
     /// nothing on the page says which character can buy the rest. An inference, not a field.
+    /// </para>
+    /// <para>
+    /// Also left out: rows of <see cref="BeastTrainingSkill"/>, which the class trainer does not sell.
     /// </para>
     /// </summary>
     public static (List<ClassSpell> Spells, List<string> TalentRanks) Parse(string classToken, JsonElement rows)
@@ -49,6 +55,7 @@ public static partial class ClassSpells
         foreach (var row in rows.EnumerateArray())
         {
             if (!row.TryGetProperty("trainingcost", out var cost)) continue;
+            if (row.TryGetProperty("skill", out var skills) && skills.EnumerateArray().Any(s => s.GetInt32() == BeastTrainingSkill)) continue;
             var name = row.GetProperty("name").GetString() ?? throw new InvalidDataException($"{classToken}: a spell row has no name: {row.GetRawText()}");
             var rank = Rank(row);
             if (rank is not null && lowestRank[name] > 1)

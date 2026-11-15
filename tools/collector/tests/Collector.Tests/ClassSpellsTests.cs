@@ -21,7 +21,8 @@ public sealed class ClassSpellsTests : IDisposable
         {"id":12522,"name":"Pyroblast","rank":"Rank 3","level":30,"source":[6],"trainingcost":400},
         {"id":3565,"name":"Teleport: Darnassus","level":30,"races":[1,3,4,7],"reqrace":4294967373,"source":[6],"trainingcost":8000},
         {"id":768,"name":"Cat Form","rank":"Shapeshift","level":20,"source":[6],"trainingcost":2000},
-        {"id":118,"name":"Polymorph","rank":"Rank 1","level":8,"source":[6],"trainingcost":200}
+        {"id":118,"name":"Polymorph","rank":"Rank 1","level":8,"skill":[237],"source":[6],"trainingcost":200},
+        {"id":4187,"name":"Great Stamina","rank":"Rank 1","level":10,"skill":[261],"source":[6],"trainingcost":10}
         ]
         """;
 
@@ -42,6 +43,15 @@ public sealed class ClassSpellsTests : IDisposable
         Assert.Null(spells.Single(s => s.Name == "Cat Form").Rank);
         Assert.Equal(1, spells.Single(s => s.Name == "Polymorph").Rank);
         Assert.Equal([1, 3, 4, 7], spells.Single(s => s.Id == 3565).Races);
+    }
+
+    [Fact]
+    public void A_pet_skill_is_not_a_class_trainer_spell()
+    {
+        var (spells, talentRanks) = ClassSpells.Parse("MAGE", JsonDocument.Parse(MageRows).RootElement);
+
+        Assert.DoesNotContain(spells, s => s.Name == "Great Stamina");
+        Assert.DoesNotContain("Great Stamina", talentRanks);
     }
 
     [Fact]
