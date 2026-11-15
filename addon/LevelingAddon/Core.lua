@@ -260,10 +260,13 @@ function commands.scale(arg)
     ns.Set("scale", n)
 end
 
--- Put the window back where it starts.
+-- Put the window and the arrow back where they start.
 function commands.reset()
-    ns.db.point = nil
+    ns.db.point, ns.db.arrowPoint = nil, nil
     ns.Window:RestorePosition()
+    if ns.Arrow.frame then
+        ns.Arrow:RestorePosition()
+    end
 end
 
 -- The list of commands, built from the table.

@@ -305,13 +305,24 @@ function effects.locked(set)
         W.header.scripts.OnDragStart()
         W.header.scripts.OnDragStop()
     end
+    -- The arrow shares the lock (#76).
+    local arrow = ns.Arrow.frame
+    arrow.StartMoving = function()
+        moves = moves + 10
+    end
+    local function dragArrow()
+        arrow.scripts.OnDragStart()
+        arrow.scripts.OnDragStop()
+    end
     set(true)
     drag()
+    dragArrow()
     assert(moves == 0)
     set(false)
     drag()
-    assert(moves == 1)
-    ns.db.point = nil
+    dragArrow()
+    assert(moves == 11)
+    ns.db.point, ns.db.arrowPoint = nil, nil
 end
 
 -- A dive, and the wait for the last seconds of breath (the stub's timers do not wait).

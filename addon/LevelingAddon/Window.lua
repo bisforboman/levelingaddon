@@ -377,7 +377,7 @@ end)
 
 function ns.commands.lock()
     ns.Set("locked", not ns.db.locked)
-    ns.say("window " .. (ns.db.locked and "locked." or "unlocked: drag it to move it."))
+    ns.say("window and arrow " .. (ns.db.locked and "locked." or "unlocked: drag them to move them."))
 end
 
 function Window:Refresh()

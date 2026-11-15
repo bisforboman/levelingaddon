@@ -178,9 +178,10 @@ find("Lock position").setting.set(false)
 drag()
 assert(moves == 2 and saved == 2)
 
--- Reset position: the button does what /lvl reset does.
+-- Reset position: the button does what /lvl reset does, for the window and the arrow (#76).
+ns.db.arrowPoint = { 300, 450 }
 find("Reset position").func()
-assert(ns.db.point == nil)
+assert(ns.db.point == nil and ns.db.arrowPoint == nil)
 
 -- Combat dimming can be switched off: the window then stays as it is in combat.
 cmd("set rows 8")

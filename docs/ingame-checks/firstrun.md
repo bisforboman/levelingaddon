@@ -8,7 +8,7 @@ new character does, log in on a character that has never had the addon, or run `
 - [ ] First login of a character with the addon: a small dark panel in the middle of the
       screen, titled "Welcome to Leveling" in the addon's yellow, with two tick boxes
       ("Include dungeon quests", "Include group quests"), both empty, one dimmed line "Point at
-      the list and drag its header." and a "Start" button. No error on login.
+      the list and drag its header. Drag the arrow to move it." and a "Start" button. No error on login.
 - [ ] `CreateFrame("CheckButton", nil, parent, "UICheckButtonTemplate")` and
       `CreateFrame("Button", nil, parent, "UIPanelButtonTemplate")` exist on this client and
       look right at 24 x 24 and 90 x 22. If a tick box draws a label of its own beside ours,
@@ -21,8 +21,8 @@ new character does, log in on a character that has never had the addon, or run `
       replaces it.
 - [ ] While the panel is open the guide window and the arrow are on screen with real
       suggestions, and the window can be dragged by its header; the panel does not cover it at its starting
-      place (top right). The arrow cannot be dragged (it has no dragging yet), which is why the
-      line does not mention it.
+      place (top right). The arrow can be dragged too (#76), as the hint line says, and the hint
+      fits on two lines without running into the "Start" button.
 - [ ] The panel sits above the window and the arrow (frame strata `DIALOG`) and below the
       game's own menus. Clicks on it do not reach the world behind.
 - [ ] Ticking a box changes the suggestions in the window behind it within a moment, with no

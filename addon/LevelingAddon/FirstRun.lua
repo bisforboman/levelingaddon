@@ -52,7 +52,7 @@ local panel -- created the first time it is shown
 
 local function createPanel()
     panel = CreateFrame("Frame", "LevelingAddonFirstRun", UIParent)
-    panel:SetSize(WIDTH, 150)
+    panel:SetSize(WIDTH, 162) -- room for the hint on two lines
     panel:SetPoint("CENTER")
     panel:SetFrameStrata("DIALOG")
     panel:EnableMouse(true) -- clicks do not fall through to the world
@@ -84,7 +84,7 @@ local function createPanel()
     hint:SetPoint("TOPLEFT", 14, -94)
     hint:SetWidth(WIDTH - 28)
     hint:SetJustifyH("LEFT")
-    hint:SetText("Point at the list and drag its header.")
+    hint:SetText("Point at the list and drag its header. Drag the arrow to move it.")
     hint:SetTextColor(DIM[1], DIM[2], DIM[3])
 
     local start = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
