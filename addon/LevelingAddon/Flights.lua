@@ -3,9 +3,11 @@
 -- reports no flight time, so times come from the collector's tables (ns.Data.taxiNodes and
 -- taxiPaths, README "Flights") and are corrected by what this character's own flights took.
 -- Everything here happens on the flight map's events; the one task runs only during a flight.
+-- The flight the planner suggests is taken when the flight map opens (#78).
 local _, ns = ...
 
 ns.defaults.flightTimer = true
+ns.defaults.autoFlight = true
 -- Per character: a perk makes one character's flights faster than another's.
 ns.charDefaults.flights = {
     known = {}, -- [taxi node id] = true for the flight points seen as known on the flight map
@@ -169,6 +171,24 @@ local function estimate(slot)
     return { slot = slot, seconds = seconds, measured = measured }
 end
 
+-- The flight the planner suggests (#78): when the steps are in a zone a flight gets to soonest,
+-- the planner names the flight point to fly to (ns.Planner.flightTo). If the open flight map can
+-- fly there, the flight is taken, from whichever flight master this is. Holding Shift while the
+-- map opens does the opposite of the setting, as for quests (Automation.lua).
+local function takeSuggested()
+    local to = ns.Planner and ns.Planner.flightTo
+    if not (here and to) or to == here or ns.db.autoFlight == (IsShiftKeyDown() and true or false) then
+        return
+    end
+    for slot, id in pairs(slots) do
+        if id == to and TaxiNodeGetType(slot) == "REACHABLE" then
+            local name = (TaxiNodeName(slot) or ns.Data.taxiNodes[id].name):match("^[^,]+")
+            ns.say("taking the suggested flight to " .. name .. ". Hold Shift at the flight master to choose yourself.")
+            return TakeTaxiNode(slot)
+        end
+    end
+end
+
 -- The flight map has opened: note which button is which flight point, where the character
 -- is, and which points the character knows. The node id comes from C_TaxiMap where the client
 -- has it, else from the name the button shows (which only matches in English).
@@ -205,6 +225,7 @@ local function readMap()
             end
         end
     end
+    takeSuggested()
 end
 ns.On("TAXIMAP_OPENED", readMap)
 
@@ -319,6 +340,12 @@ ns.AddSetting({
             draw()
         end
     end,
+})
+
+ns.AddSetting({
+    key = "autoFlight",
+    label = "Take suggested flights automatically",
+    tooltip = "At a flight master, take the flight the addon suggests. Hold Shift for the opposite.",
 })
 
 function ns.commands.flights()
