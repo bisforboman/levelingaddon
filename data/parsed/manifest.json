@@ -2,16 +2,16 @@
   "schemaVersion": 1,
   "source": {
     "repository": "https://github.com/Questie/QuestieDB",
-    "commit": "4dbb82440a27856f8dccf57094a5d792cdc7cc9b",
+    "commit": "4b68257edd02998f6c9c6e8122e2205f05fc132e",
     "flavor": "Forever",
     "license": "GPL-3.0"
   },
   "counts": {
-    "quests": 5914,
-    "questRelations": 4308,
-    "npcs": 7443,
-    "objects": 1185,
-    "items": 4041,
+    "quests": 6078,
+    "questRelations": 4344,
+    "npcs": 7559,
+    "objects": 1299,
+    "items": 4113,
     "zones": 133
   }
 }
